@@ -1,3 +1,6 @@
+import pandas as pd
+import gspread
+
 def read_gsheet(gc, url, tab):
   '''Reads one tab from any google sheet,
   makes first row headers,
