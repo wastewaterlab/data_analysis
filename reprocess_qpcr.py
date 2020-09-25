@@ -274,7 +274,7 @@ def combine_triplicates(plate_df_in, checks_include):
 def process_standard(plate_df):
     '''
     from single plate with single target, calculate standard curve
-    TODO require at least 2 triplicates or else convert to na
+
     Params:
         plate_df: output from combine_triplicates(); df containing Cq_mean
         must be single plate with single target
@@ -289,6 +289,9 @@ def process_standard(plate_df):
     if len(plate_df.Target.unique()) > 1:
         raise ValueError('''More than one target in this dataframe''')
     standard_df = plate_df[plate_df.Task == 'Standard'].copy()
+
+    # require at least 2 triplicates or else convert to nan
+    standard_df = standard_df[standard_df.replicate_count > 1]
 
     standard_df['log_Quantity'] = standard_df.apply(lambda row: np.log10(pd.to_numeric(row.Q_init_mean)), axis = 1)
     std_curve_df = standard_df[['Cq_mean', 'log_Quantity']].drop_duplicates().dropna()
