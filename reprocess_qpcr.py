@@ -351,13 +351,13 @@ def process_qpcr_raw(qpcr_raw, checks_include):
 
         # if there are >3 pts in std curve, calculate stats and recalculate quants
         num_points = df[df.Task == 'Standard'].drop_duplicates('Sample').shape[0]
-    if num_points > 3:
-        num_points, lowest_pt, slope, intercept, r2, efficiency = process_standard(no_outliers_df)
-        std_curve_info = [num_points, lowest_pt, slope, intercept, r2, efficiency]
-        unknown_df = process_unknown(no_outliers_df, std_curve_info)
-    std_curve_df.append([plate_id, target, num_points, lowest_pt, slope, intercept, r2, efficiency])
-    qpcr_processed.append(unknown_df)
-    raw_outliers_flagged_df.append(outliers_flagged)
+        if num_points > 3:
+            num_points, lowest_pt, slope, intercept, r2, efficiency = process_standard(no_outliers_df)
+            std_curve_info = [num_points, lowest_pt, slope, intercept, r2, efficiency]
+            unknown_df = process_unknown(no_outliers_df, std_curve_info)
+        std_curve_df.append([plate_id, target, num_points, lowest_pt, slope, intercept, r2, efficiency])
+        qpcr_processed.append(unknown_df)
+        raw_outliers_flagged_df.append(outliers_flagged)
 
     # compile into dataframes
     raw_outliers_flagged_df = pd.concat(raw_outliers_flagged_df)
