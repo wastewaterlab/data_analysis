@@ -125,60 +125,6 @@ def get_pass_dixonsq(df_in, groupby_list):
                     df.loc[data[data.Cq_copy == float(outlier)].index, 'pass_dixonsq'] = 0
     return(df)
 
-def get_cq_std(df_in, groupby_list, use_dixonsq=False):
-    '''get the standard deviations of Cq triplicates
-
-    Parameters
-    ----------
-    df: pandas dataframe
-         contains relevant information to calculate the std from Cq
-         must contain plate_id and Quantity
-
-    groupby_list: list
-        list of variables to be grouped by
-
-    use_dixonsq: boolean
-        if true, std is calculated accounting for dixonsq with Cq
-
-    Returns
-    -------
-    df: pandas dataframe
-         Cq_std added and propagated
-    '''
-
-    df = df_in.copy() # fixes pandas warnings
-
-    if use_dixonsq == True:
-        df['Cq_copy'] = df['Cq_copy']*df['pass_dixonsq'].copy()
-    std_df = df.groupby(groupby_list)['Cq_copy'].apply(np.std)
-    std_df = pd.DataFrame(std_df)
-    std_df = std_df.rename(columns={"Cq_copy": "Cq_std"})
-    std_df.reset_index(inplace=True)
-    df = pd.merge(df, std_df)
-    return(df)
-
-    # flag the checks for std
-
-def get_std_check(df):
-    '''get the standard deviations check if its too large
-
-    Parameters
-    ----------
-    df: pandas dataframe
-         contains relevant information to check the std from Cq
-         must contain Cq_std
-
-    Returns
-    -------
-    df: pandas dataframe
-         Cq_std checked
-    '''
-    # flag the Cq_std where it is large
-    def std_check(x, std_val_check):
-        return (x < std_val_check)*1
-    df['pass_std_check'] = df.Cq_std.apply(std_check, args=(1,))
-    return(df)
-
 def get_cq_mean(df_in, groupby_list, use_dixonsq=False):
     '''get the mean of Cq triplicates
 
@@ -201,42 +147,12 @@ def get_cq_mean(df_in, groupby_list, use_dixonsq=False):
     df = df_in.copy() # fixes pandas warnings
 
     if use_dixonsq == True:
-      #df['Cq_copy'] = df['Cq_copy']*df['pass_dixonsq']
+      #if pass_dixonsq is 0, convert Cq_copy to nan so not used in mean calc
       df.loc[df.pass_dixonsq==0, 'Cq_copy'] = np.nan
 
     mean_df = df.groupby(groupby_list)['Cq_copy'].apply(np.mean)
     mean_df = pd.DataFrame(mean_df)
     mean_df = mean_df.rename(columns={"Cq_copy": "Cq_mean"})
-    mean_df.reset_index(inplace=True)
-    df = pd.merge(df, mean_df)
-    return(df)
-
-def get_q_mean(df_in, groupby_list, use_dixonsq=False):
-    '''get the mean of quantity triplicates
-
-    Parameters
-    ----------
-    df: pandas dataframe
-         contains relevant information to calculate the mean from quantity
-
-    groupby_list: list
-        list of variables to be grouped by
-
-    use_dixonsq: boolean
-        if true, mean is calculated accounting for dixonsq with quantity
-
-    Returns
-    -------
-    df: pandas dataframe
-         q_mean added and propagated
-    '''
-    df = df_in.copy() # fixes pandas warnings
-
-    if use_dixonsq == True:
-        df['q_copy'] = df['q_copy']*df['pass_dixonsq']
-    mean_df = df.groupby(groupby_list)['q_copy'].apply(np.mean)
-    mean_df = pd.DataFrame(mean_df)
-    mean_df = mean_df.rename(columns={"q_copy": "q_mean"})
     mean_df.reset_index(inplace=True)
     df = pd.merge(df, mean_df)
     return(df)
@@ -265,21 +181,38 @@ def compute_linear_info(plate_data):
     return(slope, intercept, r2, efficiency)#, abline_values])
 
 def combine_triplicates(plate_df_in, checks_include):
-  '''
-  Flag outliers via Dixon's Q
-  Calculate the Cq means after removing outliers
-  TODO figure out if there's a better way to remove outliers
-  TODO this function should collapse triplicates down to samples with Cq_means
-  it should add a column saying how many replicates were used
-  but we are keeping all triplicates to check for errors right now
-  '''
+    '''
+    Flag outliers via Dixon's Q
+    Flag outliers with another method
+    Calculate the Cq means after removing outliers
+    TODO figure out if there's a better way to remove outliers
+    TODO this function should collapse triplicates down to samples with Cq_means
+    it should add a column saying how many replicates were used
+    but we are keeping all triplicates to check for errors right now
+
+    Params
+    plate_df_in:
+        qpcr data in pandas df, must be 1 plate with 1 target
+        should be in the format from QuantStudio3 with
+        columns 'Target', 'Sample', 'Cq'
+    checks_include:
+        which way to check for outliers options are
+        ('all', 'dixonsq_only', 'std_check_only', None)
+    Returns
+    plate_df: same data, with additional columns
+        pass_dixonsq (0 or 1)
+        Cq_mean (calculated mean of Cq after excluding outliers from dixonsq)
+    '''
 
   if (checks_include not in ['all', 'dixonsq_only', 'std_check_only', None]):
     raise ValueError('''invalid input, must be one of the following: 'all',
                       'dixonsq_only', 'std_check_only'or None''')
 
   plate_df = plate_df_in.copy() # fixes pandas warnings
+
+  # make copy of Cq column and turn this to np.nan for outliers
   plate_df['Cq_copy'] = plate_df['Cq'].copy()
+
   # check if NTCs amplified and flag
   # assert qpcr_test[qpcr_test.Sample=='NTC']['Cq'].isna().all()
 
@@ -288,24 +221,29 @@ def combine_triplicates(plate_df_in, checks_include):
   if checks_include in ['all', 'dixonsq_only']:
     use_dixonsq = True
   plate_df = get_pass_dixonsq(plate_df,["Target", "Sample"])
+
+  # convert anything failing the outlier test(s) to np.nan
+  # summarize to get mean, std, counts with and without outliers removed
+
   plate_df = get_cq_mean(plate_df, ["Target", "Sample"], use_dixonsq=use_dixonsq)
-
-
-  #plate_df = get_cq_std(plate_df, ["Target", "Sample"], use_dixonsq=use_dixonsq)
-  #plate_df = get_std_check(plate_df)
-
-  # Test triplicates with 1 stdev - I think this is a poor fix and we need a better outlier detection system overall
-  # Fix this so that if 1 is thrown out, the other 2 must be within 0.5 Ct
-  # if (checks_include in ['all', 'std_check_only']):
-  #  plate_df['Cq_mean'] = plate_df['Cq_mean']* plate_df['pass_std_check']
 
   return(plate_df)
 
 def process_standard(plate_df):
-  '''
-  from single plate with single target, calculate standard curve
-  TODO require at least 2 triplicates or else convert to na
-  '''
+    '''
+    from single plate with single target, calculate standard curve
+    TODO require at least 2 triplicates or else convert to na
+    Params:
+        plate_df: output from combine_triplicates(); df containing Cq_mean
+        must be single plate with single target
+    Returns
+        num_points: number of points used in new std curve
+        lowest_pt: the value of the lowest pt used in the new std curve
+        slope:
+        intercept:
+        r2:
+        efficiency:
+    '''
   if len(plate_df.Target.unique()) > 1:
     raise ValueError('''More than one target in this dataframe''')
   standard_df = plate_df[plate_df.Task == 'Standard'].copy()
@@ -324,17 +262,31 @@ def process_standard(plate_df):
   return(num_points, lowest_pt, slope, intercept, r2, efficiency)
 
 def process_unknown(plate_df, std_curve_info):
-  [num_points, lowest_pt, slope, intercept, r2, efficiency] = std_curve_info
-  unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
-  unknown_df['Quantity_recalc'] =np.nan
-  unknown_df['q_diff'] =np.nan
-  unknown_df['Quantity_recalc'] = 10**((unknown_df['Cq_mean'] - intercept)/slope)
-  unknown_df.loc[unknown_df[unknown_df.Cq_copy == 0].index, 'Quantity_recalc'] = np.nan
-  unknown_df['q_diff'] = unknown_df['Quantity'] - unknown_df['Quantity_recalc']
-  return(unknown_df)
+    '''
+    Calculates quantity based on Cq_mean and standard curve
+    Params
+        plate_df: output from combine_triplicates(); df containing Cq_mean
+        must be single plate with single target
+        std_curve_info: output from process_standard() as a list
+    Returns
+        unknown_df: the unknown subset of plate_df, with 2 new columns
+        (Quantity_recalc, and q_diff)
+        these columns represent the recalculated quantity using Cq mean and the
+        slope and intercept from the std curve
+    '''
+
+
+    [num_points, lowest_pt, slope, intercept, r2, efficiency] = std_curve_info
+    unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
+    unknown_df['Quantity_recalc'] =np.nan
+    unknown_df['q_diff'] =np.nan
+    unknown_df['Quantity_recalc'] = 10**((unknown_df['Cq_mean'] - intercept)/slope)
+    unknown_df.loc[unknown_df[unknown_df.Cq_copy == 0].index, 'Quantity_recalc'] = np.nan
+    unknown_df['q_diff'] = unknown_df['Quantity'] - unknown_df['Quantity_recalc']
+    return(unknown_df)
 
 def process_qpcr_raw(qpcr_raw):
-  '''wrapper to process whole sheet by target'''
+  '''wrapper to process whole sheet at once by plate_id and Target'''
   std_curve_df = []
   qpcr_processed = []
 
