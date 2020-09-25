@@ -9,6 +9,7 @@ from scipy.stats import linregress
 from sklearn.utils import resample
 import pdb
 from sklearn.metrics import r2_score
+from statistics import median
 
 # found dixon's test at https://sebastianraschka.com/Articles/2014_dixon_test.html#implementing-a-dixon-q-test-function
 # no need to re-invent the wheel
@@ -138,12 +139,12 @@ def median_test(Cqs, max_spread = 0.5):
   '''
   num_points = len(Cqs[~Cqs.isna()])
   if num_points > 2:
-    m = stats.median(Cqs[~Cqs.isna()])
+    m = median(Cqs[~Cqs.isna()])
     median_dist = [abs(i-m) <= max_spread for i in Cqs]
 
   #median of 2 numbers will split between them, half max_spread
   elif num_points == 2:
-    m = stats.median(Cqs[~Cqs.isna()])
+    m = median(Cqs[~Cqs.isna()])
     median_dist = [abs(i-m) <= (max_spread / 2)  for i in Cqs]
 
   #no median_test can be done
@@ -260,7 +261,7 @@ def combine_triplicates(plate_df_in, checks_include):
                                                Q_init_CoV=('Quantity',lambda x: np.std(x) / np.mean(x)),
                                                Cq_init_mean=('Cq', 'mean'),
                                                Cq_init_std=('Cq', 'std'),
-                                               Cq_init_count=('Cq','count'),
+                                               replicate_init_count=('Cq','count'),
                                                Cq_mean=('Cq_copy', 'mean'),
                                                Cq_std=('Cq_copy', 'std'),
                                                replicate_count=('Cq_copy', 'count')
