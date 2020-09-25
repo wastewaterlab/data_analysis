@@ -315,18 +315,18 @@ def process_unknown(plate_df, std_curve_info):
         std_curve_info: output from process_standard() as a list
     Returns
         unknown_df: the unknown subset of plate_df, with 2 new columns
-        (Quantity_recalc, and q_diff)
+        (Quantity_mean, and q_diff)
         these columns represent the recalculated quantity using Cq mean and the
         slope and intercept from the std curve
     '''
 
     [num_points, lowest_pt, slope, intercept, r2, efficiency] = std_curve_info
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
-    unknown_df['Quantity_recalc'] = np.nan
+    unknown_df['Quantity_mean'] = np.nan
     unknown_df['q_diff'] = np.nan
-    unknown_df['Quantity_recalc'] = 10**((unknown_df['Cq_mean'] - intercept)/slope)
-    unknown_df.loc[unknown_df[unknown_df.Cq_mean == 0].index, 'Quantity_recalc'] = np.nan
-    unknown_df['q_diff'] = unknown_df['Q_init_mean'] - unknown_df['Quantity_recalc']
+    unknown_df['Quantity_mean'] = 10**((unknown_df['Cq_mean'] - intercept)/slope)
+    unknown_df.loc[unknown_df[unknown_df.Cq_mean == 0].index, 'Quantity_mean'] = np.nan
+    unknown_df['q_diff'] = unknown_df['Q_init_mean'] - unknown_df['Quantity_mean']
     return(unknown_df)
 
 def process_qpcr_raw(qpcr_raw, checks_include):
