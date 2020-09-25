@@ -125,49 +125,73 @@ def get_pass_dixonsq(df_in, groupby_list):
                     df.loc[data[data.Cq_copy == float(outlier)].index, 'pass_dixonsq'] = 0
     return(df)
 
-def get_cq_mean(df_in, groupby_list, use_dixonsq=False):
-    '''get the mean of Cq triplicates
+def median_test(Cqs, max_spread = 0.5):
+  '''
+  for a group of Cqs, test whether each
+  is within max_spread of the median
 
-    Parameters
-    ----------
-    df: pandas dataframe
-         contains relevant information to calculate the mean from Cq
+  params
+  Cqs: pandas series of Cts
+  max_spread: defaults to 0.5 Ct
 
-    groupby_list: list
-        list of variables to be grouped by
+  result: list of booleans, same length as Cqs
+  '''
+  num_points = len(Cqs[~Cqs.isna()])
+  if num_points > 2:
+    m = stats.median(Cqs[~Cqs.isna()])
+    median_dist = [abs(i-m) <= max_spread for i in Cqs]
 
-    use_dixonsq: boolean
-        if true, mean is calculated accounting for dixonsq with Cq
+  #median of 2 numbers will split between them, half max_spread
+  elif num_points == 2:
+    m = stats.median(Cqs[~Cqs.isna()])
+    median_dist = [abs(i-m) <= (max_spread / 2)  for i in Cqs]
 
-    Returns
-    -------
-    df: pandas dataframe
-         Cq_mean added and propagated
-    '''
-    df = df_in.copy() # fixes pandas warnings
+  #no median_test can be done
+  elif num_points < 2:
+    median_dist = [False  for i in Cqs]
+  return(median_dist)
 
-    if use_dixonsq == True:
-      #if pass_dixonsq is 0, convert Cq_copy to nan so not used in mean calc
-      df.loc[df.pass_dixonsq==0, 'Cq_copy'] = np.nan
+def test_median_test():
+  t1 = pd.Series([36.0, 36.4, 37.0])
+  r1 = [True, True, False]
 
-    mean_df = df.groupby(groupby_list)['Cq_copy'].apply(np.mean)
-    mean_df = pd.DataFrame(mean_df)
-    mean_df = mean_df.rename(columns={"Cq_copy": "Cq_mean"})
-    mean_df.reset_index(inplace=True)
-    df = pd.merge(df, mean_df)
-    return(df)
+  t2 = pd.Series([36.0, 37.0, np.nan])
+  t3 = pd.Series([np.nan, np.nan, 35.0])
+  t4 = pd.Series([np.nan, np.nan, np.nan])
+  r2 = [False, False, False]
+
+  assert r1 == median_test(t1)
+  assert r2 == median_test(t2)
+  assert r2 == median_test(t3)
+  assert r2 == median_test(t4)
+test_median_test()
+
+def get_pass_median_test(plate_df, groupby_list):
+  # make list that will become new df
+  plate_df_with_median_test = []
+
+  # iterate thru the dataframe, grouped by Sample
+  # this gives us a mini-df with just one sample in each iteration
+  for groupby_list, df in plate_df.groupby(groupby_list,  as_index=False):
+    d = df.copy() # avoid set with copy warning
+
+    # make new column 'median_test' that includes the results of the test
+    d.loc[:, 'median_test'] = median_test(d.Cq)
+    plate_df_with_median_test.append(d)
+
+  # put the dataframe back together
+  plate_df_with_median_test = pd.concat(plate_df_with_median_test)
+  return(plate_df_with_median_test)
 
 def compute_linear_info(plate_data):
     '''compute the information for linear regression
 
-    Parameters
-    ----------
-    plate_data: pandas dataframe with columns
-      Cq_mean (already processed to remove outliers)
-      log_Quantity
+    Params
+        plate_data: pandas dataframe with columns
+            Cq_mean (already processed to remove outliers)
+            log_Quantity
     Returns
-    -------
-    slope, intercept, r2 and efficiency
+        slope, intercept, r2, efficiency
     '''
     y = plate_data['Cq_mean']
     x = plate_data['log_Quantity']
@@ -182,13 +206,8 @@ def compute_linear_info(plate_data):
 
 def combine_triplicates(plate_df_in, checks_include):
     '''
-    Flag outliers via Dixon's Q
-    Flag outliers with another method
-    Calculate the Cq means after removing outliers
-    TODO figure out if there's a better way to remove outliers
-    TODO this function should collapse triplicates down to samples with Cq_means
-    it should add a column saying how many replicates were used
-    but we are keeping all triplicates to check for errors right now
+    Flag outliers via Dixon's Q and homemade "median_test"
+    Calculate the Cq means, Cq stds, counts before & after removing outliers
 
     Params
     plate_df_in:
@@ -199,35 +218,57 @@ def combine_triplicates(plate_df_in, checks_include):
         which way to check for outliers options are
         ('all', 'dixonsq_only', 'std_check_only', None)
     Returns
-    plate_df: same data, with additional columns
+    plate_df: same data, with additional columns depending on checks_include
         pass_dixonsq (0 or 1)
-        Cq_mean (calculated mean of Cq after excluding outliers from dixonsq)
+        median_test (True or False)
+        Cq_mean (calculated mean of Cq after excluding outliers)
     '''
 
-  if (checks_include not in ['all', 'dixonsq_only', 'std_check_only', None]):
-    raise ValueError('''invalid input, must be one of the following: 'all',
-                      'dixonsq_only', 'std_check_only'or None''')
+    if (checks_include not in ['all', 'dixonsq_only', 'median_only', None]):
+        raise ValueError('''invalid input, must be one of the following: 'all',
+                      'dixonsq_only', 'median_only'or None''')
 
-  plate_df = plate_df_in.copy() # fixes pandas warnings
+    if len(plate_df_in.Target.unique()) > 1:
+        raise ValueError('''More than one target in this dataframe''')
 
-  # make copy of Cq column and turn this to np.nan for outliers
-  plate_df['Cq_copy'] = plate_df['Cq'].copy()
+    plate_df = plate_df_in.copy() # fixes pandas warnings
 
-  # check if NTCs amplified and flag
-  # assert qpcr_test[qpcr_test.Sample=='NTC']['Cq'].isna().all()
+    groupby_list = ['plate_id', 'Sample', 'Sample_plate',
+                    'Target','Task', 'inhibition_testing']
 
-  # Test triplicates with Dixon's Q
-  use_dixonsq = False
-  if checks_include in ['all', 'dixonsq_only']:
-    use_dixonsq = True
-  plate_df = get_pass_dixonsq(plate_df,["Target", "Sample"])
+    # make copy of Cq column and later turn this to np.nan for outliers
+    plate_df['Cq_copy'] = plate_df['Cq'].copy()
 
-  # convert anything failing the outlier test(s) to np.nan
-  # summarize to get mean, std, counts with and without outliers removed
+    # Test triplicates with Dixon's Q
+    #use_dixonsq = False
+    if checks_include in ['all', 'dixonsq_only']:
+        #use_dixonsq = True
+        plate_df = get_pass_dixonsq(plate_df, ['Sample'])
+        # convert point failing the outlier test(s) to np.nan in Cq_copy column
+        plate_df.loc[plate_df.pass_dixonsq==0, 'Cq_copy'] = np.nan
 
-  plate_df = get_cq_mean(plate_df, ["Target", "Sample"], use_dixonsq=use_dixonsq)
+    # Test triplicates with another outlier test? (same format as for dixonsq)
+    if checks_include in ['all', 'median_only']:
+       plate_df = get_pass_median_test(plate_df, ['Sample'])
+       plate_df.loc[plate_df.median_test == False, 'Cq_copy'] = np.nan
+    # summarize to get mean, std, counts with and without outliers removed
 
-  return(plate_df)
+    plate_df_avg = plate_df.groupby(groupby_list).agg(
+                                               template_volume=('template_volume','max'),
+                                               Q_init_mean=('Quantity', 'mean'),
+                                               Q_init_std=('Quantity', 'std'),
+                                               Q_init_CoV=('Quantity',lambda x: np.std(x) / np.mean(x)),
+                                               Cq_init_mean=('Cq', 'mean'),
+                                               Cq_init_std=('Cq', 'std'),
+                                               Cq_init_count=('Cq','count'),
+                                               Cq_mean=('Cq_copy', 'mean'),
+                                               Cq_std=('Cq_copy', 'std'),
+                                               replicate_count=('Cq_copy', 'count')
+                                               )
+    # note: count in agg will exclude nan
+    plate_df_avg = plate_df_avg.reset_index()
+
+    return(plate_df, plate_df_avg)
 
 def process_standard(plate_df):
     '''
@@ -244,22 +285,22 @@ def process_standard(plate_df):
         r2:
         efficiency:
     '''
-  if len(plate_df.Target.unique()) > 1:
-    raise ValueError('''More than one target in this dataframe''')
-  standard_df = plate_df[plate_df.Task == 'Standard'].copy()
+    if len(plate_df.Target.unique()) > 1:
+        raise ValueError('''More than one target in this dataframe''')
+    standard_df = plate_df[plate_df.Task == 'Standard'].copy()
 
-  standard_df['log_Quantity'] = standard_df.apply(lambda row: np.log10(pd.to_numeric(row.Quantity)), axis = 1)
-  std_curve_df = standard_df[['Cq_mean', 'log_Quantity']].drop_duplicates().dropna()
-  num_points = std_curve_df.shape[0]
+    standard_df['log_Quantity'] = standard_df.apply(lambda row: np.log10(pd.to_numeric(row.Q_init_mean)), axis = 1)
+    std_curve_df = standard_df[['Cq_mean', 'log_Quantity']].drop_duplicates().dropna()
+    num_points = std_curve_df.shape[0]
 
-  lowest_pt = np.nan
-  slope, intercept, r2, efficiency = (np.nan, np.nan, np.nan, np.nan)
+    lowest_pt = np.nan
+    slope, intercept, r2, efficiency = (np.nan, np.nan, np.nan, np.nan)
 
-  if num_points > 3:
-    lowest_pt = 10**min(standard_df.log_Quantity)
-    slope, intercept, r2, efficiency = compute_linear_info(std_curve_df)
+    if num_points > 3:
+        lowest_pt = 10**min(standard_df.log_Quantity)
+        slope, intercept, r2, efficiency = compute_linear_info(std_curve_df)
 
-  return(num_points, lowest_pt, slope, intercept, r2, efficiency)
+    return(num_points, lowest_pt, slope, intercept, r2, efficiency)
 
 def process_unknown(plate_df, std_curve_info):
     '''
@@ -275,41 +316,49 @@ def process_unknown(plate_df, std_curve_info):
         slope and intercept from the std curve
     '''
 
-
     [num_points, lowest_pt, slope, intercept, r2, efficiency] = std_curve_info
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
-    unknown_df['Quantity_recalc'] =np.nan
-    unknown_df['q_diff'] =np.nan
+    unknown_df['Quantity_recalc'] = np.nan
+    unknown_df['q_diff'] = np.nan
     unknown_df['Quantity_recalc'] = 10**((unknown_df['Cq_mean'] - intercept)/slope)
-    unknown_df.loc[unknown_df[unknown_df.Cq_copy == 0].index, 'Quantity_recalc'] = np.nan
-    unknown_df['q_diff'] = unknown_df['Quantity'] - unknown_df['Quantity_recalc']
+    unknown_df.loc[unknown_df[unknown_df.Cq_mean == 0].index, 'Quantity_recalc'] = np.nan
+    unknown_df['q_diff'] = unknown_df['Q_init_mean'] - unknown_df['Quantity_recalc']
     return(unknown_df)
 
-def process_qpcr_raw(qpcr_raw):
-  '''wrapper to process whole sheet at once by plate_id and Target'''
-  std_curve_df = []
-  qpcr_processed = []
+def process_qpcr_raw(qpcr_raw, checks_include):
+    '''wrapper to process whole sheet at once by plate_id and Target
+    params
+    qpcr_raw: df from read_qpcr_data()
+    checks_include: how to remove outliers ('all', 'dixonsq_only', 'median_only')
+    '''
 
-  for [plate_id, target], df in qpcr_raw.groupby(["plate_id", "Target"]):
-    no_outliers_df = combine_triplicates(df, 'all')
+    if (checks_include not in ['all', 'dixonsq_only', 'median_only', None]):
+        raise ValueError('''invalid input, must be one of the following: 'all',
+                      'dixonsq_only', 'median_only'or None''')
+    std_curve_df = []
+    qpcr_processed = []
+    raw_outliers_flagged_df = []
+    for [plate_id, target], df in qpcr_raw.groupby(["plate_id", "Target"]):
+        outliers_flagged, no_outliers_df = combine_triplicates(df, checks_include)
 
-    # define outputs and fill with default values
-    num_points, lowest_pt, slope, intercept, r2, efficiency = np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
-    unknown_df = df[df.Task == 'Unknown']
+        # define outputs and fill with default values
+        num_points, lowest_pt, slope, intercept, r2, efficiency = np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+        unknown_df = df[df.Task == 'Unknown']
 
-    # if there are >3 pts in std curve, calculate stats and recalculate quants
-    num_points = df[df.Task == 'Standard'].drop_duplicates('Sample').shape[0]
+        # if there are >3 pts in std curve, calculate stats and recalculate quants
+        num_points = df[df.Task == 'Standard'].drop_duplicates('Sample').shape[0]
     if num_points > 3:
-      num_points, lowest_pt, slope, intercept, r2, efficiency = process_standard(no_outliers_df)
-      std_curve_info = [num_points, lowest_pt, slope, intercept, r2, efficiency]
-      unknown_df = process_unknown(no_outliers_df, std_curve_info)
+        num_points, lowest_pt, slope, intercept, r2, efficiency = process_standard(no_outliers_df)
+        std_curve_info = [num_points, lowest_pt, slope, intercept, r2, efficiency]
+        unknown_df = process_unknown(no_outliers_df, std_curve_info)
     std_curve_df.append([plate_id, target, num_points, lowest_pt, slope, intercept, r2, efficiency])
     qpcr_processed.append(unknown_df)
+    raw_outliers_flagged_df.append(outliers_flagged)
 
+    # compile into dataframes
+    raw_outliers_flagged_df = pd.concat(raw_outliers_flagged_df)
+    std_curve_df = pd.DataFrame.from_records(std_curve_df, columns = ['plate_id', 'Target', 'num_points', 'lowest_pt', 'slope', 'intercept', 'r2', 'efficiency'])
+    qpcr_processed = pd.concat(qpcr_processed)
+    qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on=['plate_id', 'Target'])
 
-  # compile into dataframes
-  std_curve_df = pd.DataFrame.from_records(std_curve_df, columns = ['plate_id', 'target', 'num_points', 'lowest_pt', 'slope', 'intercept', 'r2', 'efficiency'])
-  qpcr_processed = pd.concat(qpcr_processed)
-  qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on='plate_id')
-
-  return(qpcr_processed, std_curve_df)
+    return(qpcr_processed, std_curve_df, raw_outliers_flagged_df)
