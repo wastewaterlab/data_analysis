@@ -20,13 +20,10 @@ def read_sample_data(gc, samples_url, rna_tab, facility_lookup):
   rna_data = read_gsheet(gc, samples_url, rna_tab)
   facility_data = read_gsheet(gc, samples_url, facility_lookup)
 
-  # keep just the fields we want to include
-  facility_data = facility_data[['agency', 'utility', 'Full name']]
-
   # left merge means keep Sample_extraction dataframe shape/rows and add sample inventory data to that
-  rna_data['utility'] = rna_data.sample_code.str.split('_', expand=True)[0]
-  rna_data['interceptor'] = rna_data.sample_code.str.split('_', n=1, expand=True)[1]
-  rna_data = rna_data.merge(facility_data, how='left', on = 'utility')
+  #rna_data['utility'] = rna_data.sample_code.str.split('_', expand=True)[0]
+  #rna_data['interceptor'] = rna_data.sample_code.str.split('_', n=1, expand=True)[1]
+  rna_data = rna_data.merge(facility_data, how='left', on = 'sample_code')
 
   # convert fields to datetime and numeric
   rna_data['date_sampling'] = pd.to_datetime(rna_data['date_sampling'], errors='coerce') #convert date column to datetime #,errors='coerce'
