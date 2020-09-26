@@ -48,6 +48,10 @@ def read_qpcr_data(gc, qpcr_url, qpcr_results_tab, qpcr_plates_tab):
   # create field for sample-plate combos in case same sample run on >1 plate
   qpcr_data['Sample_plate']= qpcr_data.Sample.str.cat(qpcr_data.plate_id, sep ="+")
 
+  # create column to preserve info about undetermined values
+  qpcr_data['is_undetermined'] = False
+  qpcr_data['is_undetermined'] = qpcr_data.Cq == 'Undetermined'
+
   # convert fields to numerics
   qpcr_data.Quantity = pd.to_numeric(qpcr_data.Quantity, errors='coerce')
   qpcr_data.template_volume = pd.to_numeric(qpcr_data.template_volume, errors='coerce')
