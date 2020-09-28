@@ -331,8 +331,12 @@ def process_unknown(plate_df, std_curve_info):
 
 def process_ntc(plate_df):
     ntc = plate_df[plate_df.Task == 'Negative Control']
-    ntc_is_neg = ntc.is_undetermined.all()
-    return(ntc_is_neg)
+    ntc_result = np.nan
+    if ntc.is_undetermined.all():
+        ntc_result = 'negative'
+    else:
+        ntc_result = min(ntc.Cq)
+    return(ntc_result)
 
 def process_qpcr_raw(qpcr_raw, checks_include):
     '''wrapper to process whole sheet at once by plate_id and Target
@@ -349,12 +353,11 @@ def process_qpcr_raw(qpcr_raw, checks_include):
     raw_outliers_flagged_df = []
     for [plate_id, target], df in qpcr_raw.groupby(["plate_id", "Target"]):
 
-        ntc_is_neg = process_ntc(df)
+        ntc_result = process_ntc(df)
         outliers_flagged, no_outliers_df = combine_triplicates(df, checks_include)
 
         # define outputs and fill with default values
         num_points, lowest_pt, slope, intercept, r2, efficiency = np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
-        ntc_is_neg = False
         unknown_df = df[df.Task == 'Unknown']
 
         # if there are >3 pts in std curve, calculate stats and recalculate quants
@@ -363,13 +366,13 @@ def process_qpcr_raw(qpcr_raw, checks_include):
             num_points, lowest_pt, slope, intercept, r2, efficiency = process_standard(no_outliers_df)
             std_curve_info = [num_points, lowest_pt, slope, intercept, r2, efficiency]
             unknown_df = process_unknown(no_outliers_df, std_curve_info)
-        std_curve_df.append([plate_id, target, num_points, lowest_pt, slope, intercept, r2, efficiency, ntc_is_neg])
+        std_curve_df.append([plate_id, target, num_points, lowest_pt, slope, intercept, r2, efficiency, ntc_result])
         qpcr_processed.append(unknown_df)
         raw_outliers_flagged_df.append(outliers_flagged)
 
     # compile into dataframes
     raw_outliers_flagged_df = pd.concat(raw_outliers_flagged_df)
-    std_curve_df = pd.DataFrame.from_records(std_curve_df, columns = ['plate_id', 'Target', 'num_points', 'lowest_pt', 'slope', 'intercept', 'r2', 'efficiency', 'ntc_is_neg'])
+    std_curve_df = pd.DataFrame.from_records(std_curve_df, columns = ['plate_id', 'Target', 'num_points', 'lowest_pt', 'slope', 'intercept', 'r2', 'efficiency', 'ntc_result'])
     qpcr_processed = pd.concat(qpcr_processed)
     qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on=['plate_id', 'Target'])
 
