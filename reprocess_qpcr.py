@@ -296,15 +296,16 @@ def process_standard(plate_df):
     standard_df['log_Quantity'] = standard_df.apply(lambda row: np.log10(pd.to_numeric(row.Q_init_mean)), axis = 1)
     std_curve_df = standard_df[['Cq_mean', 'log_Quantity']].drop_duplicates().dropna()
     num_points = std_curve_df.shape[0]
+    lowest_std_Cq = min(standard_df.Cq_mean)
 
-    lowest_pt = np.nan
+    lowest_std_quantity = np.nan
     slope, intercept, r2, efficiency = (np.nan, np.nan, np.nan, np.nan)
 
     if num_points > 3:
-        lowest_pt = 10**min(standard_df.log_Quantity)
+        lowest_std_quantity = 10**min(standard_df.log_Quantity)
         slope, intercept, r2, efficiency = compute_linear_info(std_curve_df)
 
-    return(num_points, lowest_pt, slope, intercept, r2, efficiency)
+    return(num_points, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency)
 
 def process_unknown(plate_df, std_curve_info):
     '''
@@ -320,7 +321,7 @@ def process_unknown(plate_df, std_curve_info):
         slope and intercept from the std curve
     '''
 
-    [num_points, lowest_pt, slope, intercept, r2, efficiency] = std_curve_info
+    [num_points, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency] = std_curve_info
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
     unknown_df['Quantity_mean'] = np.nan
     unknown_df['q_diff'] = np.nan
@@ -357,7 +358,7 @@ def process_qpcr_raw(qpcr_raw, checks_include):
         outliers_flagged, no_outliers_df = combine_triplicates(df, checks_include)
 
         # define outputs and fill with default values
-        num_points, lowest_pt, slope, intercept, r2, efficiency = np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+        num_points, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency = np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
         unknown_df = df[df.Task == 'Unknown']
 
         # if there are >3 pts in std curve, calculate stats and recalculate quants
@@ -366,13 +367,23 @@ def process_qpcr_raw(qpcr_raw, checks_include):
             num_points, lowest_pt, slope, intercept, r2, efficiency = process_standard(no_outliers_df)
             std_curve_info = [num_points, lowest_pt, slope, intercept, r2, efficiency]
             unknown_df = process_unknown(no_outliers_df, std_curve_info)
-        std_curve_df.append([plate_id, target, num_points, lowest_pt, slope, intercept, r2, efficiency, ntc_result])
+        std_curve_df.append([plate_id, target, num_points, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency, ntc_result])
         qpcr_processed.append(unknown_df)
         raw_outliers_flagged_df.append(outliers_flagged)
 
     # compile into dataframes
     raw_outliers_flagged_df = pd.concat(raw_outliers_flagged_df)
-    std_curve_df = pd.DataFrame.from_records(std_curve_df, columns = ['plate_id', 'Target', 'num_points', 'lowest_pt', 'slope', 'intercept', 'r2', 'efficiency', 'ntc_result'])
+    std_curve_df = pd.DataFrame.from_records(std_curve_df,
+                                             columns = ['plate_id',
+                                                        'Target',
+                                                        'num_points',
+                                                        'lowest_std_Cq',
+                                                        'lowest_std_quantity',
+                                                        'slope',
+                                                        'intercept',
+                                                        'r2',
+                                                        'efficiency',
+                                                        'ntc_result'])
     qpcr_processed = pd.concat(qpcr_processed)
     qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on=['plate_id', 'Target'])
 
