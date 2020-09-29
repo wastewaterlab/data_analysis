@@ -261,10 +261,12 @@ def combine_triplicates(plate_df_in, checks_include):
                                                Q_init_CoV=('Quantity',lambda x: np.std(x) / np.mean(x)),
                                                Cq_init_mean=('Cq', 'mean'),
                                                Cq_init_std=('Cq', 'std'),
+                                               Cq_init_min=('Cq', 'min'),
                                                replicate_init_count=('Cq','count'),
                                                Cq_mean=('Cq_copy', 'mean'),
                                                Cq_std=('Cq_copy', 'std'),
-                                               replicate_count=('Cq_copy', 'count')
+                                               replicate_count=('Cq_copy', 'count'),
+                                               is_undetermined_count=('is_undetermined', 'count')
                                                )
     # note: count in agg will exclude nan
     plate_df_avg = plate_df_avg.reset_index()
