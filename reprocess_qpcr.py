@@ -297,7 +297,7 @@ def process_standard(plate_df):
     standard_df['log_Quantity'] = standard_df.apply(lambda row: np.log10(pd.to_numeric(row.Q_init_mean)), axis = 1)
     std_curve_df = standard_df[['Cq_mean', 'log_Quantity']].drop_duplicates().dropna()
     num_points = std_curve_df.shape[0]
-    lowest_std_Cq = min(standard_df.Cq_mean)
+    lowest_std_Cq = max(standard_df.Cq_mean)
 
     lowest_std_quantity = np.nan
     slope, intercept, r2, efficiency = (np.nan, np.nan, np.nan, np.nan)
