@@ -280,7 +280,8 @@ def process_standard(plate_df):
         must be single plate with single target
     Returns
         num_points: number of points used in new std curve
-        lowest_pt: the value of the lowest pt used in the new std curve
+        lowest_std_Cq: the Cq value of the lowest pt used in the new std curve
+        lowest_std_quantity: the Quantity value of the lowest pt used in the new std curve
         slope:
         intercept:
         r2:
@@ -365,7 +366,7 @@ def process_qpcr_raw(qpcr_raw, checks_include):
         num_points = no_outliers_df[no_outliers_df.Task == 'Standard'].drop_duplicates('Sample').shape[0]
         if num_points > 3:
             num_points, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency = process_standard(no_outliers_df)
-            std_curve_info = [num_points, lowest_pt, slope, intercept, r2, efficiency]
+            std_curve_info = [num_points, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency]
             unknown_df = process_unknown(no_outliers_df, std_curve_info)
         std_curve_df.append([plate_id, target, num_points, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency, ntc_result])
         qpcr_processed.append(unknown_df)
