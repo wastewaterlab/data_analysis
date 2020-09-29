@@ -393,3 +393,33 @@ def process_qpcr_raw(qpcr_raw, checks_include):
     qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on=['plate_id', 'Target'])
 
     return(qpcr_processed, std_curve_df, raw_outliers_flagged_df)
+
+def conc_ext_eff_GFP(qpcr_averaged):
+    '''
+    calculate the percent recovery efficiency using GFP RNA spike
+    Params
+    qpcr_averaged: output of process_qpcr_raw(), a pandas df with columns
+        GFP_spike_vol_ul
+        Quantity_mean
+        template_volume
+        GFP_spike_tube
+    Returns
+    qpcr_averaged: the same df as input but with additional column
+        perc_GFP_recovered
+    '''
+    gfp = qpcr_averaged[qpcr_averaged.Target == 'GFP'].copy()
+    # calculate total recovered GFP gene copies
+    gfp['total_GFP_recovered'] = gfp['GFP_spike_vol_ul'].astype(float) * gfp['Quantity_mean'].astype(float) / gfp['template_volume'].astype(float)
+
+    # calculate concentration GFP gene copies / ul in just the spikes
+    spikes = gfp[gfp.Sample.str.contains('control_spike_GFP')].copy()
+    spikes['GFP_gc_per_ul_input'] = spikes['Quantity_mean'].astype(float) / spikes['template_volume'].astype(float)
+    spikes = spikes[['GFP_gc_per_ul_input', 'GFP_spike_tube']]
+
+    # combine concentration of spike and total recovered to get perc recovered
+    gfp = gfp.merge(spikes, how = 'left', on = 'GFP_spike_tube')
+    gfp['total_GFP_input'] = gfp['GFP_gc_per_ul_input'].astype(float) * gfp['GFP_spike_vol_ul'].astype(float)
+    gfp['perc_GFP_recovered'] = 100 * gfp['total_GFP_recovered'] / gfp['total_GFP_input']
+    recovery = gfp[['Sample', 'perc_GFP_recovered']]
+    qpcr_averaged = qpcr_averaged.merge(recovery, how = 'left', on = 'Sample')
+    return(qpcr_averaged)
