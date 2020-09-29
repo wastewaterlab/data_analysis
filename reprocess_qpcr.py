@@ -329,8 +329,8 @@ def process_unknown(plate_df, std_curve_info):
     unknown_df['Quantity_mean_lower_std'] = np.nan
     unknown_df['q_diff'] = np.nan
     unknown_df['Quantity_mean'] = 10**((unknown_df['Cq_mean'] - intercept)/slope)
-    unknown_df['Quantity_mean_upper_std'] = 10**((unknown_df['Cq_mean'] + unknown_df['Cq_std'] - intercept)/slope)
-    unknown_df['Quantity_mean_lower_std'] = 10**((unknown_df['Cq_mean'] - unknown_df['Cq_std'] - intercept)/slope)
+    unknown_df['Quantity_mean_lower_std'] = 10**((unknown_df['Cq_mean'] + unknown_df['Cq_std'] - intercept)/slope)
+    unknown_df['Quantity_mean_upper_std'] = 10**((unknown_df['Cq_mean'] - unknown_df['Cq_std'] - intercept)/slope)
     unknown_df.loc[unknown_df[unknown_df.Cq_mean == 0].index, 'Quantity_mean'] = np.nan
     unknown_df['q_diff'] = unknown_df['Q_init_mean'] - unknown_df['Quantity_mean']
     return(unknown_df)
