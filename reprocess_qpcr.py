@@ -394,7 +394,7 @@ def process_qpcr_raw(qpcr_raw, checks_include):
 
     return(qpcr_processed, std_curve_df, raw_outliers_flagged_df)
 
-def conc_ext_eff_GFP(qpcr_averaged):
+def get_GFP_recovery(qpcr_averaged):
     '''
     calculate the percent recovery efficiency using GFP RNA spike
     Params
