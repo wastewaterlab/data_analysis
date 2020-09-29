@@ -302,7 +302,7 @@ def process_standard(plate_df):
     lowest_std_quantity = np.nan
     slope, intercept, r2, efficiency = (np.nan, np.nan, np.nan, np.nan)
 
-    if num_points > 3:
+    if num_points > 2:
         lowest_std_quantity = 10**min(standard_df.log_Quantity)
         slope, intercept, r2, efficiency = compute_linear_info(std_curve_df)
 
@@ -325,8 +325,10 @@ def process_unknown(plate_df, std_curve_info):
     [num_points, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency] = std_curve_info
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
     unknown_df['Quantity_mean'] = np.nan
+    unknown_df['Quantity_std'] = np.nan
     unknown_df['q_diff'] = np.nan
     unknown_df['Quantity_mean'] = 10**((unknown_df['Cq_mean'] - intercept)/slope)
+    unknown_df['Quantity_std'] = 10**((unknown_df['Cq_std'] - intercept)/slope)
     unknown_df.loc[unknown_df[unknown_df.Cq_mean == 0].index, 'Quantity_mean'] = np.nan
     unknown_df['q_diff'] = unknown_df['Q_init_mean'] - unknown_df['Quantity_mean']
     return(unknown_df)
