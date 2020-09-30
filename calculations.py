@@ -61,9 +61,9 @@ def xeno_inhibition_test(qpcr_data):
 
   xeno_fin_all=target[target.Task=='Unknown'].copy()
   xeno_fin_all=xeno_fin_all.merge(ntc_col, how='left')
-  xeno_fin_all["abs_dCt"]= (xeno_fin_all["Ct_vet_mean"]- xeno_fin_all["Ct_control_mean"])
+  xeno_fin_all["dCt"]= (xeno_fin_all["Ct_vet_mean"]- xeno_fin_all["Ct_control_mean"])
   xeno_fin_all["inhibited"]='No'
-  xeno_fin_all.loc[(xeno_fin_all.abs_dCt>1),"inhibited"]="Yes"
+  xeno_fin_all.loc[(xeno_fin_all.dCt>1),"inhibited"]="Yes"
   return xeno_fin_all, ntc_col
 
 def get_GFP_recovery(qpcr_averaged):
