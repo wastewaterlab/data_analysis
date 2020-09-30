@@ -12,7 +12,7 @@ def calculate_gc_per_l(qpcr_data):
   return qpcr_data['gc_per_L']
 
 
- def normalize_to_pmmov(qpcr_data):
+def normalize_to_pmmov(qpcr_data):
     ''' calculates a normalized mean to pmmov when applicable and returns dataframe with that column -- needs to incorporate std'''
     pmmov=qpcr_data[qpcr_data.Target=='PMMoV']
     pmmov=pmmov[['Quantity_mean','Sample','Task']]
