@@ -65,3 +65,33 @@ def xeno_inhibition_test(qpcr_data):
   xeno_fin_all["inhibited"]='No'
   xeno_fin_all.loc[(xeno_fin_all.abs_dCt>1),"inhibited"]="Yes"
   return xeno_fin_all, ntc_col
+
+def get_GFP_recovery(qpcr_averaged):
+    '''
+    calculate the percent recovery efficiency using GFP RNA spike
+    Params
+    qpcr_averaged: output of process_qpcr_raw(), a pandas df with columns
+        GFP_spike_vol_ul
+        Quantity_mean
+        template_volume
+        GFP_spike_tube
+    Returns
+    qpcr_averaged: the same df as input but with additional column
+        perc_GFP_recovered
+    '''
+    gfp = qpcr_averaged[qpcr_averaged.Target == 'GFP'].copy()
+    # calculate total recovered GFP gene copies
+    gfp['total_GFP_recovered'] = gfp['GFP_spike_vol_ul'].astype(float) * gfp['Quantity_mean'].astype(float) / gfp['template_volume'].astype(float)
+
+    # calculate concentration GFP gene copies / ul in just the spikes
+    spikes = gfp[gfp.Sample.str.contains('control_spike_GFP')].copy()
+    spikes['GFP_gc_per_ul_input'] = spikes['Quantity_mean'].astype(float) / spikes['template_volume'].astype(float)
+    spikes = spikes[['GFP_gc_per_ul_input', 'GFP_spike_tube']]
+
+    # combine concentration of spike and total recovered to get perc recovered
+    gfp = gfp.merge(spikes, how = 'left', on = 'GFP_spike_tube')
+    gfp['total_GFP_input'] = gfp['GFP_gc_per_ul_input'].astype(float) * gfp['GFP_spike_vol_ul'].astype(float)
+    gfp['perc_GFP_recovered'] = 100 * gfp['total_GFP_recovered'] / gfp['total_GFP_input']
+    recovery = gfp[['Sample', 'perc_GFP_recovered']]
+    qpcr_averaged = qpcr_averaged.merge(recovery, how = 'left', on = 'Sample')
+    return(qpcr_averaged)
