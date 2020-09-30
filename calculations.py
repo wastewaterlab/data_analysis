@@ -1,0 +1,67 @@
+import pandas as pd
+import numpy as np
+
+def calculate_gc_per_l(qpcr_data):
+  ''' calculates and returns gene copies / L -- needs to incorporate std'''
+
+  # calculate the conc of input to qPCR as gc/ul
+  qpcr_data['gc_per_ul_input'] = qpcr_data['Quantity_mean'].astype(float) / qpcr_data['template_volume'].astype(float)
+
+  ## multiply input conc (gc / ul) by elution volume (ul) and divide by volume concentrated (mL). Multiply by 1000 to get to gc / L.
+  qpcr_data['gc_per_L'] = 1000 * qpcr_data['gc_per_ul_input'].astype(float) * qpcr_data['elution_vol_ul'].astype(float) / qpcr_data['effective_vol_extracted_ml'].astype(float)
+  return qpcr_data['gc_per_L']
+
+
+ def normalize_to_pmmov(qpcr_data):
+    ''' calculates a normalized mean to pmmov when applicable and returns dataframe with that column -- needs to incorporate std'''
+    pmmov=qpcr_data[qpcr_data.Target=='PMMoV']
+    pmmov=pmmov[['Quantity_mean','Sample','Task']]
+    pmmov.columns=['pmmov_mean',  "Sample", "Task"]
+    qpcr_m=qpcr_data.merge(pmmov, how='left')
+    qpcr_m["mean_normalized_to_pmmov"] = qpcr_m['Quantity_mean']/qpcr_m['pmmov_mean']
+    qpcr_m["log10mean_normalized_to_log10pmmov"] = np.log10(qpcr_m['Quantity_mean'])/np.log10(qpcr_m['pmmov_mean'])
+    qpcr_m['log10_mean_normalized_to_pmmov']=np.log10(qpcr_m['mean_normalized_to_pmmov'])
+
+    return qpcr_m
+
+def normalize_to_18S(qpcr_data):
+    ''' calculates a normalized mean to 18S when applicable and returns dataframe with that column -- needs to incorpoarte std'''
+    n_18S=qpcr_data[qpcr_data.Target=='18S']
+    n_18S=n_18S[['Quantity_mean','Sample','Task']]
+    n_18S.columns=['18S_mean',  "Sample", "Task"]
+    qpcr_m=qpcr_data.merge(n_18S, how='left')
+    qpcr_m["mean_normalized_to_18S"] = qpcr_m['Quantity_mean']/qpcr_m['18S_mean']
+    qpcr_m["log10mean_normalized_to_log1018S"] = np.log10(qpcr_m['Quantity_mean'])/np.log10(qpcr_m['18S_mean'])
+    qpcr_m['log10_mean_normalized_to_18S']=np.log10(qpcr_m['mean_normalized_to_18S'])
+
+    return qpcr_m
+
+def xeno_inhibition_test(qpcr_data):
+  '''Calculates the difference in Ct compared to the NTC for xeno inhibition test, outputs a list of inhibited samples'''
+  #Find targets other than xeno for each well+plate combination
+  p_w_targets=qpcr_data[qpcr_data.Target!='Xeno'].copy()
+  p_w_targets['p_id']=p_w_targets.plate_id.astype('str').str.cat(p_w_targets.Well.astype('str'), sep ="_")
+  p_w_targets=p_w_targets.groupby('p_id')['Target'].apply(lambda targs: ','.join(targs)).reset_index()
+  p_w_targets.columns=['p_id','additional_target']
+
+  #subset out xeno samples, merge with previous, use to calculate mean and std
+  target=qpcr_data[(qpcr_data.Task!='Standard')&(qpcr_data.Target=='Xeno')].copy() #includes NTC
+  target['p_id']=qpcr_data.plate_id.astype('str').str.cat(qpcr_data.Well, sep ="_")
+  target=target.merge(p_w_targets, how='left', on='p_id')
+  if target.additional_target.astype('str').str.contains(',').any():
+      print(target[target.additional_target.str.contains(',')])
+      raise ValueError('Error: update function, more than 2 multiplexed targets or one of the two multiplexed targets is not xeno')
+  target=target.groupby(["Sample",'additional_target','plate_id','Task']).agg(Ct_vet_mean=('Cq', 'mean'),
+                                                                    Ct_vet_std=('Cq', 'std'),
+                                                                    Ct_vet_count=('Cq','count')).reset_index()
+  #subset and recombine to get NTC as a col
+  ntc_col=target[target.Task=='Negative Control'].copy()
+  ntc_col=ntc_col[["plate_id",'additional_target','Ct_vet_mean']].copy()
+  ntc_col.columns=["plate_id",'additional_target','Ct_control_mean']
+
+  xeno_fin_all=target[target.Task=='Unknown'].copy()
+  xeno_fin_all=xeno_fin_all.merge(ntc_col, how='left')
+  xeno_fin_all["abs_dCt"]= (xeno_fin_all["Ct_vet_mean"]- xeno_fin_all["Ct_control_mean"])
+  xeno_fin_all["inhibited"]='No'
+  xeno_fin_all.loc[(xeno_fin_all.abs_dCt>1),"inhibited"]="Yes"
+  return xeno_fin_all, ntc_col
