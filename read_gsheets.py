@@ -49,11 +49,12 @@ def read_qpcr_data(gc, qpcr_url, qpcr_results_tab, qpcr_plates_tab):
   qpcr_data['is_undetermined'] = False
   qpcr_data['is_undetermined'] = qpcr_data.Cq == 'Undetermined'
 
-  # convert fields to numerics
+  # convert fields to numerics and dates
   qpcr_data.Quantity = pd.to_numeric(qpcr_data.Quantity, errors='coerce')
   qpcr_data.template_volume = pd.to_numeric(qpcr_data.template_volume, errors='coerce')
   qpcr_data.Cq = pd.to_numeric(qpcr_data.Cq, errors='coerce')
   qpcr_data.plate_id = pd.to_numeric(qpcr_data.plate_id, errors='coerce')
+  qpcr_data.Plate_date = pd.to_datetime(qpcr_data.Plate_date, errors='coerce')
 
   # get a column with only the target (separate info about the standard and master mix)
   qpcr_data['Target_full']= qpcr_data['Target']
