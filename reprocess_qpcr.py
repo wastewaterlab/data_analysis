@@ -266,7 +266,7 @@ def combine_triplicates(plate_df_in, checks_include):
                                                Cq_mean=('Cq_copy', 'mean'),
                                                Cq_std=('Cq_copy', 'std'),
                                                replicate_count=('Cq_copy', 'count'),
-                                               is_undetermined_count=('is_undetermined', 'count')
+                                               is_undetermined_count=('is_undetermined', 'sum')
                                                )
     # note: count in agg will exclude nan
     plate_df_avg = plate_df_avg.reset_index()
