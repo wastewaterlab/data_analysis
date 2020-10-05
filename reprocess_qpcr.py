@@ -12,8 +12,8 @@ from sklearn.utils import resample
 import pdb
 from sklearn.metrics import r2_score
 from statistics import median
-
-import outlier_utils
+#grubbs test package
+import outliers
 from outliers import smirnov_grubbs as grubbs
 
 # found dixon's test at https://sebastianraschka.com/Articles/2014_dixon_test.html#implementing-a-dixon-q-test-function
