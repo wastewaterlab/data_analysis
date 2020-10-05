@@ -384,7 +384,7 @@ def process_qpcr_raw(qpcr_raw, checks_include):
     checks_include: how to remove outliers ('all', 'dixonsq_only', 'median_only')
     '''
 
-    if (checks_include not in ['all', 'dixonsq_only', 'median_only', None]):
+    if (checks_include not in ['all', 'dixonsq_only', 'median_only','grubbs_only', None]):
         raise ValueError('''invalid input, must be one of the following: 'all',
                       'dixonsq_only', 'median_only'or None''')
     std_curve_df = []
