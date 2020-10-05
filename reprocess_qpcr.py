@@ -197,10 +197,10 @@ def get_pass_grubbs_test(plate_df, groupby_list):
   # this gives us a mini-df with just one sample in each iteration
   for groupby_list, df in plate_df.groupby(groupby_list,  as_index=False):
     d = df.copy() # avoid set with copy warning
-
+    d=[round(n, 2) for n in d] 
     # make new column 'grubbs_test' that includes the results of the test
     if (len(d.Cq)<3): #cannot evaluate for fewer than 3 values
-        if (len(d.Cq)==2) & (np.std(d.Cq) <0.2): #got this from
+        if (len(d.Cq)==2) & (np.std(d.Cq) <0.2): #got this from https://www.gene-quantification.de/dhaene-hellemans-qc-data-2010.pdf
             d.loc[:, 'grubbs_test'] = True
             plate_df_with_grubbs_test.append(d)
         else:
