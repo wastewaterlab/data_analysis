@@ -3,7 +3,7 @@ import numpy as np
 
 def calculate_gc_per_l(qpcr_data):
  '''
-calculates and returns gene copies / L
+ calculates and returns gene copies / L
 
   Params
     qpcr_data-- dataframe with qpcr technical triplicates averaged. Requires the columns
@@ -16,7 +16,7 @@ calculates and returns gene copies / L
   Returns
   qpcr_data: same data, with additional column
   gc_per_L
-'''
+  '''
 
   # calculate the conc of input to qPCR as gc/ul
   qpcr_data['gc_per_ul_input'] = qpcr_data['Quantity_mean'].astype(float) / qpcr_data['template_volume'].astype(float)
@@ -28,7 +28,7 @@ calculates and returns gene copies / L
 
 def normalize_to_pmmov(qpcr_data):
 
-     '''
+    '''
     calculates a normalized mean to pmmov when applicable and returns dataframe with new columns
 
       Params
@@ -55,7 +55,7 @@ def normalize_to_pmmov(qpcr_data):
 
 def normalize_to_18S(qpcr_data):
 
-         '''
+    '''
         calculates a normalized mean to 18S when applicable and returns dataframe with new columns
 
           Params
@@ -69,7 +69,8 @@ def normalize_to_18S(qpcr_data):
                 mean_normalized_to_18S: takes every column and divides by 18S that is associated with that sample name (so where target == 18S it will be 1)
                 log10mean_normalized_to_log1018S: takes the log10 of N1 and the log 10 of 18S then normalizes
                 log10_mean_normalized_to_18S: takes the log10 of mean_normalized_to_18S
-        '''
+    '''
+
     n_18S=qpcr_data[qpcr_data.Target=='18S']
     n_18S=n_18S[['Quantity_mean','Sample','Task']]
     n_18S.columns=['18S_mean',  "Sample", "Task"]
@@ -81,8 +82,7 @@ def normalize_to_18S(qpcr_data):
     return qpcr_m
 
 def xeno_inhibition_test(qpcr_data):
-
-         '''
+  '''
         Calculates the difference in Ct compared to the NTC for xeno inhibition test, outputs a list of inhibited samples
 
           Params
@@ -96,7 +96,7 @@ def xeno_inhibition_test(qpcr_data):
           Returns
           xeno_fin_all -- calculates the difference in Ct values of the negative control (spiked with xeno) to the sample spiked with xeno, adds column for inhibited (Yes or No)
           ntc_col -- all of the negative control values for xeno
-        '''
+  '''
 
   #Find targets other than xeno for each well+plate combination
   p_w_targets=qpcr_data[qpcr_data.Target!='Xeno'].copy()
