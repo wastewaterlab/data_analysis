@@ -200,11 +200,16 @@ def get_pass_grubbs_test(plate_df, groupby_list):
 
     # make new column 'grubbs_test' that includes the results of the test
     if (len(d.Cq)<3): #cannot evaluate for fewer than 3 values
-        d.loc[:, 'grubbs_test'] = False
-        plate_df_with_grubbs_test.append(d)
+        if len(d.Cq==2) & len(np.std(d.Cq) <0.2): #got this from
+            d.loc[:, 'grubbs_test'] = True
+            plate_df_with_grubbs_test.append(d)
+        else:
+            d.loc[:, 'grubbs_test'] = False
+            plate_df_with_grubbs_test.append(d)
+
     else:
         b=list(d.Cq) #needs to be given unindexed list
-        outliers=grubbs.max_test_outliers(b, alpha=.05)
+        outliers=grubbs.max_test_outliers(b, alpha=.1)
         d.loc[:, 'grubbs_test'] = True
         if len(outliers) > 0:
             d.loc[d.Cq.isin(outliers), 'grubbs_test'] = False
