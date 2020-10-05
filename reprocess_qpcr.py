@@ -390,7 +390,7 @@ def process_ntc(plate_df):
     if ntc.is_undetermined.all():
         ntc_result = 'negative'
     else:
-        ntc_result = min(ntc.Cq)
+        ntc_result = np.nanmin(ntc.Cq)
     return(ntc_result)
 
 def process_qpcr_raw(qpcr_raw, checks_include):
