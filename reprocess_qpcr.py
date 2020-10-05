@@ -199,10 +199,14 @@ def get_pass_grubbs_test(plate_df, groupby_list):
     d = df.copy() # avoid set with copy warning
 
     # make new column 'grubbs_test' that includes the results of the test
-    index_outliers=grubbs.max_test_indices(d.Cq, alpha=.05)
-    d.loc[:, 'grubbs_test'] = True
-    if len(index_outliers) > 0:
-        d.loc[index_outliers, 'grubbs_test'] = False
+    if len(df.Cq)<3:
+        d.loc[:, 'grubbs_test'] = False
+    else:
+        index_outliers=grubbs.max_test_indices(d.Cq, alpha=.05)
+        d.loc[:, 'grubbs_test'] = True
+        if len(index_outliers) > 0:
+            d.loc[index_outliers, 'grubbs_test'] = False
+
     plate_df_with_grubbs_test.append(d)
 
   # put the dataframe back together
