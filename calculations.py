@@ -2,10 +2,10 @@ import pandas as pd
 import numpy as np
 
 def calculate_gc_per_l(qpcr_data):
- '''
- calculates and returns gene copies / L
+    '''
+    calculates and returns gene copies / L
 
-  Params
+    Params
     qpcr_data-- dataframe with qpcr technical triplicates averaged. Requires the columns
             gc_per_ul_input
             Quantity_mean
@@ -13,17 +13,17 @@ def calculate_gc_per_l(qpcr_data):
             elution_vol_ul
             effective_vol_extracted_ml
 
-  Returns
-  qpcr_data: same data, with additional column
-  gc_per_L
-  '''
+    Returns
+    qpcr_data: same data, with additional column
+    gc_per_L
+    '''
 
-  # calculate the conc of input to qPCR as gc/ul
-  qpcr_data['gc_per_ul_input'] = qpcr_data['Quantity_mean'].astype(float) / qpcr_data['template_volume'].astype(float)
+    # calculate the conc of input to qPCR as gc/ul
+    qpcr_data['gc_per_ul_input'] = qpcr_data['Quantity_mean'].astype(float) / qpcr_data['template_volume'].astype(float)
 
-  ## multiply input conc (gc / ul) by elution volume (ul) and divide by volume concentrated (mL). Multiply by 1000 to get to gc / L.
-  qpcr_data['gc_per_L'] = 1000 * qpcr_data['gc_per_ul_input'].astype(float) * qpcr_data['elution_vol_ul'].astype(float) / qpcr_data['effective_vol_extracted_ml'].astype(float)
-  return qpcr_data['gc_per_L']
+    # multiply input conc (gc / ul) by elution volume (ul) and divide by volume concentrated (mL). Multiply by 1000 to get to gc / L.
+    qpcr_data['gc_per_L'] = 1000 * qpcr_data['gc_per_ul_input'].astype(float) * qpcr_data['elution_vol_ul'].astype(float) / qpcr_data['effective_vol_extracted_ml'].astype(float)
+    return qpcr_data['gc_per_L']
 
 
 def normalize_to_pmmov(qpcr_data):
