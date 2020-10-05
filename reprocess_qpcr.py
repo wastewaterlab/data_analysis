@@ -13,6 +13,9 @@ import pdb
 from sklearn.metrics import r2_score
 from statistics import median
 
+!pip install outlier_utils
+from outliers import smirnov_grubbs as grubbs
+
 # found dixon's test at https://sebastianraschka.com/Articles/2014_dixon_test.html#implementing-a-dixon-q-test-function
 # no need to re-invent the wheel
 
@@ -186,6 +189,26 @@ def get_pass_median_test(plate_df, groupby_list):
   plate_df_with_median_test = pd.concat(plate_df_with_median_test)
   return(plate_df_with_median_test)
 
+def get_pass_grubbs_test(plate_df, groupby_list):
+  # make list that will become new df
+  plate_df_with_grubbs_test = []
+
+  # iterate thru the dataframe, grouped by Sample
+  # this gives us a mini-df with just one sample in each iteration
+  for groupby_list, df in plate_df.groupby(groupby_list,  as_index=False):
+    d = df.copy() # avoid set with copy warning
+
+    # make new column 'grubbs_test' that includes the results of the test
+    index_outliers=grubbs.max_test_indices(d, alpha=.05)
+    d.loc[:, 'grubbs_test'] = True
+    if len(index_outliers>0):
+        d.loc[index_outliers, 'grubbs_test'] = False
+    plate_df_with_grubbs_test.append(d)
+
+  # put the dataframe back together
+  plate_df_with_grubbs_test = pd.concat(plate_df_with_grubbs_test)
+  return(plate_df_with_grubbs_test)
+
 def compute_linear_info(plate_data):
     '''compute the information for linear regression
 
@@ -209,7 +232,7 @@ def compute_linear_info(plate_data):
 
 def combine_triplicates(plate_df_in, checks_include):
     '''
-    Flag outliers via Dixon's Q and homemade "median_test"
+    Flag outliers via Dixon's Q, homemade "median_test", ans/or grubbs test
     Calculate the Cq means, Cq stds, counts before & after removing outliers
 
     Params
@@ -219,7 +242,7 @@ def combine_triplicates(plate_df_in, checks_include):
         columns 'Target', 'Sample', 'Cq'
     checks_include:
         which way to check for outliers options are
-        ('all', 'dixonsq_only', 'std_check_only', None)
+        ('all', 'dixonsq_only', 'std_check_only','grubbs_only', None)
     Returns
     plate_df: same data, with additional columns depending on checks_include
         pass_dixonsq (0 or 1)
@@ -227,7 +250,7 @@ def combine_triplicates(plate_df_in, checks_include):
         Cq_mean (calculated mean of Cq after excluding outliers)
     '''
 
-    if (checks_include not in ['all', 'dixonsq_only', 'median_only', None]):
+    if (checks_include not in ['all', 'dixonsq_only', 'median_only','grubbs_only', None]):
         raise ValueError('''invalid input, must be one of the following: 'all',
                       'dixonsq_only', 'median_only'or None''')
 
@@ -254,6 +277,12 @@ def combine_triplicates(plate_df_in, checks_include):
     if checks_include in ['all', 'median_only']:
        plate_df = get_pass_median_test(plate_df, ['Sample'])
        plate_df.loc[plate_df.median_test == False, 'Cq_copy'] = np.nan
+
+    # Test triplicates with another outlier test? (same format as for dixonsq)
+    if checks_include in ['all', 'grubbs_only']:
+       plate_df = get_pass_grubbs_test(plate_df, ['Sample'])
+       plate_df.loc[plate_df.grubbs_test == False, 'Cq_copy'] = np.nan
+
     # summarize to get mean, std, counts with and without outliers removed
 
     plate_df_avg = plate_df.groupby(groupby_list).agg(
