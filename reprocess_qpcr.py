@@ -408,8 +408,8 @@ def determine_samples_BLoQ(qpcr_p, max_cycles):
         same data with column bloq a boolean column indicating if the sample is below the limit of quantification
     '''
     qpcr_p['bloq']=np.nan
-    qpcr_p.loc[(qpcr_p.Cq_mean >max_cycles),'bloq']= True
-    qpcr_p.loc[(qpcr_p.Cq_mean > qpcr_p.lowest_sample_Cq),'bloq']= True
+    qpcr_p.loc[(qpcr_p.Cq_mean >= max_cycles),'bloq']= True
+    qpcr_p.loc[(qpcr_p.Cq_mean >= qpcr_p.lowest_sample_Cq),'bloq']= True
     qpcr_p.loc[(qpcr_p.Cq_mean < qpcr_p.lowest_sample_Cq)&(qpcr_p.Cq_mean < max_cycles),'bloq']= False
     return(qpcr_p)
 
