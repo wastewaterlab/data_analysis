@@ -473,7 +473,7 @@ def process_qpcr_raw(qpcr_raw, checks_include):
                                                         'ntc_result'])
     qpcr_processed = pd.concat(qpcr_processed)
     qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on=['plate_id', 'Target'])
-    qpcr_m=qpcr_processed[["plate_id","Cq_of_lowest_std_quantity"]].copy().drop_duplicates(keep='first')
+    qpcr_m=qpcr_processed[["plate_id","Cq_of_lowest_sample_quantity"]].copy().drop_duplicates(keep='first')
     std_curve_df=std_curve_df.merge(qpcr_m, how='left')
     qpcr_processed= determine_samples_BLoQ(qpcr_processed, 40)
     return(qpcr_processed, std_curve_df, raw_outliers_flagged_df)
