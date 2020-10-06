@@ -340,15 +340,8 @@ def process_standard(plate_df):
     if len(plate_df.Target.unique()) > 1:
         raise ValueError('''More than one target in this dataframe''')
     #what is the lowest sample Cq and quantity on this plate
-    unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
     standard_df = plate_df[plate_df.Task == 'Standard'].copy()
-    if len(unknown_df.Task ==0):
-        lowest_sample_Cq=np.nan
-    else:
-        if all(np.isnan(unknown_df.Cq_mean)):
-            lowest_sample_Cq= np.nan #avoid error
-        else:
-            lowest_sample_Cq=np.nanmax(unknown_df.Cq_mean)
+
     # require at least 2 triplicates or else convert to nan
     standard_df = standard_df[standard_df.replicate_count > 1]
 
@@ -382,6 +375,13 @@ def process_unknown(plate_df, std_curve_info):
 
     [num_points,lowest_sample_Cq, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency] = std_curve_info
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
+    if len(unknown_df.Task)==0:
+        lowest_sample_Cq=np.nan
+    else:
+        if all(np.isnan(unknown_df.Cq_mean)):
+            lowest_sample_Cq= np.nan #avoid error
+        else:
+            lowest_sample_Cq=np.nanmax(unknown_df.Cq_mean)
     unknown_df['Quantity_mean'] = np.nan
     unknown_df['Quantity_mean_upper_std'] = np.nan
     unknown_df['Quantity_mean_lower_std'] = np.nan
