@@ -342,7 +342,13 @@ def process_standard(plate_df):
     #what is the lowest sample Cq and quantity on this plate
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
     standard_df = plate_df[plate_df.Task == 'Standard'].copy()
-    lowest_sample_Cq=np.nanmax(unknown_df.Cq_mean)
+    if len(unknown_df.Sample ==0):
+        lowest_sample_Cq=np.nan
+    else:
+        if all(np.isnan(unknown_df.Cq_mean)):
+            lowest_sample_Cq= np.nan #avoid error
+        else:
+            lowest_sample_Cq=np.nanmax(unknown_df.Cq_mean)
     # require at least 2 triplicates or else convert to nan
     standard_df = standard_df[standard_df.replicate_count > 1]
 
@@ -393,7 +399,10 @@ def process_ntc(plate_df):
     if ntc.is_undetermined.all():
         ntc_result = 'negative'
     else:
-        ntc_result = np.nanmin(ntc.Cq)
+        if all(np.isnan(ntc.cq)):
+            ntc_result= np.nan #avoid error
+        else:
+            ntc_result = np.nanmin(ntc.Cq)
     return(ntc_result)
 
 def determine_samples_BLoQ(qpcr_p, max_cycles):
