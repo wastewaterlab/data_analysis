@@ -330,7 +330,6 @@ def process_standard(plate_df):
     Returns
         num_points: number of points used in new std curve
         lowest_std_Cq: the Cq value of the lowest pt used in the new std curve
-        lowest_sample_Cq: the Cq value of the lowest pt used on the plate
         lowest_std_quantity: the Quantity value of the lowest pt used in the new std curve
         slope:
         intercept:
@@ -357,7 +356,7 @@ def process_standard(plate_df):
         lowest_std_quantity = 10**min(standard_df.log_Quantity)
         slope, intercept, r2, efficiency = compute_linear_info(std_curve_df)
 
-    return(num_points, lowest_sample_Cq, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency)
+    return(num_points, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency)
 
 def process_unknown(plate_df, std_curve_info):
     '''
@@ -369,19 +368,21 @@ def process_unknown(plate_df, std_curve_info):
     Returns
         unknown_df: the unknown subset of plate_df, with 2 new columns
         (Quantity_mean, and q_diff)
+        lowest_sample_Cq: the Cq value of the lowest pt used on the plate
         these columns represent the recalculated quantity using Cq mean and the
         slope and intercept from the std curve
     '''
 
-    [num_points,lowest_sample_Cq, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency] = std_curve_info
+    [num_points, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency] = std_curve_info
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
+    unknown_df['lowest_sample_Cq']=np.nan
     if len(unknown_df.Task)==0:
-        lowest_sample_Cq=np.nan
+        unknown_df['lowest_sample_Cq']=np.nan
     else:
         if all(np.isnan(unknown_df.Cq_mean)):
-            lowest_sample_Cq= np.nan #avoid error
+            unknown_df['lowest_sample_Cq']= np.nan #avoid error
         else:
-            lowest_sample_Cq=np.nanmax(unknown_df.Cq_mean)
+            unknown_df['lowest_sample_Cq']=np.nanmax(unknown_df.Cq_mean)
     unknown_df['Quantity_mean'] = np.nan
     unknown_df['Quantity_mean_upper_std'] = np.nan
     unknown_df['Quantity_mean_lower_std'] = np.nan
@@ -444,16 +445,16 @@ def process_qpcr_raw(qpcr_raw, checks_include):
         outliers_flagged, no_outliers_df = combine_triplicates(df, checks_include)
 
         # define outputs and fill with default values
-        num_points,lowest_sample_Cq, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency = np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+        num_points, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency =  np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
         unknown_df = df[df.Task == 'Unknown']
 
         # if there are >3 pts in std curve, calculate stats and recalculate quants
         num_points = no_outliers_df[no_outliers_df.Task == 'Standard'].drop_duplicates('Sample').shape[0]
         if num_points > 3:
-            num_points, lowest_sample_Cq, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency = process_standard(no_outliers_df)
-            std_curve_info = [num_points, lowest_sample_Cq, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency]
+            num_points,  lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency = process_standard(no_outliers_df)
+            std_curve_info = [num_points,  lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency]
             unknown_df = process_unknown(no_outliers_df, std_curve_info)
-        std_curve_df.append([plate_id, target, num_points, lowest_sample_Cq, lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency, ntc_result])
+        std_curve_df.append([plate_id, target, num_points,  lowest_std_Cq, lowest_std_quantity, slope, intercept, r2, efficiency, ntc_result])
         qpcr_processed.append(unknown_df)
         raw_outliers_flagged_df.append(outliers_flagged)
 
@@ -463,7 +464,6 @@ def process_qpcr_raw(qpcr_raw, checks_include):
                                              columns = ['plate_id',
                                                         'Target',
                                                         'num_points',
-                                                        'lowest_sample_Cq',
                                                         'lowest_std_Cq',
                                                         'lowest_std_quantity',
                                                         'slope',
