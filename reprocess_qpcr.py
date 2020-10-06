@@ -342,7 +342,7 @@ def process_standard(plate_df):
     #what is the lowest sample Cq and quantity on this plate
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
     standard_df = plate_df[plate_df.Task == 'Standard'].copy()
-    if len(unknown_df.Sample ==0):
+    if len(unknown_df.Task ==0):
         lowest_sample_Cq=np.nan
     else:
         if all(np.isnan(unknown_df.Cq_mean)):
