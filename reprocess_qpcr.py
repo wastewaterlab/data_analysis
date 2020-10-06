@@ -356,7 +356,7 @@ def process_standard(plate_df):
         lowest_std_quantity = 10**min(standard_df.log_Quantity)
         slope, intercept, r2, efficiency = compute_linear_info(std_curve_df)
 
-    return(num_points, Cq_of_lowest_std_quantity, Cq_of_lowest_std_quantity, slope, intercept, r2, efficiency)
+    return(num_points, Cq_of_lowest_std_quantity, lowest_std_quantity, slope, intercept, r2, efficiency)
 
 def process_unknown(plate_df, std_curve_info):
     '''
