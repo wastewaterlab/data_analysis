@@ -28,7 +28,7 @@ def calculate_gc_per_l(qpcr_data, replace_bloq= False, value=0 ):
     qpcr_data['gc_per_L'] = 1000 * qpcr_data['gc_per_ul_input'].astype(float) * qpcr_data['elution_vol_ul'].astype(float) / qpcr_data['effective_vol_extracted_ml'].astype(float)
 
     if replace_bloq:
-        qpcr_m.loc[qpcr_m.bloq==True, "gc_per_ul_input"]=value
+        qpcr_data.loc[qpcr_data.bloq==True, "gc_per_ul_input"]=value
 
     return qpcr_data['gc_per_L']
 
