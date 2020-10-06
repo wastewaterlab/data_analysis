@@ -396,6 +396,24 @@ def process_ntc(plate_df):
         ntc_result = np.nanmin(ntc.Cq)
     return(ntc_result)
 
+def determine_samples_BLoQ(qpcr_p, max_cycles):
+    '''
+    from processed unknown qpcr data and the max cycles allowed (usually 40)
+
+    Params:
+        Cq_mean the combined triplicates of the sample
+        lowest_sample_Cq the max cq of the samples on the plate
+
+    Returns
+        same data with column bloq a boolean column indicating if the sample is below the limit of quantification
+    '''
+    qpcr_p['bloq']=np.nan
+    qpcr_p.loc[(qpcr_p.cq_mean >max_cycles),'bloq']= True
+    qpcr_p.loc[(qpcr_p.cq_mean > qpcr_p.lowest_sample_Cq),'bloq']= True
+    qpcr_p.loc[(qpcr_p.cq_mean < qpcr_p.lowest_sample_Cq)&(qpcr_p.cq_mean < max_cycles),'bloq']= False
+    return(qpcr_p)
+
+
 def process_qpcr_raw(qpcr_raw, checks_include):
     '''wrapper to process whole sheet at once by plate_id and Target
     params
@@ -444,5 +462,5 @@ def process_qpcr_raw(qpcr_raw, checks_include):
                                                         'ntc_result'])
     qpcr_processed = pd.concat(qpcr_processed)
     qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on=['plate_id', 'Target'])
-
+    qpcr_processed= determine_samples_BLoQ(qpcr_processed, 40)
     return(qpcr_processed, std_curve_df, raw_outliers_flagged_df)
