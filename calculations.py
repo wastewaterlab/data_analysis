@@ -1,17 +1,20 @@
 import pandas as pd
 import numpy as np
 
-def calculate_gc_per_l(qpcr_data):
+def calculate_gc_per_l(qpcr_data, replace_bloq= False, value=0 ):
     '''
     calculates and returns gene copies / L
 
     Params
+        replace_bloq should the function replace any sample that is below the limit of quantification with a value
+        values the values to replace the bloq values with (should be lower than the loq)
     qpcr_data-- dataframe with qpcr technical triplicates averaged. Requires the columns
             gc_per_ul_input
             Quantity_mean
             template_volume
             elution_vol_ul
             effective_vol_extracted_ml
+            bloq
 
     Returns
     qpcr_data: same data, with additional column
@@ -23,20 +26,27 @@ def calculate_gc_per_l(qpcr_data):
 
     # multiply input conc (gc / ul) by elution volume (ul) and divide by volume concentrated (mL). Multiply by 1000 to get to gc / L.
     qpcr_data['gc_per_L'] = 1000 * qpcr_data['gc_per_ul_input'].astype(float) * qpcr_data['elution_vol_ul'].astype(float) / qpcr_data['effective_vol_extracted_ml'].astype(float)
+
+    if replace_bloq:
+        qpcr_m.loc[qpcr_m.bloq==True, "gc_per_ul_input"]=value
+
     return qpcr_data['gc_per_L']
 
 
-def normalize_to_pmmov(qpcr_data):
+def normalize_to_pmmov(qpcr_data, replace_bloq= False, values=[0,0,0] ):
 
     '''
     calculates a normalized mean to pmmov when applicable and returns dataframe with new columns
 
       Params
+        replace_bloq should the function replace any sample that is below the limit of quantification with a value
+        values the values to replace the bloq values with (should be lower than the loq)
         qpcr_data-- dataframe with qpcr technical triplicates averaged. Requires the columns
                 Target
                 Quantity_mean
                 Sample
                 Task
+                bloq
       Returns
       qpcr_m: same data, with additional columns
             mean_normalized_to_pmmov: takes every column and divides by PMMoV that is associated with that sample name (so where target == PMMoV it will be 1)
@@ -51,19 +61,26 @@ def normalize_to_pmmov(qpcr_data):
     qpcr_m["log10mean_normalized_to_log10pmmov"] = np.log10(qpcr_m['Quantity_mean'])/np.log10(qpcr_m['pmmov_mean'])
     qpcr_m['log10_mean_normalized_to_pmmov']=np.log10(qpcr_m['mean_normalized_to_pmmov'])
 
+    if replace_bloq:
+        qpcr_m.loc[qpcr_m.bloq==True, "mean_normalized_to_pmmov"]=values[0]
+        qpcr_m.loc[qpcr_m.bloq==True, "log10mean_normalized_to_log10pmmov"]=values[1]
+        qpcr_m.loc[qpcr_m.bloq==True, "log10_mean_normalized_to_pmmov"]=values[2]
     return qpcr_m
 
-def normalize_to_18S(qpcr_data):
+def normalize_to_18S(qpcr_data, replace_bloq= False, values=[0,0,0]):
 
     '''
         calculates a normalized mean to 18S when applicable and returns dataframe with new columns
 
           Params
+        replace_bloq should the function replace any sample that is below the limit of quantification with a value
+        values the values to replace the bloq values with (should be lower than the loq)
             qpcr_data-- dataframe with qpcr technical triplicates averaged. Requires the columns
                     Target
                     Quantity_mean
                     Sample
                     Task
+                    bloq
           Returns
           qpcr_m: same data, with additional columns
                 mean_normalized_to_18S: takes every column and divides by 18S that is associated with that sample name (so where target == 18S it will be 1)
@@ -78,6 +95,11 @@ def normalize_to_18S(qpcr_data):
     qpcr_m["mean_normalized_to_18S"] = qpcr_m['Quantity_mean']/qpcr_m['18S_mean']
     qpcr_m["log10mean_normalized_to_log1018S"] = np.log10(qpcr_m['Quantity_mean'])/np.log10(qpcr_m['18S_mean'])
     qpcr_m['log10_mean_normalized_to_18S']=np.log10(qpcr_m['mean_normalized_to_18S'])
+
+    if replace_bloq:
+        qpcr_m.loc[qpcr_m.bloq==True, "mean_normalized_to_18S"]=values[0]
+        qpcr_m.loc[qpcr_m.bloq==True, "log10mean_normalized_to_log1018S"]=values[1]
+        qpcr_m.loc[qpcr_m.bloq==True, "log10_mean_normalized_to_18S"]=values[2]
 
     return qpcr_m
 
