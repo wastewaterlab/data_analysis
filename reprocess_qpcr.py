@@ -399,7 +399,7 @@ def process_ntc(plate_df):
     if ntc.is_undetermined.all():
         ntc_result = 'negative'
     else:
-        if all(np.isnan(ntc.cq)):
+        if all(np.isnan(ntc.Cq)):
             ntc_result= np.nan #avoid error
         else:
             ntc_result = np.nanmin(ntc.Cq)
