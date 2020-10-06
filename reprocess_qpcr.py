@@ -398,7 +398,8 @@ def process_ntc(plate_df):
 
 def determine_samples_BLoQ(qpcr_p, max_cycles):
     '''
-    from processed unknown qpcr data and the max cycles allowed (usually 40)
+    from processed unknown qpcr data and the max cycles allowed (usually 40) this will return qpcr_processed with a boolean column indicating samples bloq.
+    samples that have Cq_mean that is nan are classified as bloq (including true negatives and  samples removed during processing)
 
     Params:
         Cq_mean the combined triplicates of the sample
@@ -408,6 +409,7 @@ def determine_samples_BLoQ(qpcr_p, max_cycles):
         same data with column bloq a boolean column indicating if the sample is below the limit of quantification
     '''
     qpcr_p['bloq']=np.nan
+    qpcr_p.loc[(np.isnan(qpcr_p.Cq_mean)),'bloq']= True
     qpcr_p.loc[(qpcr_p.Cq_mean >= max_cycles),'bloq']= True
     qpcr_p.loc[(qpcr_p.Cq_mean > qpcr_p.lowest_sample_Cq),'bloq']= True
     qpcr_p.loc[(qpcr_p.Cq_mean <= qpcr_p.lowest_sample_Cq)&(qpcr_p.Cq_mean < max_cycles),'bloq']= False
