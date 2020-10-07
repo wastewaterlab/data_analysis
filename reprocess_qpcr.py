@@ -421,8 +421,8 @@ def determine_samples_BLoQ(qpcr_p, max_cycles):
     qpcr_p['bloq']=np.nan
     qpcr_p.loc[(np.isnan(qpcr_p.Cq_mean)),'bloq']= True
     qpcr_p.loc[(qpcr_p.Cq_mean >= max_cycles),'bloq']= True
-    qpcr_p.loc[(qpcr_p.Cq_mean > qpcr_p.Cq_of_lowest_sample_quantity),'bloq']= True
-    qpcr_p.loc[(qpcr_p.Cq_mean <= qpcr_p.Cq_of_lowest_sample_quantity)&(qpcr_p.Cq_mean < max_cycles),'bloq']= False
+    qpcr_p.loc[(qpcr_p.Cq_mean > qpcr_p.Cq_of_lowest_std_quantity),'bloq']= True
+    qpcr_p.loc[(qpcr_p.Cq_mean <= qpcr_p.Cq_of_lowest_std_quantity)&(qpcr_p.Cq_mean < max_cycles),'bloq']= False
     return(qpcr_p)
 
 
