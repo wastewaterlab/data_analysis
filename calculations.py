@@ -58,7 +58,7 @@ def normalize_to_pmmov(qpcr_data, replace_bloq= False):
             log10_mean_normalized_to_pmmov: takes the log10 of mean_normalized_to_pmmov
     '''
     if replace_bloq:
-        qpcr_m.loc[qpcr_m.bloq==True, "Quantity_mean"]= qpcr_m.lowest_std_quantity
+        qpcr_data.loc[qpcr_data.bloq==True, "Quantity_mean"]= qpcr_data.lowest_std_quantity
 
     pmmov=qpcr_data[qpcr_data.Target=='PMMoV']
     pmmov=pmmov[['Quantity_mean','Sample','Task']]
@@ -94,7 +94,7 @@ def normalize_to_18S(qpcr_data, replace_bloq= False):
     '''
 
     if replace_bloq:
-        qpcr_m.loc[qpcr_m.bloq==True, "Quantity_mean"]= qpcr_m.lowest_std_quantity
+        qpcr_data.loc[qpcr_data.bloq==True, "Quantity_mean"]= qpcr_data.lowest_std_quantity
 
     n_18S=qpcr_data[qpcr_data.Target=='18S']
     n_18S=n_18S[['Quantity_mean','Sample','Task']]
