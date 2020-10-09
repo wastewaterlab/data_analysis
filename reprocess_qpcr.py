@@ -406,10 +406,61 @@ def process_ntc(plate_df):
             ntc_result = np.nanmin(ntc.Cq)
     return(ntc_result)
 
-def determine_samples_BLoQ(qpcr_p, max_cycles):
+
+
+def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
+        '''
+        For each target in raw qpcr data, this function defines the limit of quantification as the fraction of qpcr replicates at a quantity that are detectable
+        It works depending on which test was selected, so if grubbs was selected, it only evaluates for replicates that pass grubbs
+
+        Params:
+            Task
+            Quantity
+            Target
+            Cq
+            Sample
+        Returns
+            a dataframe with Target and the limit of detection
+        '''
+        dfm= raw_outliers_flagged_df
+        if checks_include in ['all', 'grubbs_only']:
+            dfm=dfm[dfm.grubbs_test==True].copy()
+        if checks_include in ['all', 'median_only']:
+            dfm=dfm[dfm.median_test==True].copy()
+        if checks_include in ['all', 'dixonsq_only']:
+            dfm=dfm[dfm.pass_dixonsq==True].copy()
+
+        dfm=dfm[dfm.Task=='Standard'] #only standards
+        dfm=dfm[dfm.Quantity!=0] #no NTCs
+        out_fin=pd.DataFrame(columns=["Target","LoD_Cq","LoD_Quantity"]) #empty dataframe with desired columns
+
+        #iterate through targets, groupby quantity, and determine the fraction of the replicates that were detectable
+        for target in dfm:
+            df_t=dfm[dfm.Target==target].copy()
+            out=df_t.groupby(["Quantity"]).agg(
+                                    positives=('Cq','count'),
+                                    total=('Sample', 'count')).reset_index()
+            out['fr_pos']=out.positives/out.total
+
+            #only take the portion of the dataframe that is greater than the cutoff
+            out=out[out.fr_pos > cutoff ].copy()
+            if np.isnan(out):
+                out_fin.append({'Target':target, "LoD_Cq":, np.nan, "LoD_Quantity":np.nan})
+            #for samples with
+            fin=out[out.fr_pos=min(out.fr_pos)].copy()
+            if len(fin==1):
+                out_fin.append({'Target':target, "LoD_Cq":, fin.Cq, "LoD_Quantity":fin.Quantity})
+            if len(fin!=1):
+                fin=out[out.fr_pos=min(out.Quantity)].copy()
+                out_fin.append({'Target':target, "LoD_Cq":, fin.Cq, "LoD_Quantity":fin.Quantity})
+        return (out_fin)
+
+
+def determine_samples_BLoQ(qpcr_p, max_cycles, out_fin, include_LoD=False):
     '''
     from processed unknown qpcr data and the max cycles allowed (usually 40) this will return qpcr_processed with a boolean column indicating samples bloq.
     samples that have Cq_mean that is nan are classified as bloq (including true negatives and  samples removed during processing)
+    If include LoD is true, out_fin comes from determines_samples_BLO
 
     Params:
         Cq_mean the combined triplicates of the sample
@@ -418,19 +469,34 @@ def determine_samples_BLoQ(qpcr_p, max_cycles):
     Returns
         same data with column bloq a boolean column indicating if the sample is below the limit of quantification
     '''
+
+    if include_LoD:
+        qpcr_p["blod"]= np.nan
+        for target in qpcr_p:
+            C_value=out_fin[out_fin.target==target].LoD_Cq
+            Q_value=out_fin[out_fin.target==target].LoD_Quantity
+            qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"bloq"]= True
+            qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_of_lowest_std_quantity> C_value),"Cq_of_lowest_std_quantity"]= C_value
+            qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_of_lowest_std_quantity> C_value),"lowest_std_quantity"]= Q_value
+
     qpcr_p['bloq']=np.nan
     qpcr_p.loc[(np.isnan(qpcr_p.Cq_mean)),'bloq']= True
     qpcr_p.loc[(qpcr_p.Cq_mean >= max_cycles),'bloq']= True
     qpcr_p.loc[(qpcr_p.Cq_mean > qpcr_p.Cq_of_lowest_std_quantity),'bloq']= True
     qpcr_p.loc[(qpcr_p.Cq_mean <= qpcr_p.Cq_of_lowest_std_quantity)&(qpcr_p.Cq_mean < max_cycles),'bloq']= False
+
+
+
     return(qpcr_p)
 
-
-def process_qpcr_raw(qpcr_raw, checks_include):
+def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
     '''wrapper to process whole sheet at once by plate_id and Target
     params
     qpcr_raw: df from read_qpcr_data()
     checks_include: how to remove outliers ('all', 'dixonsq_only', 'median_only')
+    optional:
+    include_LoD adds blod column and moves lowest standard quantity and Cq of lowest standard quantity based on LoD
+    cutoff is the fraction of positive replicates in standard curves allowed to consider that standard curve point detectable (used if previous is true)
     '''
 
     if (checks_include not in ['all', 'dixonsq_only', 'median_only','grubbs_only', None]):
@@ -460,6 +526,7 @@ def process_qpcr_raw(qpcr_raw, checks_include):
 
     # compile into dataframes
     raw_outliers_flagged_df = pd.concat(raw_outliers_flagged_df)
+    out_fin=determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include)
     std_curve_df = pd.DataFrame.from_records(std_curve_df,
                                              columns = ['plate_id',
                                                         'Target',
