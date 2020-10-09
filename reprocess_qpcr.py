@@ -448,8 +448,8 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
             if len(out.fr_pos)<1:
                 out_fin.append({'Target':target, "LoD_Cq": np.nan, "LoD_Quantity":np.nan}, ignore_index=True)
             #for samples with
-            elif len(fin==1):
-                fin=out[out.fr_pos==min(out.fr_pos)].copy()
+            fin=out[out.fr_pos==min(out.fr_pos)].copy()
+            if len(fin==1):
                 out_fin.append({'Target':target, "LoD_Cq": fin.Cq, "LoD_Quantity":fin.Quantity}, ignore_index=True)
             elif len(fin!=1):
                 fin=out[out.fr_pos==min(out.Quantity)].copy()
