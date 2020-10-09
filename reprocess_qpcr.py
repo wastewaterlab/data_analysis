@@ -475,9 +475,12 @@ def determine_samples_BLoQ(qpcr_p, max_cycles, out_fin, include_LoD=False):
         for target in qpcr_p:
             C_value=out_fin[out_fin.target==target].LoD_Cq
             Q_value=out_fin[out_fin.target==target].LoD_Quantity
-            qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"bloq"]= True
-            qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_of_lowest_std_quantity> C_value),"Cq_of_lowest_std_quantity"]= C_value
-            qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_of_lowest_std_quantity> C_value),"lowest_std_quantity"]= Q_value
+            if np.isnan(C_value):
+                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"bloq"]= np.nan
+            else:
+                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"bloq"]= True
+                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_of_lowest_std_quantity> C_value),"Cq_of_lowest_std_quantity"]= C_value
+                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_of_lowest_std_quantity> C_value),"lowest_std_quantity"]= Q_value
 
     qpcr_p['bloq']=np.nan
     qpcr_p.loc[(np.isnan(qpcr_p.Cq_mean)),'bloq']= True
