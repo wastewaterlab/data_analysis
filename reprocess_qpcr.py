@@ -435,7 +435,8 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
         out_fin=pd.DataFrame(columns=["Target","LoD_Cq","LoD_Quantity"]) #empty dataframe with desired columns
 
         #iterate through targets, groupby quantity, and determine the fraction of the replicates that were detectable
-        for target in dfm:
+        targs=dfm.Target.unique()
+        for target in targs:
             df_t=dfm[dfm.Target==target].copy()
             out=df_t.groupby(["Quantity"]).agg(
                                     positives=('Cq','count'),
@@ -472,7 +473,8 @@ def determine_samples_BLoQ(qpcr_p, max_cycles, out_fin, include_LoD=False):
 
     if include_LoD:
         qpcr_p["blod"]= np.nan
-        for target in qpcr_p:
+        targs=qpcr_p.Target.unique()
+        for target in targs:
             C_value=pd.to_numeric(out_fin[out_fin.Target==target].LoD_Cq)
             Q_value=pd.to_numeric(out_fin[out_fin.Target==target].LoD_Quantity)
             if np.isnan(C_value):
