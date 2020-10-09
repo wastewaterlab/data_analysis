@@ -456,7 +456,7 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
                 out_fin.append({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}, ignore_index=True)
             #usual case for PMMoV/18S
             elif len(fin>1):
-                fin=out[out.fr_pos==min(out.Quantity)].unique().copy()
+                fin=out[(min(out.fr_pos))&(out.fr_pos==min(out.Quantity))].unique().copy()
                 out_fin.append({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}, ignore_index=True)
         return (out_fin)
 
