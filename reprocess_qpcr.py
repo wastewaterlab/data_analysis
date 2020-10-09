@@ -439,6 +439,7 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
         for target in targs:
             df_t=dfm[dfm.Target==target].copy()
             out=df_t.groupby(["Quantity"]).agg(
+                                    Cq_mean=('Cq', lambda x:  np.nan if all(np.isnan(x)) else sci.gmean(x.dropna(),axis=0)),
                                     positives=('Cq','count'),
                                     total=('Sample', 'count')).reset_index()
             out['fr_pos']=out.positives/out.total
@@ -450,10 +451,10 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
             #for samples with
             fin=out[out.fr_pos==min(out.fr_pos)].copy()
             if len(fin==1):
-                out_fin.append({'Target':target, "LoD_Cq": fin.Cq_copy, "LoD_Quantity":fin.Quantity}, ignore_index=True)
+                out_fin.append({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}, ignore_index=True)
             elif len(fin!=1):
                 fin=out[out.fr_pos==min(out.Quantity)].copy()
-                out_fin.append({'Target':target, "LoD_Cq": fin.Cq_copy, "LoD_Quantity":fin.Quantity}, ignore_index=True)
+                out_fin.append({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}, ignore_index=True)
         return (out_fin)
 
 
