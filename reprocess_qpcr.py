@@ -446,14 +446,17 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
 
             #only take the portion of the dataframe that is greater than the cutoff
             out=out[out.fr_pos > cutoff ].copy()
+            #something is there hopefully but if not
             if len(out.fr_pos)<1:
                 out_fin.append({'Target':target, "LoD_Cq": np.nan, "LoD_Quantity":np.nan}, ignore_index=True)
-            #for samples with
+
+            #usual case for N1/ bCov
             fin=out[out.fr_pos==min(out.fr_pos)].copy()
             if len(fin==1):
                 out_fin.append({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}, ignore_index=True)
-            elif len(fin!=1):
-                fin=out[out.fr_pos==min(out.Quantity)].copy()
+            #usual case for PMMoV/18S
+            elif len(fin>1):
+                fin=out[out.fr_pos==min(out.Quantity)].unique().copy()
                 out_fin.append({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}, ignore_index=True)
         return (out_fin)
 
