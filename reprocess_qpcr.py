@@ -458,6 +458,7 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
             elif len(fin>1):
                 fin=out[(min(out.fr_pos))&(out.fr_pos==min(out.Quantity))].unique().copy()
                 out_fin.append({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}, ignore_index=True)
+        print(out_fin)
         return (out_fin)
 
 
