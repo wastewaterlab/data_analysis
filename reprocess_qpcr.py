@@ -211,7 +211,7 @@ def get_pass_grubbs_test(plate_df, groupby_list):
     else:
 
         b=list(d.Cq) #needs to be given unindexed list
-        outliers=grubbs.max_test_outliers(b, alpha=0.05)
+        outliers=grubbs.max_test_outliers(b, alpha=0.025)
         if len(outliers) > 0:
             d.loc[:, 'grubbs_test'] = True
             d.loc[d.Cq.isin(outliers), 'grubbs_test'] = False
