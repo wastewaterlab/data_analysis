@@ -452,10 +452,10 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
 
             #usual case for N1/ bCov
             fin=out[out.fr_pos==min(out.fr_pos)].copy()
-            if len(fin==1):
+            if len(fin.fr_pos) ==1:
                 out_fin=out_fin.append(pd.DataFrame({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}), ignore_index=True)
             #usual case for PMMoV/18S
-            elif len(fin>1):
+            elif len(fin.fr_pos)>1:
                 fin=out[(out.fr_pos==min(out.fr_pos))&(out.Quantity==min(out.Quantity))].copy()
                 out_fin=out_fin.append(pd.DataFrame({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}), ignore_index=True)
         print(out_fin)
