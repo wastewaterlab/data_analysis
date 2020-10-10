@@ -348,7 +348,8 @@ def process_standard(plate_df):
     std_curve_df = standard_df[['Cq_mean', 'log_Quantity']].drop_duplicates().dropna()
     num_points = std_curve_df.shape[0]
     Cq_of_lowest_std_quantity = max(standard_df.Cq_mean)
-
+    a=standard_df.sort_values(by='Cq_mean',ascending=True)
+    Cq_of_2ndlowest_std_quantity = a.Cq_mean[1]
     lowest_std_quantity = np.nan
     slope, intercept, r2, efficiency = (np.nan, np.nan, np.nan, np.nan)
 
@@ -356,7 +357,7 @@ def process_standard(plate_df):
         lowest_std_quantity = 10**min(standard_df.log_Quantity)
         slope, intercept, r2, efficiency = compute_linear_info(std_curve_df)
 
-    return(num_points, Cq_of_lowest_std_quantity, lowest_std_quantity, slope, intercept, r2, efficiency)
+    return(num_points, Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, slope, intercept, r2, efficiency)
 
 def process_unknown(plate_df, std_curve_info):
     '''
@@ -373,7 +374,7 @@ def process_unknown(plate_df, std_curve_info):
         slope and intercept from the std curve
     '''
 
-    [num_points, Cq_of_lowest_std_quantity, lowest_std_quantity, slope, intercept, r2, efficiency] = std_curve_info
+    [num_points, Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, slope, intercept, r2, efficiency] = std_curve_info
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
     unknown_df['Cq_of_lowest_sample_quantity']=np.nan
     if len(unknown_df.Task)==0:
@@ -485,7 +486,8 @@ def determine_samples_BLoQ(qpcr_p, max_cycles, out_fin, include_LoD=False):
                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"bloq"]= np.nan
             else:
                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"bloq"]= True
-                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_of_lowest_std_quantity> C_value),"Cq_of_lowest_std_quantity"]= C_value
+
+                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_of_lowest_std_quantity> C_value),"Cq_of_lowest_std_quantity"]= Cq_of_2ndlowest_std_quantity
                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_of_lowest_std_quantity> C_value),"lowest_std_quantity"]= Q_value
 
     qpcr_p['bloq']=np.nan
@@ -520,16 +522,16 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
         outliers_flagged, no_outliers_df = combine_triplicates(df, checks_include)
 
         # define outputs and fill with default values
-        num_points, Cq_of_lowest_std_quantity, lowest_std_quantity, slope, intercept, r2, efficiency =  np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+        num_points, Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity, slope, intercept, r2, efficiency =  np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
         unknown_df = df[df.Task == 'Unknown']
 
         # if there are >3 pts in std curve, calculate stats and recalculate quants
         num_points = no_outliers_df[no_outliers_df.Task == 'Standard'].drop_duplicates('Sample').shape[0]
         if num_points > 3:
-            num_points,  Cq_of_lowest_std_quantity, lowest_std_quantity, slope, intercept, r2, efficiency = process_standard(no_outliers_df)
-            std_curve_info = [num_points,  Cq_of_lowest_std_quantity, lowest_std_quantity, slope, intercept, r2, efficiency]
+            num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, slope, intercept, r2, efficiency = process_standard(no_outliers_df)
+            std_curve_info = [num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity, slope, intercept, r2, efficiency]
             unknown_df = process_unknown(no_outliers_df, std_curve_info)
-        std_curve_df.append([plate_id, target, num_points,  Cq_of_lowest_std_quantity, lowest_std_quantity, slope, intercept, r2, efficiency, ntc_result])
+        std_curve_df.append([plate_id, target, num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity, slope, intercept, r2, efficiency, ntc_result])
         qpcr_processed.append(unknown_df)
         raw_outliers_flagged_df.append(outliers_flagged)
 
@@ -541,6 +543,7 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
                                                         'Target',
                                                         'num_points',
                                                         'Cq_of_lowest_std_quantity',
+                                                        'Cq_of_2ndlowest_std_quantity',
                                                         'lowest_std_quantity',
                                                         'slope',
                                                         'intercept',
