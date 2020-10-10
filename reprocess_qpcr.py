@@ -352,8 +352,9 @@ def process_standard(plate_df):
     Cq_of_2ndlowest_std_quantity = sort_a.Cq_mean[1]
     lowest_std_quantity = np.nan
     sort_b=standard_df.sort_values(by='log_Quantity',ascending=True).copy()
-    print(sort_b)
+    print(sort_b.loc[:,2])
     lowest_std_quantity2nd= 10**(sort_b.log_Quantity[1])
+    print(lowest_std_quantity2nd)
     slope, intercept, r2, efficiency = (np.nan, np.nan, np.nan, np.nan)
 
     if num_points > 2:
