@@ -458,7 +458,6 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
             elif len(fin.fr_pos)>1:
                 fin=out[(out.fr_pos==min(out.fr_pos))&(out.Quantity==min(out.Quantity))].copy()
                 out_fin=out_fin.append(pd.DataFrame({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}), ignore_index=True)
-        print(out_fin)
         return (out_fin)
 
 
@@ -482,7 +481,6 @@ def determine_samples_BLoQ(qpcr_p, max_cycles, out_fin, include_LoD=False):
         for target in targs:
             C_value=float(out_fin.loc[(out_fin.Target==target),"LoD_Cq"])
             Q_value=float(out_fin.loc[(out_fin.Target==target),"LoD_Quantity"])
-            print(C_value)
             if np.isnan(C_value):
                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"bloq"]= np.nan
             else:
