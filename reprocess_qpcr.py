@@ -379,8 +379,9 @@ def process_unknown(plate_df, std_curve_info):
         must be single plate with single target
         std_curve_info: output from process_standard() as a list
     Returns
-        unknown_df: the unknown subset of plate_df, with 2 new columns
-        (Quantity_mean, and q_diff)
+        unknown_df: the unknown subset of plate_df, with new columns
+        Quantity_mean
+        q_diff
         Cq_of_lowest_sample_quantity: the Cq value of the lowest pt used on the plate
         these columns represent the recalculated quantity using Cq mean and the
         slope and intercept from the std curve
@@ -390,30 +391,38 @@ def process_unknown(plate_df, std_curve_info):
 
     [num_points, Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, lowest_std_quantity2nd,Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd, slope, intercept, r2, efficiency] = std_curve_info
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
-    unknown_df['Cq_of_lowest_sample_quantity']=np.nan
-    if len(unknown_df.Task)==0:
-        unknown_df['Cq_of_lowest_sample_quantity']=np.nan
+    unknown_df['Cq_of_lowest_sample_quantity'] = np.nan
+
+    # @lauren why is this here?
+    if len(unknown_df.Task) == 0:
+        unknown_df['Cq_of_lowest_sample_quantity'] = np.nan
     else:
         if all(np.isnan(unknown_df.Cq_mean)):
             unknown_df['Cq_of_lowest_sample_quantity']= np.nan #avoid error
         else:
             unknown_df['Cq_of_lowest_sample_quantity']=np.nanmax(unknown_df.Cq_mean)
+
     unknown_df['Quantity_mean'] = np.nan
-    unknown_df['Quantity_mean_upper_std'] = np.nan
-    unknown_df['Quantity_mean_lower_std'] = np.nan
+    # unknown_df['Quantity_mean_upper_std'] = np.nan
+    # unknown_df['Quantity_mean_lower_std'] = np.nan
     unknown_df['q_diff'] = np.nan
     unknown_df['Quantity_mean'] = 10**((unknown_df['Cq_mean'] - intercept)/slope)
-    unknown_df['Quantity_mean_lower_std'] = 10**((unknown_df['Cq_mean'] + unknown_df['Cq_std'] - intercept)/slope)
-    unknown_df['Quantity_mean_upper_std'] = 10**((unknown_df['Cq_mean'] - unknown_df['Cq_std'] - intercept)/slope)
+    # unknown_df['Quantity_mean_lower_std'] = 10**((unknown_df['Cq_mean'] + unknown_df['Cq_std'] - intercept)/slope)
+    # unknown_df['Quantity_mean_upper_std'] = 10**((unknown_df['Cq_mean'] - unknown_df['Cq_std'] - intercept)/slope)
+
+    # if Cq_mean is zero, don't calculate a quantity (turn to NaN)
     unknown_df.loc[unknown_df[unknown_df.Cq_mean == 0].index, 'Quantity_mean'] = np.nan
     unknown_df['q_diff'] = unknown_df['Q_init_mean'] - unknown_df['Quantity_mean']
-    if np.isnan(all(unknown_df['Quantity_mean'])):
-        unknown_df['Quantity_std']= np.nan
-    else:
-        unknown_df['Quantity_std']= sci.gstd(unknown_df.Quantity_mean.dropna())
-    unknown_df['qpcr_coefficient_var']=unknown_df['Quantity_std'] - 1 #to get the coefficient of variation from the geometric standard deviation
-    unknown_df['intraassay_var']=float(np.mean(unknown_df['qpcr_coefficient_var']))
-    return(unknown_df)
+
+    # if all Quantity means are nan, then don't calculate a Quantity std
+    # @lauren we can't calculate std from mean, right?
+    # if np.isnan(all(unknown_df['Quantity_mean'])):
+    #     unknown_df['Quantity_std'] = np.nan
+    # else:
+    #     unknown_df['Quantity_std'] = sci.gstd(unknown_df.Quantity_mean.dropna())
+    # unknown_df['qpcr_coefficient_var'] = unknown_df['Quantity_std'] - 1 #to get the coefficient of variation from the geometric standard deviation
+    # unknown_df['intraassay_var'] = float(np.mean(unknown_df['qpcr_coefficient_var']))
+    # return(unknown_df)
 
 def process_ntc(plate_df):
     ntc = plate_df[plate_df.Task == 'Negative Control']
@@ -422,7 +431,7 @@ def process_ntc(plate_df):
         ntc_result = 'negative'
     else:
         if all(np.isnan(ntc.Cq)):
-            ntc_result= np.nan #avoid error
+            ntc_result = np.nan #avoid error
         else:
             ntc_result = np.nanmin(ntc.Cq)
     return(ntc_result)
@@ -576,7 +585,7 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
                                                         'ntc_result'])
     qpcr_processed = pd.concat(qpcr_processed)
     qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on=['plate_id', 'Target'])
-    qpcr_m=qpcr_processed[["plate_id","Cq_of_lowest_sample_quantity", "intraassay_var"]].copy().drop_duplicates(keep='first')
+    qpcr_m=qpcr_processed[["plate_id","Cq_of_lowest_sample_quantity"]].copy().drop_duplicates(keep='first') # , "intraassay_var"
     std_curve_df=std_curve_df.merge(qpcr_m, how='left') # add Cq_of_lowest_sample_quantity and intraassay variation
     qpcr_processed= determine_samples_BLoQ(qpcr_processed, 40, assay_assessment_df, cutoff)
     std_curve_df=std_curve_df.drop("Cq_of_2ndlowest_std_quantity", axis=1)
