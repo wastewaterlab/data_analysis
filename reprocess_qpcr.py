@@ -351,13 +351,12 @@ def process_standard(plate_df):
     sort_a=standard_df.sort_values(by='Cq_mean',ascending=True)
     Cq_of_2ndlowest_std_quantity = sort_a.Cq_mean[1]
     lowest_std_quantity = np.nan
-    lowest_std_quantity2nd = np.nan
+    sort_b=standard_df.sort_values(by='log_Quantity',ascending=False)
+    lowest_std_quantity2nd= 10**(sort_b.log_Quantity[1])
     slope, intercept, r2, efficiency = (np.nan, np.nan, np.nan, np.nan)
 
     if num_points > 2:
         lowest_std_quantity = 10**min(standard_df.log_Quantity)
-        sort_b=standard_df.sort_values(by='log_Quantity',ascending=False)
-        lowest_std_quantity2nd= 10**(sort_b.log_Quantity[1])
         slope, intercept, r2, efficiency = compute_linear_info(std_curve_df)
 
     return(num_points, Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, lowest_std_quantity2nd, slope, intercept, r2, efficiency)
