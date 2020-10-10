@@ -559,8 +559,8 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
                                                         'Cq_of_2ndlowest_std_quantity',
                                                         'lowest_std_quantity',
                                                         'lowest_std_quantity2nd',
-                                                        'Cq_of_lowest_std_quantity_gsd'
-                                                        'Cq_of_2ndlowest_std_quantity_gsd'
+                                                        'Cq_of_lowest_std_quantity_gsd',
+                                                        'Cq_of_2ndlowest_std_quantity_gsd',
                                                         'slope',
                                                         'intercept',
                                                         'r2',
