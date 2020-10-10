@@ -407,8 +407,8 @@ def process_unknown(plate_df, std_curve_info):
     unknown_df['Quantity_mean_upper_std'] = 10**((unknown_df['Cq_mean'] - unknown_df['Cq_std'] - intercept)/slope)
     unknown_df.loc[unknown_df[unknown_df.Cq_mean == 0].index, 'Quantity_mean'] = np.nan
     unknown_df['q_diff'] = unknown_df['Q_init_mean'] - unknown_df['Quantity_mean']
-    unknown_df['qpcr_coefficient_var']=unknown_df['Cq_std'] - 1 #to get the coefficient of variation from the geometric standard deviation
-    unknown_df['intraassay_var']=float(mean(unknown_df['qpcr_coefficient_var']))
+    unknown_df['qpcr_coefficient_var']=unknown_df['Quantity_std'] - 1 #to get the coefficient of variation from the geometric standard deviation
+    unknown_df['intraassay_var']=float(np.mean(unknown_df['qpcr_coefficient_var']))
     return(unknown_df)
 
 def process_ntc(plate_df):
