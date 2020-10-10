@@ -408,9 +408,8 @@ def process_unknown(plate_df, std_curve_info):
     unknown_df.loc[unknown_df[unknown_df.Cq_mean == 0].index, 'Quantity_mean'] = np.nan
     unknown_df['q_diff'] = unknown_df['Q_init_mean'] - unknown_df['Quantity_mean']
     unknown_df['qpcr_coefficient_var']=unknown_df['Cq_std'] - 1 #to get the coefficient of variation from the geometric standard deviation
-    plate_var=unknown_df.groupby(["Target","plate_id"])['qpcr_coefficient_var'].agg('mean').reset_index()
-    plate_var.columns=["Target","plate_id","intraassay_var"]
-    return(unknown_df, plate_var)
+    unknown_df['intraassay_var']=float(mean(unknown_df['qpcr_coefficient_var']))
+    return(unknown_df)
 
 def process_ntc(plate_df):
     ntc = plate_df[plate_df.Task == 'Negative Control']
@@ -548,7 +547,7 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
         if num_points > 3:
             num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, lowest_std_quantity2nd,Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd, slope, intercept, r2, efficiency = process_standard(no_outliers_df)
             std_curve_info = [num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity, lowest_std_quantity2nd,Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd,slope, intercept, r2, efficiency]
-            unknown_df, plate_var = process_unknown(no_outliers_df, std_curve_info)
+            unknown_df = process_unknown(no_outliers_df, std_curve_info)
         std_curve_df.append([plate_id, target, num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity,lowest_std_quantity2nd, Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd, slope, intercept, r2, efficiency, ntc_result])
         qpcr_processed.append(unknown_df)
         raw_outliers_flagged_df.append(outliers_flagged)
@@ -573,9 +572,8 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
                                                         'ntc_result'])
     qpcr_processed = pd.concat(qpcr_processed)
     qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on=['plate_id', 'Target'])
-    qpcr_m=qpcr_processed[["plate_id","Cq_of_lowest_sample_quantity"]].copy().drop_duplicates(keep='first')
-    std_curve_df=std_curve_df.merge(qpcr_m, how='left') # add Cq_of_lowest_sample_quantity
-    std_curve_df=std_curve_df.merge(plate_var, how='left') #Add intraassay variation
+    qpcr_m=qpcr_processed[["plate_id","Cq_of_lowest_sample_quantity", "intraassay_var"]].copy().drop_duplicates(keep='first')
+    std_curve_df=std_curve_df.merge(qpcr_m, how='left') # add Cq_of_lowest_sample_quantity and intraassay variation
     qpcr_processed= determine_samples_BLoQ(qpcr_processed, 40, assay_assessment_df, cutoff)
     std_curve_df=std_curve_df.drop("Cq_of_2ndlowest_std_quantity", axis=1)
     std_curve_df=std_curve_df.drop("Cq_of_2ndlowest_std_quantity_gsd", axis=1)
