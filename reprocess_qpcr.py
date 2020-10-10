@@ -407,7 +407,7 @@ def process_unknown(plate_df, std_curve_info):
     unknown_df['Quantity_mean_upper_std'] = 10**((unknown_df['Cq_mean'] - unknown_df['Cq_std'] - intercept)/slope)
     unknown_df.loc[unknown_df[unknown_df.Cq_mean == 0].index, 'Quantity_mean'] = np.nan
     unknown_df['q_diff'] = unknown_df['Q_init_mean'] - unknown_df['Quantity_mean']
-    if np.isnan(unknown_df['Quantity_mean']):
+    if np.isnan(all(unknown_df['Quantity_mean'])):
         unknown_df['Quantity_std']= np.nan
     else:
         unknown_df['Quantity_std']= sci.gstd(unknown_df.Quantity_mean.dropna())
