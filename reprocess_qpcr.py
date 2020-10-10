@@ -435,7 +435,7 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
 
         dfm=dfm[dfm.Task=='Standard'] #only standards
         dfm=dfm[dfm.Quantity!=0] #no NTCs
-        out_fin=pd.DataFrame(columns=["Target","LoD_Cq","LoD_Quantity"]) #empty dataframe with desired columns
+        assay_assessment_df=pd.DataFrame(columns=["Target","LoD_Cq","LoD_Quantity"]) #empty dataframe with desired columns
 
         #iterate through targets, groupby quantity, and determine the fraction of the replicates that were detectable
         targs=dfm.Target.unique()
@@ -451,24 +451,24 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
             out=out[out.fr_pos > cutoff ].copy()
             #something is there hopefully but if not
             if len(out.fr_pos)<1:
-                out_fin=out_fin.append(pd.DataFrame({'Target':target, "LoD_Cq": np.nan, "LoD_Quantity":np.nan}), ignore_index=True)
+                assay_assessment_df=assay_assessment_df.append(pd.DataFrame({'Target':target, "LoD_Cq": np.nan, "LoD_Quantity":np.nan}), ignore_index=True)
 
             #usual case for N1/ bCov
             fin=out[out.fr_pos==min(out.fr_pos)].copy()
             if len(fin.fr_pos) ==1:
-                out_fin=out_fin.append(pd.DataFrame({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}), ignore_index=True)
+                assay_assessment_df=assay_assessment_df.append(pd.DataFrame({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}), ignore_index=True)
             #usual case for PMMoV/18S
             elif len(fin.fr_pos)>1:
                 fin=out[(out.fr_pos==min(out.fr_pos))&(out.Quantity==min(out.Quantity))].copy()
-                out_fin=out_fin.append(pd.DataFrame({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}), ignore_index=True)
-        return (out_fin)
+                assay_assessment_df=assay_assessment_df.append(pd.DataFrame({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}), ignore_index=True)
+        return (assay_assessment_df)
 
 
-def determine_samples_BLoQ(qpcr_p, max_cycles, out_fin, include_LoD=False):
+def determine_samples_BLoQ(qpcr_p, max_cycles, assay_assessment_df, include_LoD=False):
     '''
     from processed unknown qpcr data and the max cycles allowed (usually 40) this will return qpcr_processed with a boolean column indicating samples bloq.
     samples that have Cq_mean that is nan are classified as bloq (including true negatives and  samples removed during processing)
-    If include LoD is true, out_fin comes from determines_samples_BLO
+    If include LoD is true, assay_assessment_df comes from determines_samples_BLO
 
     Params:
         Cq_mean the combined triplicates of the sample
@@ -482,13 +482,12 @@ def determine_samples_BLoQ(qpcr_p, max_cycles, out_fin, include_LoD=False):
         qpcr_p["blod"]= np.nan
         targs=qpcr_p.Target.unique()
         for target in targs:
-            C_value=float(out_fin.loc[(out_fin.Target==target),"LoD_Cq"])
-            Q_value=float(out_fin.loc[(out_fin.Target==target),"LoD_Quantity"])
+            C_value=float(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Cq"])
+            Q_value=float(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Quantity"])
             if np.isnan(C_value):
                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"bloq"]= np.nan
             else:
                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"bloq"]= True
-
                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_of_lowest_std_quantity> C_value),"Cq_of_lowest_std_quantity"]= qpcr_p.Cq_of_2ndlowest_std_quantity
                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_of_lowest_std_quantity> C_value),"lowest_std_quantity"]= qpcr_p.lowest_std_quantity2nd
 
@@ -539,7 +538,7 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
 
     # compile into dataframes
     raw_outliers_flagged_df = pd.concat(raw_outliers_flagged_df)
-    out_fin=determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include)
+    assay_assessment_df=determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include)
     std_curve_df = pd.DataFrame.from_records(std_curve_df,
                                              columns = ['plate_id',
                                                         'Target',
@@ -557,7 +556,7 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
     qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on=['plate_id', 'Target'])
     qpcr_m=qpcr_processed[["plate_id","Cq_of_lowest_sample_quantity"]].copy().drop_duplicates(keep='first')
     std_curve_df=std_curve_df.merge(qpcr_m, how='left')
-    qpcr_processed= determine_samples_BLoQ(qpcr_processed, 40, out_fin, cutoff)
+    qpcr_processed= determine_samples_BLoQ(qpcr_processed, 40, assay_assessment_df, cutoff)
     std_curve_df=std_curve_df.drop("Cq_of_2ndlowest_std_quantity", axis=1)
     std_curve_df=std_curve_df.drop("lowest_std_quantity2nd", axis=1)
-    return(qpcr_processed, std_curve_df, raw_outliers_flagged_df)
+    return(qpcr_processed, std_curve_df, raw_outliers_flagged_df, assay_assessment_df)
