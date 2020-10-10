@@ -480,8 +480,8 @@ def determine_samples_BLoQ(qpcr_p, max_cycles, out_fin, include_LoD=False):
         qpcr_p["blod"]= np.nan
         targs=qpcr_p.Target.unique()
         for target in targs:
-            C_value=list(out_fin.loc[(out_fin.Target==target),"LoD_Cq"])
-            Q_value=list(out_fin.loc[(out_fin.Target==target),"LoD_Quantity"])
+            C_value=out_fin.loc[(out_fin.Target==target),"LoD_Cq"]
+            Q_value=out_fin.loc[(out_fin.Target==target),"LoD_Quantity"]
             print(C_value)
             if np.isnan(C_value):
                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"bloq"]= np.nan
