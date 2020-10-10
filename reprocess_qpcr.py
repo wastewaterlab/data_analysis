@@ -422,7 +422,7 @@ def process_unknown(plate_df, std_curve_info):
     #     unknown_df['Quantity_std'] = sci.gstd(unknown_df.Quantity_mean.dropna())
     # unknown_df['qpcr_coefficient_var'] = unknown_df['Quantity_std'] - 1 #to get the coefficient of variation from the geometric standard deviation
     # unknown_df['intraassay_var'] = float(np.mean(unknown_df['qpcr_coefficient_var']))
-    # return(unknown_df)
+    return(unknown_df)
 
 def process_ntc(plate_df):
     ntc = plate_df[plate_df.Task == 'Negative Control']
