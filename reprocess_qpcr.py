@@ -484,6 +484,7 @@ def determine_samples_BLoQ(qpcr_p, max_cycles, assay_assessment_df, include_LoD=
         for target in targs:
             C_value=float(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Cq"])
             Q_value=float(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Quantity"])
+            print(C_value)
             if np.isnan(C_value):
                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"bloq"]= np.nan
             else:
