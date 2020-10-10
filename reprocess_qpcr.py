@@ -533,7 +533,7 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
             num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, lowest_std_quantity2nd,slope, intercept, r2, efficiency = process_standard(no_outliers_df)
             std_curve_info = [num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity, lowest_std_quantity2nd,slope, intercept, r2, efficiency]
             unknown_df = process_unknown(no_outliers_df, std_curve_info)
-        std_curve_df.append([plate_id, target, num_points,  Cq_of_lowest_std_quantity, lowest_std_quantity2nd,Cq_of_2ndlowest_std_quantity,lowest_std_quantity, slope, intercept, r2, efficiency, ntc_result])
+        std_curve_df.append([plate_id, target, num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity,lowest_std_quantity2nd, slope, intercept, r2, efficiency, ntc_result])
         qpcr_processed.append(unknown_df)
         raw_outliers_flagged_df.append(outliers_flagged)
 
