@@ -400,7 +400,9 @@ def process_unknown(plate_df, std_curve_info):
         if all(np.isnan(unknown_df.Cq_mean)):
             unknown_df['Cq_of_lowest_sample_quantity']= np.nan #avoid error
         else:
-            unknown_df['Cq_of_lowest_sample_quantity']=np.nanmax(unknown_df.Cq_mean)
+            targs=unknown_df.Target.unique()
+            for target in targets:
+                unknown_df.loc[(unknown_df.Target==target),'Cq_of_lowest_sample_quantity']=np.nanmax(unknown_df.loc[(unknown_df.Target==target),'Cq_mean']) #because of xeno
 
     unknown_df['Quantity_mean'] = np.nan
     # unknown_df['Quantity_mean_upper_std'] = np.nan
