@@ -345,7 +345,7 @@ def process_standard(plate_df):
     # require at least 2 triplicates or else convert to nan
     standard_df = standard_df[standard_df.replicate_count > 1]
 
-    standard_df['log_Quantity'] = standard_df['Q_init_mean']
+    standard_df['log_Quantity'] = np.log10(standard_df['Q_init_mean'])
     std_curve_df = standard_df[['Cq_mean', 'log_Quantity', "Cq_std"]].drop_duplicates().dropna()
     num_points = std_curve_df.shape[0]
 
