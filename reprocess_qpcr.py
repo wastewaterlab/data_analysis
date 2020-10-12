@@ -303,7 +303,7 @@ def combine_triplicates(plate_df_in, checks_include):
 
     plate_df_avg = plate_df.groupby(groupby_list).agg(
                                                template_volume=('template_volume','max'),
-                                               Q_init_mean=max('Quantity'), #only needed to preserve quantity information for standards later
+                                               Q_init_mean=('Quantity','max'), #only needed to preserve quantity information for standards later
                                                Q_init_std=('Quantity', lambda x: np.nan if ( (len(x.dropna()) <2 )| all(np.isnan(x)) ) else (sci.gstd(x.dropna(),axis=0))),
                                                Q_init_CoV=('Quantity',lambda x: np.std(x.dropna()) / np.mean(x.dropna())),
                                                Cq_init_mean=('Cq', 'mean'),
