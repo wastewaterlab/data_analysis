@@ -351,7 +351,7 @@ def process_standard(plate_df):
     std_curve_df = standard_df[['Cq_mean', 'log_Quantity', "Cq_std"]].drop_duplicates().dropna()
     num_points = std_curve_df.shape[0]
 
-    if all(standard_df.Cq_mean == ""):
+    if (all(standard_df.Cq_mean == "") | len(standard_df.Cq_mean) <2):
         slope, intercept, r2, efficiency,Cq_of_lowest_std_quantity,Cq_of_2ndlowest_std_quantity,Cq_of_lowest_std_quantity_gsd,Cq_of_2ndlowest_std_quantity_gsd,lowest_std_quantity,lowest_std_quantity2nd = np.nan, np.nan, np.nan, np.nan,np.nan, np.nan,np.nan, np.nan,np.nan, np.nan,
     else:
         #find the Cq of the lowest and second lowest (for LoQ) standard quantity
