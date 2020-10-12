@@ -303,7 +303,7 @@ def combine_triplicates(plate_df_in, checks_include):
 
     plate_df_avg = plate_df.groupby(groupby_list).agg(
                                                template_volume=('template_volume','max'),
-                                               Q_init_mean=('Quantity', lambda x: np.nan if all(np.isnan(x)) else sci.gmean(x.dropna(),axis=0)),
+                                               Q_init_mean=max('Quantity') #only needed to preserve quantity information for standards later
                                                Q_init_std=('Quantity', lambda x: np.nan if ( (len(x.dropna()) <2 )| all(np.isnan(x)) ) else (sci.gstd(x.dropna(),axis=0))),
                                                Q_init_CoV=('Quantity',lambda x: np.std(x.dropna()) / np.mean(x.dropna())),
                                                Cq_init_mean=('Cq', 'mean'),
@@ -345,7 +345,7 @@ def process_standard(plate_df):
     # require at least 2 triplicates or else convert to nan
     standard_df = standard_df[standard_df.replicate_count > 1]
 
-    standard_df['log_Quantity'] = standard_df.apply(lambda row: np.log10(pd.to_numeric(row.Q_init_mean)), axis = 1)
+    standard_df['log_Quantity'] = standard_df['Q_init_mean']
     std_curve_df = standard_df[['Cq_mean', 'log_Quantity', "Cq_std"]].drop_duplicates().dropna()
     num_points = std_curve_df.shape[0]
 
@@ -401,7 +401,7 @@ def process_unknown(plate_df, std_curve_info):
             unknown_df['Cq_of_lowest_sample_quantity']= np.nan #avoid error
         else:
             targs=unknown_df.Target.unique()
-            for target in targets:
+            for target in targs:
                 unknown_df.loc[(unknown_df.Target==target),'Cq_of_lowest_sample_quantity']=np.nanmax(unknown_df.loc[(unknown_df.Target==target),'Cq_mean']) #because of xeno
 
     unknown_df['Quantity_mean'] = np.nan
