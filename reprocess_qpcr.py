@@ -583,7 +583,7 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
                                                         'ntc_result'])
     qpcr_processed = pd.concat(qpcr_processed)
     qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on=['plate_id', 'Target'])
-    qpcr_m=qpcr_processed[["plate_id","Cq_of_lowest_sample_quantity"]].copy().drop_duplicates(keep='first') # , "intraassay_var"
+    qpcr_m=qpcr_processed[["plate_id","Target","Cq_of_lowest_sample_quantity"]].copy().drop_duplicates(keep='first') # , "intraassay_var"
     std_curve_df=std_curve_df.merge(qpcr_m, how='left') # add Cq_of_lowest_sample_quantity and intraassay variation
     qpcr_processed= determine_samples_BLoQ(qpcr_processed, 40, assay_assessment_df, cutoff)
     std_curve_df=std_curve_df.drop("Cq_of_2ndlowest_std_quantity", axis=1)
