@@ -267,7 +267,7 @@ def combine_triplicates(plate_df_in, checks_include):
     '''
 
     if (checks_include not in ['all', 'dixonsq_only', 'median_only','grubbs_only', None]):
-        raise ValueError('''invalid input, must be one of the following: 'all',
+        raise ValueError('''invalid input, must be one of the following: 'all', 'grubbs_only',
                       'dixonsq_only', 'median_only'or None''')
 
     if len(plate_df_in.Target.unique()) > 1:
@@ -548,7 +548,7 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
     '''
 
     if (checks_include not in ['all', 'dixonsq_only', 'median_only','grubbs_only', None]):
-        raise ValueError('''invalid input, must be one of the following: 'all',
+        raise ValueError('''invalid input, must be one of the following: 'all', 'grubs_only',
                       'dixonsq_only', 'median_only'or None''')
     std_curve_df = []
     qpcr_processed = []
