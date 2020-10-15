@@ -57,17 +57,17 @@ def quality_score(p, dic_name, df):
    if e in dic_name:
         for row in df.itertuples():
             if (row.Target!= 'Xeno')&(~np.isnan(row.efficiency)):
-              if ((row.efficiency >=0.8) | (row.efficiency <=1.1)) :
-                value= row.quality_score + p[e][0]*p[e][1]
-                df.loc[row.Index,'quality_score'] = value
-              elif ((row.efficiency >=0.7) | (row.efficiency <=1.2)) :
-                value= row.quality_score + p[e][0]*p[e][2]
-                df.loc[row.Index,'quality_score'] = value
-                df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " efficiency (2);"
-              else:
-                value= row.quality_score  + p[e][0]*p[e][3]
-                df.loc[row.Index,'quality_score'] = value
-                df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " efficiency (3);"
+                  if ((row.efficiency >=0.8) | (row.efficiency <=1.1)) :
+                    value= row.quality_score + p[e][0]*p[e][1]
+                    df.loc[row.Index,'quality_score'] = value
+                  elif ((row.efficiency >=0.7) | (row.efficiency <=1.2)) :
+                    value= row.quality_score + p[e][0]*p[e][2]
+                    df.loc[row.Index,'quality_score'] = value
+                    df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " efficiency (2);"
+                  else:
+                    value= row.quality_score  + p[e][0]*p[e][3]
+                    df.loc[row.Index,'quality_score'] = value
+                    df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " efficiency (3);"
             else:
               df.loc[row.Index,'quality_score'] = np.nan
               if np.isnan(row.efficiency):
@@ -77,17 +77,17 @@ def quality_score(p, dic_name, df):
    if e in dic_name:
          for row in df.itertuples():
              if (row.Target!= 'Xeno')&(~np.isnan(row.r2)):
-              if (row.r2 >=0.98):
-                value= row.quality_score + p[e][0]*p[e][1]
-                df.loc[row.Index,'quality_score'] = value
-              elif (row.r2 >=0.9):
-                value= row.quality_score + p[e][0]*p[e][2]
-                df.loc[row.Index,'quality_score'] = value
-                df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " R2 (2);"
-              else:
-                value= row.quality_score  + p[e][0]*p[e][3]
-                df.loc[row.Index,'quality_score'] = value
-                df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " R2 (3);"
+                  if (row.r2 >=0.98):
+                    value= row.quality_score + p[e][0]*p[e][1]
+                    df.loc[row.Index,'quality_score'] = value
+                  elif (row.r2 >=0.9):
+                    value= row.quality_score + p[e][0]*p[e][2]
+                    df.loc[row.Index,'quality_score'] = value
+                    df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " R2 (2);"
+                  else:
+                    value= row.quality_score  + p[e][0]*p[e][3]
+                    df.loc[row.Index,'quality_score'] = value
+                    df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " R2 (3);"
              else:
               df.loc[row.Index,'quality_score'] = np.nan
               if np.isnan(row.r2):
