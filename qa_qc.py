@@ -109,10 +109,10 @@ def quality_score(p, dic_name, df):
                     value= row.quality_score  + p[e][0]*p[e][3]
                     df.loc[row.Index,'quality_score'] = value
                     df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " number of points in std curve (3);"
-            else:
-              df.loc[row.Index,'quality_score'] = np.nan
-              if np.isnan(row.num_points):
-                df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check standard curve number of points;"
+             else:
+               df.loc[row.Index,'quality_score'] = np.nan
+               if np.isnan(row.num_points):
+                 df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check standard curve number of points;"
 
    # number of replicates
    e="n_reps"
