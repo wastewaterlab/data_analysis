@@ -206,7 +206,7 @@ def quality_score(p, dic_name, df):
                         if row.replicate_count==0:
                           df.loc[row.Index,'flag'] = 'set to 0'
                           df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " 0 replicates;"
-        else:
+           else:
               df.loc[row.Index,'quality_score'] = np.nan
               if np.isnan(row.replicate_count):
                 df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check date_conc_extract and date_sampling;"
