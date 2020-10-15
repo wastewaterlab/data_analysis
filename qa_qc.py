@@ -237,4 +237,4 @@ def quality_score(p, dic_name, df):
            df.loc[row.Index,'quality_score'] = 0
 
    df.quality_score=(df.quality_score/max_score)*100
- return df
+   return df
