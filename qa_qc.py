@@ -28,7 +28,7 @@ def quality_score(p, dic_name, df):
    ntc_result & Cq_of_lowest_std_quantity
    replicate_count
    is_inhibited
-   date_conc_extract & date_sampling
+   date_conc_extract & date_sampling & stored_minus_80 & stored_minus_20
    PBS_result & Cq_of_lowest_std_quantity
 
    result:
@@ -191,22 +191,22 @@ def quality_score(p, dic_name, df):
                    if days_transit/np.timedelta64(1, 'D') < 0:
                      df.loc[row.Index,'quality_score'] = np.nan
                      df.loc[row.Index,'flag'] = " date_conc_extract < date_sampling;"
-               else:
-                  if (days_transit/np.timedelta64(1, 'D') >=3):
-                    value= row.quality_score + p[e][0]*p[e][1]
-                    df.loc[row.Index,'quality_score'] = value
-                  elif (days_transit/np.timedelta64(1, 'D') >=5):
-                    value= row.quality_score + p[e][0]*p[e][2]
-                    df.loc[row.Index,'quality_score'] = value
-                    df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " days before concentration/extraction (2);"
-                  else:
-                    value= row.quality_score  + p[e][0]*p[e][3]
-                    df.loc[row.Index,'quality_score'] = value
-                    df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " days before concentration/extraction (3);"
-                    if row.replicate_count==0:
-                      df.loc[row.Index,'flag'] = 'set to 0'
-                      df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " 0 replicates;"
-           else:
+                   else:
+                      if (days_transit/np.timedelta64(1, 'D') >=3):
+                        value= row.quality_score + p[e][0]*p[e][1]
+                        df.loc[row.Index,'quality_score'] = value
+                      elif (days_transit/np.timedelta64(1, 'D') >=5):
+                        value= row.quality_score + p[e][0]*p[e][2]
+                        df.loc[row.Index,'quality_score'] = value
+                        df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " days before concentration/extraction (2);"
+                      else:
+                        value= row.quality_score  + p[e][0]*p[e][3]
+                        df.loc[row.Index,'quality_score'] = value
+                        df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " days before concentration/extraction (3);"
+                        if row.replicate_count==0:
+                          df.loc[row.Index,'flag'] = 'set to 0'
+                          df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " 0 replicates;"
+        else:
               df.loc[row.Index,'quality_score'] = np.nan
               if np.isnan(row.replicate_count):
                 df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check date_conc_extract and date_sampling;"
