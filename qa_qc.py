@@ -27,7 +27,7 @@ def quality_score(p, dic_name, df):
    r2
    num_points
    ntc_result & Cq_of_lowest_std_quantity
-   replicate_count
+   replicate_count & is_undetermined_count
    is_inhibited
    date_conc_extract & date_sampling & stored_minus_80 & stored_minus_20
    PBS_result & Cq_of_lowest_std_quantity
@@ -128,12 +128,20 @@ def quality_score(p, dic_name, df):
                     df.loc[row.Index,'quality_score'] = value
                     df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " number of replicates (2);"
                   else:
-                    value= row.quality_score  + p[e][0]*p[e][3]
-                    df.loc[row.Index,'quality_score'] = value
-                    df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " number of replicates (3);"
                     if row.replicate_count==0:
-                      df.loc[row.Index,'flag'] = 'set to 0'
-                      df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " 0 replicates;"
+                        if (row.is_undetermined_count >= 3):
+                            value= row.quality_score + p[e][0]*p[e][1]
+                            df.loc[row.Index,'quality_score'] = value
+                        elif (row.is_undetermined_count >= 2):
+                            value= row.quality_score + p[e][0]*p[e][2]
+                            df.loc[row.Index,'quality_score'] = value
+                            df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " number of replicates (2);"
+                        else:
+                            value= row.quality_score  + p[e][0]*p[e][3]
+                            df.loc[row.Index,'quality_score'] = value
+                            df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " number of replicates (3);"
+                            df.loc[row.Index,'flag'] = 'set to 0'
+                            df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " 0 replicates;"
            else:
               df.loc[row.Index,'quality_score'] = np.nan
               if np.isnan(row.replicate_count):
@@ -204,12 +212,10 @@ def quality_score(p, dic_name, df):
                         value= row.quality_score  + p[e][0]*p[e][3]
                         df.loc[row.Index,'quality_score'] = value
                         df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " days before concentration/extraction (3);"
-                        if row.replicate_count==0:
-                          df.loc[row.Index,'flag'] = 'set to 0'
-                          df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " 0 replicates;"
+
            else:
               df.loc[row.Index,'quality_score'] = np.nan
-              if np.isnan(row.replicate_count):
+              if np.isnan(row.days_transit):
                 df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check date_conc_extract and date_sampling;"
 
    #PBS control
