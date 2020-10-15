@@ -52,8 +52,8 @@ def quality_score(p, dic_name, df):
    for name in dic_name:
        max_score= max_score+ p[name][0]* p[name][1]
 
-    # efficiency of the standard curve
-    e="eff_std"
+   # efficiency of the standard curve
+   e="eff_std"
     if e in dic_name:
         for row in df.itertuples():
             if (row.Target!= 'Xeno')&(~np.isnan(row.efficiency)):
