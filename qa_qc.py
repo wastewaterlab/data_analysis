@@ -42,16 +42,15 @@ def quality_score(p, dic_name, df):
    point_deduction: provides reason(s) for point deduction
 
    '''
+   df=df.copy()
+   df['quality_score']= 0
+   max_score=0
+   df['flag']=""
+   df['point_deduction']=""
 
- df=df.copy()
- df['quality_score']= 0
- max_score=0
- df['flag']=""
- df['point_deduction']=""
-
- #calculate max score
- for name in dic_name:
-   max_score= max_score+ p[name][0]* p[name][1]
+   #calculate max score
+   for name in dic_name:
+       max_score= max_score+ p[name][0]* p[name][1]
 
     # efficiency of the standard curve
     e="eff_std"
@@ -238,9 +237,9 @@ def quality_score(p, dic_name, df):
               if (row.ntc_result== ""):
                 df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check PBS batch is correctly assigned;"
 
-         for row in df.itertuples():
-            if row.flag=='set to 0':
-              df.loc[row.Index,'quality_score'] = 0
+     for row in df.itertuples():
+         if row.flag=='set to 0':
+             df.loc[row.Index,'quality_score'] = 0
 
- df.quality_score=(df.quality_score/max_score)*100
+    df.quality_score=(df.quality_score/max_score)*100
  return df
