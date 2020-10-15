@@ -98,17 +98,17 @@ def quality_score(p, dic_name, df):
    if e in dic_name:
          for row in df.itertuples():
              if (row.Target!= 'Xeno')&(~np.isnan(row.num_points)):
-              if (row.num_points >=5):
-                value= row.quality_score + p[e][0]*p[e][1]
-                df.loc[row.Index,'quality_score'] = value
-              elif (row.num_points >=3):
-                value= row.quality_score + p[e][0]*p[e][2]
-                df.loc[row.Index,'quality_score'] = value
-                df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " number of points in std curve (2);"
-              else:
-                value= row.quality_score  + p[e][0]*p[e][3]
-                df.loc[row.Index,'quality_score'] = value
-                df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " number of points in std curve (3);"
+                  if (row.num_points >=5):
+                    value= row.quality_score + p[e][0]*p[e][1]
+                    df.loc[row.Index,'quality_score'] = value
+                  elif (row.num_points >=3):
+                    value= row.quality_score + p[e][0]*p[e][2]
+                    df.loc[row.Index,'quality_score'] = value
+                    df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " number of points in std curve (2);"
+                  else:
+                    value= row.quality_score  + p[e][0]*p[e][3]
+                    df.loc[row.Index,'quality_score'] = value
+                    df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " number of points in std curve (3);"
             else:
               df.loc[row.Index,'quality_score'] = np.nan
               if np.isnan(row.num_points):
@@ -119,20 +119,20 @@ def quality_score(p, dic_name, df):
    if e in dic_name:
         for row in df.itertuples():
            if (row.Target!= 'Xeno')&(~np.isnan(row.replicate_count)):
-              if (row.replicate_count >=3):
-                value= row.quality_score + p[e][0]*p[e][1]
-                df.loc[row.Index,'quality_score'] = value
-              elif (row.replicate_count >=2):
-                value= row.quality_score + p[e][0]*p[e][2]
-                df.loc[row.Index,'quality_score'] = value
-                df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " number of replicates (2);"
-              else:
-                value= row.quality_score  + p[e][0]*p[e][3]
-                df.loc[row.Index,'quality_score'] = value
-                df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " number of replicates (3);"
-                if row.replicate_count==0:
-                  df.loc[row.Index,'flag'] = 'set to 0'
-                  df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " 0 replicates;"
+                  if (row.replicate_count >=3):
+                    value= row.quality_score + p[e][0]*p[e][1]
+                    df.loc[row.Index,'quality_score'] = value
+                  elif (row.replicate_count >=2):
+                    value= row.quality_score + p[e][0]*p[e][2]
+                    df.loc[row.Index,'quality_score'] = value
+                    df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " number of replicates (2);"
+                  else:
+                    value= row.quality_score  + p[e][0]*p[e][3]
+                    df.loc[row.Index,'quality_score'] = value
+                    df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " number of replicates (3);"
+                    if row.replicate_count==0:
+                      df.loc[row.Index,'flag'] = 'set to 0'
+                      df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " 0 replicates;"
            else:
               df.loc[row.Index,'quality_score'] = np.nan
               if np.isnan(row.replicate_count):
@@ -143,18 +143,17 @@ def quality_score(p, dic_name, df):
    if e in dic_name:
         for row in df.itertuples():
            if (row.Target!= 'Xeno')&(row.ntc_result!= ""):
-              e=dic_name[4]
-              if (row.ntc_result =='negative'):
-                value= row.quality_score + p[e][0]*p[e][1]
-                df.loc[row.Index,'quality_score'] = value
-              elif (pd.to_numeric(row.ntc_result) < pd.to_numeric(row.Cq_of_lowest_std_quantity)+1):
-                value= row.quality_score + p[e][0]*p[e][2]
-                df.loc[row.Index,'quality_score'] = value
-                df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " NTC (2);"
-              else:
-                value= row.quality_score  + p[e][0]*p[e][3]
-                df.loc[row.Index,'quality_score'] = value
-                df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " NTC (3);"
+                  if (row.ntc_result =='negative'):
+                    value= row.quality_score + p[e][0]*p[e][1]
+                    df.loc[row.Index,'quality_score'] = value
+                  elif (pd.to_numeric(row.ntc_result) < pd.to_numeric(row.Cq_of_lowest_std_quantity)+1):
+                    value= row.quality_score + p[e][0]*p[e][2]
+                    df.loc[row.Index,'quality_score'] = value
+                    df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " NTC (2);"
+                  else:
+                    value= row.quality_score  + p[e][0]*p[e][3]
+                    df.loc[row.Index,'quality_score'] = value
+                    df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " NTC (3);"
            else:
               df.loc[row.Index,'quality_score'] = np.nan
               if (row.ntc_result== ""):
@@ -165,14 +164,13 @@ def quality_score(p, dic_name, df):
    if e in dic_name:
       for row in df.itertuples():
            if (row.Target!= 'Xeno')&(row.is_inhibited != "") &(row.is_inhibited != "unknown"):
-              e=dic_name[5]
-              if (row.is_inhibited =='No'):
-                value= row.quality_score + p[e][0]*p[e][1]
-                df.loc[row.Index,'quality_score'] = value
-              else:
-                value= row.quality_score  + p[e][0]*p[e][2]
-                df.loc[row.Index,'quality_score'] = value
-                df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " sample is inhibited;"
+                  if (row.is_inhibited =='No'):
+                    value= row.quality_score + p[e][0]*p[e][1]
+                    df.loc[row.Index,'quality_score'] = value
+                  else:
+                    value= row.quality_score  + p[e][0]*p[e][2]
+                    df.loc[row.Index,'quality_score'] = value
+                    df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " sample is inhibited;"
            else:
               df.loc[row.Index,'quality_score'] = np.nan
               if (row.is_inhibited== ""):
@@ -185,15 +183,14 @@ def quality_score(p, dic_name, df):
    if e in dic_name:
        for row in df.itertuples():
            if (row.Target!= 'Xeno')&(row.date_conc_extract !="")&(row.date_sampling !=""):
-             e=dic_name[6]
-             if (((row.stored_minus_80 != '0')& (row.stored_minus_80 != ''))| ((row.stored_minus_20 != '0')& (row.stored_minus_20 != ''))):
-               df.loc[row.Index,'quality_score'] = np.nan
-               df.loc[row.Index,'flag'] = ' Sample was frozen prior to concentration and extraction;'
-             else:
-               days_transit=pd.to_datetime(row.date_conc_extract)-pd.to_datetime(row.date_sampling)
-               if days_transit/np.timedelta64(1, 'D') < 0:
-                 df.loc[row.Index,'quality_score'] = np.nan
-                 df.loc[row.Index,'flag'] = " date_conc_extract < date_sampling;"
+                 if (((row.stored_minus_80 != '0')& (row.stored_minus_80 != ''))| ((row.stored_minus_20 != '0')& (row.stored_minus_20 != ''))):
+                   df.loc[row.Index,'quality_score'] = np.nan
+                   df.loc[row.Index,'flag'] = ' Sample was frozen prior to concentration and extraction;'
+                 else:
+                   days_transit=pd.to_datetime(row.date_conc_extract)-pd.to_datetime(row.date_sampling)
+                   if days_transit/np.timedelta64(1, 'D') < 0:
+                     df.loc[row.Index,'quality_score'] = np.nan
+                     df.loc[row.Index,'flag'] = " date_conc_extract < date_sampling;"
                else:
                   if (days_transit/np.timedelta64(1, 'D') >=3):
                     value= row.quality_score + p[e][0]*p[e][1]
@@ -219,18 +216,17 @@ def quality_score(p, dic_name, df):
    if e in dic_name:
         for row in df.itertuples():
            if (row.Target!= 'Xeno')&(row.PBS_result!= ""):
-              e=dic_name[7]
-              if (row.PBS_result =='negative'):
-                value= row.quality_score + p[e][0]*p[e][1]
-                df.loc[row.Index,'quality_score'] = value
-              elif (pd.to_numeric(row.PBS_result) < pd.to_numeric(row.Cq_of_lowest_std_quantity)+1):
-                value= row.quality_score + p[e][0]*p[e][2]
-                df.loc[row.Index,'quality_score'] = value
-                df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " PBS (2);"
-              else:
-                value= row.quality_score  + p[e][0]*p[e][3]
-                df.loc[row.Index,'quality_score'] = value
-                df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " PBS (3);"
+                  if (row.PBS_result =='negative'):
+                    value= row.quality_score + p[e][0]*p[e][1]
+                    df.loc[row.Index,'quality_score'] = value
+                  elif (pd.to_numeric(row.PBS_result) < pd.to_numeric(row.Cq_of_lowest_std_quantity)+1):
+                    value= row.quality_score + p[e][0]*p[e][2]
+                    df.loc[row.Index,'quality_score'] = value
+                    df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " PBS (2);"
+                  else:
+                    value= row.quality_score  + p[e][0]*p[e][3]
+                    df.loc[row.Index,'quality_score'] = value
+                    df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " PBS (3);"
            else:
               df.loc[row.Index,'quality_score'] = np.nan
               if (row.ntc_result== ""):
