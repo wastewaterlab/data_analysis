@@ -54,7 +54,7 @@ def quality_score(p, dic_name, df):
 
    # efficiency of the standard curve
    e="eff_std"
-    if e in dic_name:
+   if e in dic_name:
         for row in df.itertuples():
             if (row.Target!= 'Xeno')&(~np.isnan(row.efficiency)):
               if ((row.efficiency >=0.8) | (row.efficiency <=1.1)) :
