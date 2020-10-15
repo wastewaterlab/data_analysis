@@ -72,10 +72,9 @@ def quality_score(p, dic_name, df):
               df.loc[row.Index,'quality_score'] = np.nan
               if np.isnan(row.efficiency):
                 df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check standard curve efficiency;"
-
-     # R squared
-     e="Rsq_std"
-     if e in dic_name:
+   # R squared
+   e="Rsq_std"
+   if e in dic_name:
          for row in df.itertuples():
              if (row.Target!= 'Xeno')&(~np.isnan(row.r2)):
               if (row.r2 >=0.98):
@@ -94,9 +93,9 @@ def quality_score(p, dic_name, df):
               if np.isnan(row.r2):
                 df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check standard curve R2;"
 
-    # number of points in the std curve
-     e="n_std"
-     if e in dic_name:
+   # number of points in the std curve
+   e="n_std"
+   if e in dic_name:
          for row in df.itertuples():
              if (row.Target!= 'Xeno')&(~np.isnan(row.num_points)):
               if (row.num_points >=5):
@@ -115,9 +114,9 @@ def quality_score(p, dic_name, df):
               if np.isnan(row.num_points):
                 df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check standard curve number of points;"
 
-    # number of replicates
-    e="n_reps"
-    if e in dic_name:
+   # number of replicates
+   e="n_reps"
+   if e in dic_name:
         for row in df.itertuples():
            if (row.Target!= 'Xeno')&(~np.isnan(row.replicate_count)):
               if (row.replicate_count >=3):
@@ -139,9 +138,9 @@ def quality_score(p, dic_name, df):
               if np.isnan(row.replicate_count):
                 df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check sample number of replicates;"
 
-    #NTC
-    e="NTC_std"
-    if e in dic_name:
+   #NTC
+   e="NTC_std"
+   if e in dic_name:
         for row in df.itertuples():
            if (row.Target!= 'Xeno')&(row.ntc_result!= ""):
               e=dic_name[4]
@@ -161,9 +160,9 @@ def quality_score(p, dic_name, df):
               if (row.ntc_result== ""):
                 df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check standard curve NTCs;"
 
-  #is_inhibited
-  e="is_inhibited"
-  if e in dic_name:
+   #is_inhibited
+   e="is_inhibited"
+   if e in dic_name:
       for row in df.itertuples():
            if (row.Target!= 'Xeno')&(row.is_inhibited != "") &(row.is_inhibited != "unknown"):
               e=dic_name[5]
@@ -215,9 +214,9 @@ def quality_score(p, dic_name, df):
               if np.isnan(row.replicate_count):
                 df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check date_conc_extract and date_sampling;"
 
-    #PBS control
-    e="PBS_amp"
-    if e in dic_name:
+   #PBS control
+   e="PBS_amp"
+   if e in dic_name:
         for row in df.itertuples():
            if (row.Target!= 'Xeno')&(row.PBS_result!= ""):
               e=dic_name[7]
@@ -237,9 +236,9 @@ def quality_score(p, dic_name, df):
               if (row.ntc_result== ""):
                 df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check PBS batch is correctly assigned;"
 
-     for row in df.itertuples():
-         if row.flag=='set to 0':
-             df.loc[row.Index,'quality_score'] = 0
+   for row in df.itertuples():
+       if row.flag=='set to 0':
+           df.loc[row.Index,'quality_score'] = 0
 
-    df.quality_score=(df.quality_score/max_score)*100
+   df.quality_score=(df.quality_score/max_score)*100
  return df
