@@ -71,7 +71,7 @@ def quality_score(p, dic_name, df):
                     df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + "efficiency (3);"
                     df.loc[row.Index,'flag'] = 'set to 0'
                     df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " efficiency <60% or greater than 130%;"
-                 else:
+                else:
                     value= row.quality_score  + p[e][0]*p[e][3]
                     df.loc[row.Index,'quality_score'] = value
                     df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " efficiency (3);"
