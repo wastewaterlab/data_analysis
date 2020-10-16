@@ -58,7 +58,7 @@ def quality_score(p, dic_name, df):
    if e in dic_name:
         for row in df.itertuples():
             if (row.Target!= 'Xeno')&(~np.isnan(row.efficiency)):
-                  if ((row.efficiency >=0.8) & (row.efficiency <=1.1)) :
+                if ((row.efficiency >=0.8) & (row.efficiency <=1.1)) :
                     value= row.quality_score + p[e][0]*p[e][1]
                     df.loc[row.Index,'quality_score'] = value
                 elif ((row.efficiency >=0.7) & (row.efficiency <=1.2)) :
