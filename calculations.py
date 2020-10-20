@@ -63,7 +63,7 @@ def normalize_to_pmmov(qpcr_data, replace_bloq= False):
     pmmov=qpcr_data[qpcr_data.Target=='PMMoV']
     pmmov=pmmov[['Quantity_mean','Sample','Task']]
     pmmov.columns=['pmmov_mean',  "Sample", "Task"]
-    qpcr_m=qpcr_data.merge(pmmov, how='left')
+    qpcr_m=qpcr_data.merge(pmmov, how='left', on=["Sample", "Task"])
     qpcr_m["mean_normalized_to_pmmov"] = qpcr_m['Quantity_mean']/qpcr_m['pmmov_mean']
     qpcr_m["log10mean_normalized_to_log10pmmov"] = np.log10(qpcr_m['Quantity_mean'])/np.log10(qpcr_m['pmmov_mean'])
     qpcr_m['log10_mean_normalized_to_pmmov']=np.log10(qpcr_m['mean_normalized_to_pmmov'])
@@ -99,7 +99,7 @@ def normalize_to_18S(qpcr_data, replace_bloq= False):
     n_18S=qpcr_data[qpcr_data.Target=='18S']
     n_18S=n_18S[['Quantity_mean','Sample','Task']]
     n_18S.columns=['18S_mean',  "Sample", "Task"]
-    qpcr_m=qpcr_data.merge(n_18S, how='left')
+    qpcr_m=qpcr_data.merge(n_18S, how='left', on=["Sample", "Task"])
     qpcr_m["mean_normalized_to_18S"] = qpcr_m['Quantity_mean']/qpcr_m['18S_mean']
     qpcr_m["log10mean_normalized_to_log1018S"] = np.log10(qpcr_m['Quantity_mean'])/np.log10(qpcr_m['18S_mean'])
     qpcr_m['log10_mean_normalized_to_18S']=np.log10(qpcr_m['mean_normalized_to_18S'])
