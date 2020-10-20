@@ -26,7 +26,7 @@ def get_extraction_control(qpcr_averaged):
     pbs = pbs[['plate_id', 'batch', 'Target', 'PBS_result']]
 
     # filter out pbs controls from main dataset then merge pbs df
-    qpcr_averaged = qpcr_averaged[qpcr_averaged.interceptor! = 'PBS'].copy()
+    qpcr_averaged = qpcr_averaged[qpcr_averaged.interceptor != 'PBS'].copy()
     qpcr_averaged = qpcr_averaged.merge(pbs, how = 'left', on = ['plate_id', 'batch', 'Target'])
 
     # make sure date_sampling is still datetime (sometime gets messed up with merges)
