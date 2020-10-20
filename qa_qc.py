@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy  as np
 
-def get_pbs_control(qpcr_averaged):
+def get_extraction_control(qpcr_averaged):
     '''
     make column for PBS controls assessment
     Params
@@ -15,7 +15,7 @@ def get_pbs_control(qpcr_averaged):
 
     # filter for just PBS controls and specific columns
     pbs = qpcr_averaged[qpcr_averaged.interceptor == 'PBS'].copy()
-    pbs.Cq_init_min = pd.to_numeric(PBS.Cq_init_min)
+    pbs.Cq_init_min = pd.to_numeric(pbs.Cq_init_min)
 
     # make PBS_result column "negative" if Cq was NaN/nondetect
     # or equal to Cq_min of PBS if detected
@@ -26,7 +26,7 @@ def get_pbs_control(qpcr_averaged):
     pbs = pbs[['plate_id', 'batch', 'Target', 'PBS_result']]
 
     # filter out pbs controls from main dataset then merge pbs df
-    qpcr_averaged = qpcr_averaged[qpcr_averaged.interceptor!='PBS'].copy()
+    qpcr_averaged = qpcr_averaged[qpcr_averaged.interceptor! = 'PBS'].copy()
     qpcr_averaged = qpcr_averaged.merge(pbs, how = 'left', on = ['plate_id', 'batch', 'Target'])
 
     # make sure date_sampling is still datetime (sometime gets messed up with merges)
