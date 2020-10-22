@@ -61,7 +61,7 @@ def quality_score(p, dic_name, df):
    ntc_result & Cq_of_lowest_std_quantity
    replicate_count & is_undetermined_count
    is_inhibited
-   date_conc_ext & date_sampling & stored_minus_80 & stored_minus_20
+   date_extract & date_sampling & stored_minus_80 & stored_minus_20
    PBS_result & Cq_of_lowest_std_quantity
 
    result:
@@ -230,15 +230,15 @@ def quality_score(p, dic_name, df):
    e="transit_days"
    if e in dic_name:
        for row in df.itertuples():
-           if (row.Target!= 'Xeno')&(row.date_conc_ext !="")&(row.date_sampling !=""):
+           if (row.Target!= 'Xeno')&(row.date_extract !="")&(row.date_sampling !=""):
                  if (((row.stored_minus_80 != '0')& (row.stored_minus_80 != ''))| ((row.stored_minus_20 != '0')& (row.stored_minus_20 != ''))):
                    df.loc[row.Index,'quality_score'] = np.nan
                    df.loc[row.Index,'flag'] = ' Sample was frozen prior to concentration and extraction;'
                  else:
-                   days_transit=pd.to_datetime(row.date_conc_ext)-pd.to_datetime(row.date_sampling)
+                   days_transit=pd.to_datetime(row.date_extract)-pd.to_datetime(row.date_sampling)
                    if days_transit/np.timedelta64(1, 'D') < 0:
                      df.loc[row.Index,'quality_score'] = np.nan
-                     df.loc[row.Index,'flag'] = " date_conc_ext < date_sampling;"
+                     df.loc[row.Index,'flag'] = " date_extract < date_sampling;"
                    else:
                       if (days_transit/np.timedelta64(1, 'D') >=3):
                         value= row.quality_score + p[e][0]*p[e][1]
@@ -255,7 +255,7 @@ def quality_score(p, dic_name, df):
            else:
               df.loc[row.Index,'quality_score'] = np.nan
               if np.isnan(row.days_transit):
-                df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check date_conc_ext and date_sampling;"
+                df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check date_extract and date_sampling;"
 
    #PBS control
    e="PBS_amp"
