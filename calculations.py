@@ -132,17 +132,19 @@ def xeno_inhibition_test(qpcr_data, x=1):
   p_w_targets.columns=['p_id','additional_target']
 
   #subset out xeno samples, merge with previous, use to calculate mean and std
-  target=qpcr_data[(qpcr_data.Task!='Standard')&(qpcr_data.Target=='Xeno')].copy() #includes NTC
+  target=qpcr_data[(qpcr_data.Target=='Xeno')].copy() #includes NTC & stds
   target['p_id']=qpcr_data.plate_id.astype('str').str.cat(qpcr_data.Well, sep ="_")
   target=target.merge(p_w_targets, how='left', on='p_id')
   if target.additional_target.astype('str').str.contains(',').any():
       print(target[target.additional_target.str.contains(',')])
       raise ValueError('Error: update function, more than 2 multiplexed targets or one of the two multiplexed targets is not xeno')
 
-  target=target.groupby(["Sample",'additional_target','plate_id','Task']).agg(Ct_vet_mean=('Cq', 'mean'),
+  target_s=target.groupby(["Sample",'additional_target','plate_id','Task']).agg(Ct_vet_mean=('Cq', 'mean'),
                                                                     Ct_vet_Q=('Quantity','max'), #just for standards
                                                                     Ct_vet_std=('Cq', 'std'),
                                                                     Ct_vet_count=('Cq','count')).reset_index()
+  target=target_s[(target_s.Task!='Standard')].copy() #remove standards
+
   #subset and recombine to get NTC as a col
   ntc_col_c=target[target.Task=='Negative Control'].copy()
   ntc_col=ntc_col_c[["plate_id",'additional_target','Ct_vet_mean']].copy()
@@ -151,7 +153,7 @@ def xeno_inhibition_test(qpcr_data, x=1):
   ntc_col_c=ntc_col_c[["plate_id",'Task','Ct_vet_Q','additional_target','Ct_vet_mean']].copy()
   ntc_col_c.columns=["plate_id",'Task','Ct_vet_Q','additional_target','Ct_control_mean']
 
-  std_col=qpcr_data[qpcr_data.Task=='Standard'].copy()
+  std_col=target[target.Task=='Standard'].copy()
   std_col=std_col[["plate_id", 'Task','Ct_vet_Q','additional_target','Ct_vet_mean']].copy()
   std_col.columns=["plate_id",'Task','Ct_vet_Q','additional_target','Ct_control_mean']
 
