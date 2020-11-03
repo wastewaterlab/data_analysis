@@ -162,7 +162,7 @@ def xeno_inhibition_test(qpcr_data, x=1):
   xeno_fin_all.loc[(xeno_fin_all.dCt>x),"inhibited"]="Yes"
 
   ntc_std_control= ntc_col_c.append(std_col)
-  return xeno_fin_all, std_col
+  return xeno_fin_all, ntc_std_control
 
 def get_GFP_recovery(qpcr_averaged):
     '''
