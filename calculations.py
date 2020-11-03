@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+from scipy.stats.mstats import gmean
+from scipy.stats import gstd
 
 def calculate_gc_per_l(qpcr_data, replace_bloq= False ):
     '''
@@ -139,9 +141,9 @@ def xeno_inhibition_test(qpcr_data, x=1):
       print(target[target.additional_target.str.contains(',')])
       raise ValueError('Error: update function, more than 2 multiplexed targets or one of the two multiplexed targets is not xeno')
 
-  target_s=target.groupby(["Sample",'additional_target','plate_id','Task']).agg(Ct_vet_mean=('Cq', 'mean'),
+  target_s=target.groupby(["Sample",'additional_target','plate_id','Task']).agg(Ct_vet_mean=('Cq', lambda x:  np.nan if all(np.isnan(x)) else sci.gmean(x.dropna(),axis=0)),
                                                                     Quantity_std_crv=('Quantity','max'), #just for standards
-                                                                    Ct_vet_std=('Cq', 'std'),
+                                                                    Ct_vet_std=('Cq', lambda x: np.nan if ((len(x.dropna()) <2 )| all(np.isnan(x)) ) else (sci.gstd(x.dropna(),axis=0))),
                                                                     Ct_vet_count=('Cq','count')).reset_index()
   target=target_s[(target_s.Task!='Standard')].copy() #remove standards
 
