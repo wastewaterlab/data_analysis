@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from scipy import stats as sci
 from scipy.stats.mstats import gmean
 from scipy.stats import gstd
 
