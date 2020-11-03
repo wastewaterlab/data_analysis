@@ -107,11 +107,12 @@ def normalize_to_18S(qpcr_data, replace_bloq= False):
 
     return qpcr_m
 
-def xeno_inhibition_test(qpcr_data):
+def xeno_inhibition_test(qpcr_data, x=1):
   '''
         Calculates the difference in Ct compared to the NTC for xeno inhibition test, outputs a list of inhibited samples
 
           Params
+            optional x: the dCt defined as inhibited
             qpcr_data-- dataframe with qpcr technical triplicates averaged. Requires the columns
                     Target
                     plate_id
@@ -150,7 +151,7 @@ def xeno_inhibition_test(qpcr_data):
   xeno_fin_all=xeno_fin_all.merge(ntc_col, how='left')
   xeno_fin_all["dCt"]= (xeno_fin_all["Ct_vet_mean"]- xeno_fin_all["Ct_control_mean"])
   xeno_fin_all["inhibited"]='No'
-  xeno_fin_all.loc[(xeno_fin_all.dCt>1),"inhibited"]="Yes"
+  xeno_fin_all.loc[(xeno_fin_all.dCt>x),"inhibited"]="Yes"
   return xeno_fin_all, ntc_col
 
 def get_GFP_recovery(qpcr_averaged):
