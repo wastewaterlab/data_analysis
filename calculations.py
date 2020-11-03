@@ -150,12 +150,12 @@ def xeno_inhibition_test(qpcr_data, x=1):
   ntc_col=ntc_col_c[["plate_id",'additional_target','Ct_vet_mean']].copy()
   ntc_col.columns=["plate_id",'additional_target','Ct_control_mean']
 
-  ntc_col_c=ntc_col_c[["plate_id",'Task','Ct_vet_Q','additional_target','Ct_vet_mean']].copy()
-  ntc_col_c.columns=["plate_id",'Task','Ct_vet_Q','additional_target','Ct_control_mean']
+  ntc_col_c=ntc_col_c[["plate_id",'Task','Quantity_std_crv','additional_target','Ct_vet_mean']].copy()
+  ntc_col_c.columns=["plate_id",'Task','Quantity_std_crv','additional_target','Ct_control_mean']
 
   std_col=target_s[target_s.Task=='Standard'].copy()
-  std_col=std_col[["plate_id", 'Task','Ct_vet_Q','additional_target','Ct_vet_mean']].copy()
-  std_col.columns=["plate_id",'Task','Ct_vet_Q','additional_target','Ct_control_mean']
+  std_col=std_col[["plate_id", 'Task','Quantity_std_crv','additional_target','Ct_vet_mean']].copy()
+  std_col.columns=["plate_id",'Task','Quantity_std_crv','additional_target','Ct_control_mean']
 
   xeno_fin_all=target[target.Task=='Unknown'].copy()
   xeno_fin_all=xeno_fin_all.merge(ntc_col, how='left')
