@@ -140,7 +140,7 @@ def xeno_inhibition_test(qpcr_data, x=1):
       raise ValueError('Error: update function, more than 2 multiplexed targets or one of the two multiplexed targets is not xeno')
 
   target_s=target.groupby(["Sample",'additional_target','plate_id','Task']).agg(Ct_vet_mean=('Cq', 'mean'),
-                                                                    Ct_vet_Q=('Quantity','max'), #just for standards
+                                                                    Quantity_std_crv=('Quantity','max'), #just for standards
                                                                     Ct_vet_std=('Cq', 'std'),
                                                                     Ct_vet_count=('Cq','count')).reset_index()
   target=target_s[(target_s.Task!='Standard')].copy() #remove standards
