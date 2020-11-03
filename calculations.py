@@ -151,8 +151,8 @@ def xeno_inhibition_test(qpcr_data, x=1):
   ntc_col_c.columns=["plate_id",'Task','Quantity_mean','additional_target','Ct_control_mean']
 
   std_col=target[target.Task=='Standard'].copy()
-  std_col=ntc_col[["plate_id", 'Task',,'Quantity_mean','additional_target','Ct_vet_mean']].copy()
-  std_col.columns=["plate_id",'Task',,'Quantity_mean','additional_target','Ct_control_mean']
+  std_col=std_col[["plate_id", 'Task','Quantity_mean','additional_target','Ct_vet_mean']].copy()
+  std_col.columns=["plate_id",'Task','Quantity_mean','additional_target','Ct_control_mean']
 
   xeno_fin_all=target[target.Task=='Unknown'].copy()
   xeno_fin_all=xeno_fin_all.merge(ntc_col, how='left')
