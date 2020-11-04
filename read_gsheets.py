@@ -44,7 +44,7 @@ def adjust_for_dilution(qpcr_data):
       qpcr_data.loc[(qpcr_data.is_dilution== "Y"),"dilution"]=qpcr_data['Sample'].apply(lambda x: x.split('_')[0].replace('x',''))
       qpcr_data["Sample_full"]=qpcr_data["Sample"]
       # qpcr_inhibition["Sample"]=qpcr_inhibition["Sample"].apply(lambda x: x.split('_',1)[1])
-
+      return(qpcr_data)
 
 def read_qpcr_data(gc, qpcr_url, qpcr_results_tab, qpcr_plates_tab):
   ''' Read in raw qPCR data page from the qPCR spreadsheet
@@ -54,7 +54,6 @@ def read_qpcr_data(gc, qpcr_url, qpcr_results_tab, qpcr_plates_tab):
   qpcr_data = qpcr_data.merge(qpcr_plates, how='left', on='plate_id')
   qpcr_data =adjust_for_dilution(qpcr_data)
 
-  return(qpcr_data)
 
   # filter to remove secondary values for a sample run more than once
   qpcr_data=qpcr_data[qpcr_data.is_primary_value=='Y']
