@@ -159,8 +159,7 @@ def xeno_inhibition_test(qpcr_data, x=1):
   std_col=target_s[target_s.Task=='Standard'].copy()
   std_col=std_col[["plate_id", 'Task','Quantity_std_crv','additional_target','Ct_vet_mean']].copy()
   std_col.columns=["plate_id",'Task','Quantity_std_crv','additional_target','Ct_control_mean']
-  # std_col=std_col[std_col.Quantity_std_crv<10000].copy() #xeno assay is affected by N1 concentrations this  high (no samples > 1500 gc)
-
+  
   xeno_fin_all=target[target.Task=='Unknown'].copy()
   xeno_fin_all=xeno_fin_all.merge(ntc_col, how='left')
   xeno_fin_all["dCt"]= (xeno_fin_all["Ct_vet_mean"]- xeno_fin_all["Ct_control_mean"])
