@@ -19,6 +19,10 @@ def get_extraction_control(qpcr_averaged):
 
     # make PBS_result column "negative" if Cq was NaN/nondetect
     # or equal to Cq_min of PBS if detected
+
+    # if a batch had multiple PBS controls, choose the one with the lowest Cq to represent the batch (so that if there was contamination we will see it)
+    pbs = pbs.groupby(['batch', 'Target', 'plate_id']).agg(
+                                                           Cq_init_min=('Cq_init_min','min')).reset_index() 
     pbs['PBS_result'] = np.nan
     pbs.loc[np.isnan(pbs.Cq_init_min), 'PBS_result'] = 'negative'
     pbs.loc[~np.isnan(pbs.Cq_init_min), 'PBS_result'] = pbs.Cq_init_min
