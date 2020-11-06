@@ -22,7 +22,7 @@ def get_extraction_control(qpcr_averaged):
 
     # if a batch had multiple PBS controls, choose the one with the lowest Cq to represent the batch (so that if there was contamination we will see it)
     pbs = pbs.groupby(['batch', 'Target', 'plate_id']).agg(
-                                                           Cq_init_min=('Cq_init_min','min')).reset_index() 
+                                                           Cq_init_min=('Cq_init_min','min')).reset_index()
     pbs['PBS_result'] = np.nan
     pbs.loc[np.isnan(pbs.Cq_init_min), 'PBS_result'] = 'negative'
     pbs.loc[~np.isnan(pbs.Cq_init_min), 'PBS_result'] = pbs.Cq_init_min
@@ -45,7 +45,7 @@ def quality_score(p, dic_name, df):
    params
    p is a dictionary indicating point values. All point values have 3 conditions
    where C1 meets acceptable qa/qc for that column, C2 is slightly concerning, and C3 is
-   very concerning. The weight should be between 0 and 1 and compares the dictionary entries to eachother
+   very concerning. The weight should be between 0 and 1 and compares the dictionary entries to each other
    p should be in the format of 'dic_name': [weight, C1, C2, C3]. The dic_name needs to be one/all/any of these strings:
    "eff_std", "Rsq_std", "n_std", "used_cong_std", "NTC_std", "n_reps","is_inhibited", "transit_days","PBS_amp"
 
@@ -93,7 +93,7 @@ def quality_score(p, dic_name, df):
    e="eff_std"
    if e in dic_name:
         for row in df.itertuples():
-            if (row.Target!= 'Xeno')&(~np.isnan(row.efficiency)):
+            if (row.Target!= 'Xeno') & (~np.isnan(row.efficiency)):
                 if ((row.efficiency >=0.8) & (row.efficiency <=1.1)) :
                     value= row.quality_score + p[e][0]*p[e][1]
                     df.loc[row.Index,'quality_score'] = value
@@ -141,7 +141,7 @@ def quality_score(p, dic_name, df):
    e="n_std"
    if e in dic_name:
          for row in df.itertuples():
-             if (row.Target!= 'Xeno')&(~np.isnan(row.num_points)):
+             if (row.Target!= 'Xeno') & (~np.isnan(row.num_points)):
                   if (row.num_points >=5):
                     value= row.quality_score + p[e][0]*p[e][1]
                     df.loc[row.Index,'quality_score'] = value
@@ -194,7 +194,7 @@ def quality_score(p, dic_name, df):
    e="NTC_std"
    if e in dic_name:
         for row in df.itertuples():
-           if (row.Target!= 'Xeno')&(row.ntc_result!= ""):
+           if (row.Target!= 'Xeno') & (~row.ntc_result.isna()):
                   if (row.ntc_result =='negative'):
                     value= row.quality_score + p[e][0]*p[e][1]
                     df.loc[row.Index,'quality_score'] = value
@@ -208,14 +208,14 @@ def quality_score(p, dic_name, df):
                     df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " NTC (3);"
            else:
               df.loc[row.Index,'quality_score'] = np.nan
-              if (row.ntc_result== ""):
+              if (row.ntc_result.isna()):
                 df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check standard curve NTCs;"
 
    #is_inhibited
    e="is_inhibited"
    if e in dic_name:
       for row in df.itertuples():
-           if (row.Target!= 'Xeno')&(row.is_inhibited != "") &(row.is_inhibited != "unknown"):
+           if (row.Target!= 'Xeno') & (~row.is_inhibited.isna()) & (row.is_inhibited != "unknown"):
                   if (row.is_inhibited =='No'):
                     value= row.quality_score + p[e][0]*p[e][1]
                     df.loc[row.Index,'quality_score'] = value
@@ -225,7 +225,7 @@ def quality_score(p, dic_name, df):
                     df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " sample is inhibited;"
            else:
               df.loc[row.Index,'quality_score'] = np.nan
-              if (row.is_inhibited== ""):
+              if (row.is_inhibited.isna()):
                 df.loc[row.Index,'flag'] = ' check is_inhibited;'
               if (row.is_inhibited== "unknown"):
                 df.loc[row.Index,'flag'] = ' test for inhibition has not been performed;'
@@ -234,8 +234,8 @@ def quality_score(p, dic_name, df):
    e="transit_days"
    if e in dic_name:
        for row in df.itertuples():
-           if (row.Target!= 'Xeno')&(row.date_extract !="")&(row.date_sampling !=""):
-                 if (((row.stored_minus_80 != '0')& (row.stored_minus_80 != ''))| ((row.stored_minus_20 != '0')& (row.stored_minus_20 != ''))):
+           if (row.Target!= 'Xeno')&(~row.date_extract.isna())&(~row.date_sampling.isna()):
+                 if (((row.stored_minus_80 != '0') & (~row.stored_minus_80.isna()))| ((row.stored_minus_20 != '0')& (~row.stored_minus_20.isna()))):
                    df.loc[row.Index,'quality_score'] = np.nan
                    df.loc[row.Index,'flag'] = ' Sample was frozen prior to concentration and extraction;'
                  else:
@@ -265,7 +265,7 @@ def quality_score(p, dic_name, df):
    e="PBS_amp"
    if e in dic_name:
         for row in df.itertuples():
-           if (row.Target!= 'Xeno')&(row.PBS_result!= ""):
+           if (row.Target!= 'Xeno') & (~row.PBS_result.isna()):
                   if (row.PBS_result =='negative'):
                     value= row.quality_score + p[e][0]*p[e][1]
                     df.loc[row.Index,'quality_score'] = value
@@ -279,7 +279,7 @@ def quality_score(p, dic_name, df):
                     df.loc[row.Index,'point_deduction'] = df.loc[row.Index,'point_deduction'] + " PBS (3);"
            else:
               df.loc[row.Index,'quality_score'] = np.nan
-              if (row.ntc_result== ""):
+              if (row.ntc_result.isna()):
                 df.loc[row.Index,'flag'] = df.loc[row.Index,'flag'] + " check PBS batch is correctly assigned;"
 
    for row in df.itertuples():
