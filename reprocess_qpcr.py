@@ -265,6 +265,7 @@ def combine_triplicates(plate_df_in, checks_include):
         pass_dixonsq (0 or 1)
         median_test (True or False)
         Cq_mean (calculated mean of Cq after excluding outliers)
+        Q_QuantStudio_std (calculated standard deviation based on QuantStudio output) for intrassay coefficient of variation
     '''
 
     if (checks_include not in ['all', 'dixonsq_only', 'median_only','grubbs_only', None]):
@@ -307,6 +308,7 @@ def combine_triplicates(plate_df_in, checks_include):
                                                Q_init_mean=('Quantity','max'), #only needed to preserve quantity information for standards later
                                                Q_init_std=('Quantity', lambda x: np.nan if ( (len(x.dropna()) <2 )| all(np.isnan(x)) ) else (sci.gstd(x.dropna(),axis=0))),
                                                Q_init_CoV=('Quantity',lambda x: np.std(x.dropna()) / np.mean(x.dropna())),
+                                               # Q_QuantStudio_std = ('Quantity', 'std'),
                                                Cq_init_mean=('Cq', 'mean'),
                                                Cq_init_std=('Cq', 'std'),
                                                Cq_init_min=('Cq', 'min'),
@@ -353,7 +355,7 @@ def process_standard(plate_df):
     num_points = std_curve_df.shape[0]
 
     if (all(standard_df.Cq_mean == "") | len(standard_df.Cq_mean) <2):
-        slope, intercept, r2, efficiency,Cq_of_lowest_std_quantity,Cq_of_2ndlowest_std_quantity,Cq_of_lowest_std_quantity_gsd,Cq_of_2ndlowest_std_quantity_gsd,lowest_std_quantity,lowest_std_quantity2nd = np.nan, np.nan, np.nan, np.nan,np.nan, np.nan,np.nan, np.nan,np.nan, np.nan,
+        slope, intercept, r2, efficiency,Cq_of_lowest_std_quantity,Cq_of_2ndlowest_std_quantity,Cq_of_lowest_std_quantity_gsd,Cq_of_2ndlowest_std_quantity_gsd,lowest_std_quantity,lowest_std_quantity2nd = np.nan,np.nan,np.nan, np.nan, np.nan, np.nan,np.nan, np.nan,np.nan, np.nan
     else:
         #find the Cq of the lowest and second lowest (for LoQ) standard quantity
         Cq_of_lowest_std_quantity = max(standard_df.Cq_mean)
@@ -398,38 +400,28 @@ def process_unknown(plate_df, std_curve_info):
     [num_points, Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, lowest_std_quantity2nd,Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd, slope, intercept, r2, efficiency] = std_curve_info
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
     unknown_df['Cq_of_lowest_sample_quantity'] = np.nan
+    unknown_df['CoV']=unknown_df['Q_init_std']-1 #the geometric std - 1 is the coefficient of variation using quant studio quantities to capture all the variation in the plate
+    unknown_df['intraassay_var']= unknown_df['CoV'].mean()
 
-    # @lauren why is this here?
-    if len(unknown_df.Task) == 0:
+    # Set the Cq of the lowest std quantity for different ssituations
+    if len(unknown_df.Task) == 0: #only standard curve plate
         unknown_df['Cq_of_lowest_sample_quantity'] = np.nan
     else:
-        if all(np.isnan(unknown_df.Cq_mean)):
+        if all(np.isnan(unknown_df.Cq_mean)): #plate with all undetermined samples
             unknown_df['Cq_of_lowest_sample_quantity']= np.nan #avoid error
         else:
-            targs=unknown_df.Target.unique()
+            targs=unknown_df.Target.unique() #other  plates (most  cases)
             for target in targs:
                 unknown_df.loc[(unknown_df.Target==target),'Cq_of_lowest_sample_quantity']=np.nanmax(unknown_df.loc[(unknown_df.Target==target),'Cq_mean']) #because of xeno
 
     unknown_df['Quantity_mean'] = np.nan
-    # unknown_df['Quantity_mean_upper_std'] = np.nan
-    # unknown_df['Quantity_mean_lower_std'] = np.nan
     unknown_df['q_diff'] = np.nan
     unknown_df['Quantity_mean'] = 10**((unknown_df['Cq_mean'] - intercept)/slope)
-    # unknown_df['Quantity_mean_lower_std'] = 10**((unknown_df['Cq_mean'] + unknown_df['Cq_std'] - intercept)/slope)
-    # unknown_df['Quantity_mean_upper_std'] = 10**((unknown_df['Cq_mean'] - unknown_df['Cq_std'] - intercept)/slope)
 
     # if Cq_mean is zero, don't calculate a quantity (turn to NaN)
     unknown_df.loc[unknown_df[unknown_df.Cq_mean == 0].index, 'Quantity_mean'] = np.nan
     unknown_df['q_diff'] = unknown_df['Q_init_mean'] - unknown_df['Quantity_mean']
 
-    # if all Quantity means are nan, then don't calculate a Quantity std
-    # @lauren we can't calculate std from mean, right?
-    # if np.isnan(all(unknown_df['Quantity_mean'])):
-    #     unknown_df['Quantity_std'] = np.nan
-    # else:
-    #     unknown_df['Quantity_std'] = sci.gstd(unknown_df.Quantity_mean.dropna())
-    # unknown_df['qpcr_coefficient_var'] = unknown_df['Quantity_std'] - 1 #to get the coefficient of variation from the geometric standard deviation
-    # unknown_df['intraassay_var'] = float(np.mean(unknown_df['qpcr_coefficient_var']))
     return(unknown_df)
 
 def process_ntc(plate_df):
@@ -610,7 +602,6 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
     include_LoD adds blod column and moves lowest standard quantity and Cq of lowest standard quantity based on LoD
     cutoff is the fraction of positive replicates in standard curves allowed to consider that standard curve point detectable (used if previous is true)
     '''
-
     if (checks_include not in ['all', 'dixonsq_only', 'median_only','grubbs_only', None]):
         raise ValueError('''invalid input, must be one of the following: 'all', 'grubs_only',
                       'dixonsq_only', 'median_only'or None''')
@@ -623,7 +614,7 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
         outliers_flagged, no_outliers_df = combine_triplicates(df, checks_include)
 
         # define outputs and fill with default values
-        num_points, Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity,lowest_std_quantity2nd, Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd,slope, intercept, r2, efficiency = np.nan, np.nan,np.nan, np.nan,np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+        num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity,lowest_std_quantity2nd, Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd,slope, intercept, r2, efficiency = np.nan, np.nan,np.nan, np.nan,np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
 
         # if there are >3 pts in std curve, calculate stats and recalculate quants
         num_points = no_outliers_df[no_outliers_df.Task == 'Standard'].drop_duplicates('Sample').shape[0]
@@ -655,11 +646,15 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
     qpcr_processed = pd.concat(qpcr_processed)
     qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on=['plate_id', 'Target'])
     qpcr_processed,dilution_expts_df = process_dilutions(qpcr_processed)
-    qpcr_m=qpcr_processed[["plate_id","Target","Cq_of_lowest_sample_quantity"]].copy().drop_duplicates(keep='first') # , "intraassay_var"
+
+    #make  columns calculated in other functions to go in the standard curve info
+    qpcr_m=qpcr_processed[["plate_id","Target","Cq_of_lowest_sample_quantity",'intraassay_var']].copy().drop_duplicates(keep='first')
     std_curve_df=std_curve_df.merge(qpcr_m, how='left') # add Cq_of_lowest_sample_quantity and intraassay variation
+
     qpcr_processed= determine_samples_BLoQ(qpcr_processed, 40, assay_assessment_df, cutoff)
     std_curve_df=std_curve_df.drop("Cq_of_2ndlowest_std_quantity", axis=1)
     std_curve_df=std_curve_df.drop("Cq_of_2ndlowest_std_quantity_gsd", axis=1)
     std_curve_df=std_curve_df.drop("lowest_std_quantity2nd", axis=1)
+    std_curve_df=std_curve_df[std_curve_df.Target != "Xeno"].copy()
 
     return(qpcr_processed, std_curve_df, dilution_expts_df,raw_outliers_flagged_df)
