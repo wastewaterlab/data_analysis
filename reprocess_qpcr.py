@@ -579,7 +579,7 @@ def process_dilutions(qpcr_p):
             samp=row.Sample
             if row.dilution >1:
                 all_idx=qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(qpcr_p.Sample==samp)&(qpcr_p.Target==targ),"Quantity_mean"].index.values.tolist()
-                max_idx=qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(qpcr_p.Sample==samp)&(qpcr_p.Target==targ),"Quantity_mean"].idxmax().tolist()
+                max_idx=list(qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(qpcr_p.Sample==samp)&(qpcr_p.Target==targ),"Quantity_mean"].idxmax())
                 lis=list([x for x in all_idx if x != max_idx])
                 remove = remove + lis
                 if samp in all_samps:
