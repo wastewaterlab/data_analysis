@@ -38,7 +38,7 @@ def read_sample_data(gc, samples_url, rna_tab, facility_lookup):
   if len(a) > 0:
       samps=a.sample_id.unique()
       l=len(samps)
-      warnings.warn("\n\n\n {0} samples are double listed in sample tracking spreadsheet. Check the following samples:\n\n\n{1}".format(l,samps))
+      warnings.warn("\n\n\n {0} samples are double listed in sample tracking spreadsheet. Check the following samples:\n\n\n{1}\n\n\n".format(l,samps))
 
   return rna_data
 
