@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import gspread
+import warnings
 
 def read_gsheet(gc, url, tab):
   '''Reads one tab from any google sheet,
@@ -30,6 +31,15 @@ def read_sample_data(gc, samples_url, rna_tab, facility_lookup):
   rna_data.elution_vol_ul = pd.to_numeric(rna_data.elution_vol_ul, errors='coerce')
   rna_data.effective_vol_extracted_ml = pd.to_numeric(rna_data.effective_vol_extracted_ml, errors='coerce')
   rna_data.bCoV_spike_vol_ul = pd.to_numeric(rna_data.bCoV_spike_vol_ul, errors='coerce')
+
+  #check for duplicates
+  a=rna_data[(rna_data.sample_id!="__")&(rna_data.sample_id!="")]
+  a=a[a.duplicated(["sample_id"],keep=False)].copy()
+  if len(a) > 0:
+      samps=a.sample_id.unique()
+      l=len(samps)
+      warnings.warn("\n\n\n {0} samples are double listed in sample tracking spreadsheet. Check the following samples:\n\n\n{1}".format(l,samps))
+
   return rna_data
 
 
