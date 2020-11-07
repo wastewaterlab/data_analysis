@@ -307,7 +307,6 @@ def combine_triplicates(plate_df_in, checks_include):
                                                template_volume=('template_volume','max'),
                                                Q_init_mean=('Quantity','max'), #only needed to preserve quantity information for standards later
                                                Q_init_std=('Quantity', lambda x: np.nan if ( (len(x.dropna()) <2 )| all(np.isnan(x)) ) else (sci.gstd(x.dropna(),axis=0))),
-                                               Q_init_CoV=('Quantity',lambda x: np.std(x.dropna()) / np.mean(x.dropna())),
                                                # Q_QuantStudio_std = ('Quantity', 'std'),
                                                Cq_init_mean=('Cq', 'mean'),
                                                Cq_init_std=('Cq', 'std'),
@@ -400,8 +399,8 @@ def process_unknown(plate_df, std_curve_info):
     [num_points, Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, lowest_std_quantity2nd,Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd, slope, intercept, r2, efficiency] = std_curve_info
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
     unknown_df['Cq_of_lowest_sample_quantity'] = np.nan
-    unknown_df['CoV']=unknown_df['Q_init_std']-1 #the geometric std - 1 is the coefficient of variation using quant studio quantities to capture all the variation in the plate
-    unknown_df['intraassay_var']= unknown_df['CoV'].mean()
+    unknown_df['percent_CV']=(unknown_df['Q_init_std']-1)*100#the geometric std - 1 is the coefficient of variation using quant studio quantities to capture all the variation in the plate
+    unknown_df['intraassay_var']= unknown_df['percent_CV'].mean()
 
     # Set the Cq of the lowest std quantity for different ssituations
     if len(unknown_df.Task) == 0: #only standard curve plate
