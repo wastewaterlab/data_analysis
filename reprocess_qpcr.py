@@ -15,6 +15,7 @@ from statistics import median
 #grubbs test package
 import outliers
 from outliers import smirnov_grubbs as grubbs
+import warnings
 
 # found dixon's test at https://sebastianraschka.com/Articles/2014_dixon_test.html#implementing-a-dixon-q-test-function
 # no need to re-invent the wheel
@@ -276,7 +277,7 @@ def combine_triplicates(plate_df_in, checks_include):
     plate_df = plate_df_in.copy() # fixes pandas warnings
 
     groupby_list = ['plate_id', 'Sample', 'Sample_plate',
-                    'Target','Task', 'inhibition_testing']
+                    'Target','Task', 'inhibition_testing','is_dilution']
 
     # make copy of Cq column and later turn this to np.nan for outliers
     plate_df['Cq_copy'] = plate_df['Cq'].copy()
@@ -537,6 +538,62 @@ def determine_samples_BLoQ(qpcr_p, max_cycles, assay_assessment_df, include_LoD=
 
     return(qpcr_p)
 
+def process_dilutions(qpcr_p):
+    '''
+    from processed unknown qpcr data this function:
+    1. looks for diluted samples & adds a dilution colum that is 1 for  everything exception those marked as dilutions
+    2. adjusts quantities for the dilution,
+    3. renames samples marked as diluted to remove the dilution factor
+    4. Makes these into a new dilution_experiments dataframe
+    5. checks that there are no other non dilution combinations of sample and target for the samples marked as dilutions
+        in the origional dataframe. If there are, it removes the diluted sample(s) from the dataframe and throws a warning with the sample name
+    6. checks if  there are multiple entries with the same sample name and  target in the diluted samples:
+        if there are it chooses the one with the highest N1 value and keeps that in the dataframe and removes the other one (both will be in dilution_experiments)
+
+    Params:
+        is_dilution
+        Target
+        Quantity_mean
+    Returns
+        same dataframe without duplicated process_dilutions
+        a new dataframe with all dilutions
+    '''
+    qpcr_p['dilution']=1
+    if(len(qpcr_p.loc[(qpcr_p.is_dilution=='Y')]) > 0):
+        qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "dilution"]=pd.to_numeric(qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Sample"].apply(lambda x: x.split('_')[0].replace('x','')))
+        qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Quantity_mean"]= qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Quantity_mean"] * qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "dilution"]
+        qpcr_p['sample_full']=qpcr_p['Sample']
+        qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Sample"]=qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Sample"].apply(lambda x: x.split('_',1)[1])
+        dilution_expts_df=qpcr_p.loc[(qpcr_p.is_dilution=='Y'), ].copy()
+
+        check=dilution_expts_df.groupby(["Sample", "Target"])["dilution"].count().reset_index()
+        remove=list()
+        all_samps= qpcr_p.loc[(qpcr_p.is_dilution!='Y'), "Sample"].unique()
+        for row in check.itertuples():
+            targ=row.Target
+            samp=row.Sample
+            if row.dilution >1:
+                all_idx=qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(qpcr_p.Sample==samp)&(qpcr_p.Target==targ),"Quantity_mean"].index.values.tolist()
+                max_idx=qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(qpcr_p.Sample==samp)&(qpcr_p.Target==targ),"Quantity_mean"].idxmax().tolist()
+                lis=list([x for x in all_idx if x != max_idx])
+                remove = remove + lis
+                if samp in all_samps:
+                    warnings.warn("\n\n\n{} is double listed as a dilution sample and a non dilution sample. Change one is_primary_value. Currently the dilution value is removed in the code.\n\n\n".format(samp))
+                    remove.append(max_idx)
+
+
+            else:
+                if samp in all_samps:
+                    warnings.warn("\n\n\n{} is double listed as a dilution sample and a non dilution sample. Change one is_primary_value. Currently the dilution value is removed in the code.\n\n\n".format(samp))
+                    idx=qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(qpcr_p.Sample==samp)&(qpcr_p.Target==targ),"Quantity_mean"].index.values.tolist()
+                    remove.append(idx)
+
+    if len(remove) >1:
+        qpcr_p=qpcr_p.loc[~qpcr_p.index.isin(remove)].copy()
+
+
+    return(qpcr_p,dilution_expts_df)
+
 def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
     '''wrapper to process whole sheet at once by plate_id and Target
     params
@@ -590,6 +647,7 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
                                                         'ntc_result'])
     qpcr_processed = pd.concat(qpcr_processed)
     qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on=['plate_id', 'Target'])
+    qpcr_processed,dilution_expts_df = process_dilutions(qpcr_processed)
     qpcr_m=qpcr_processed[["plate_id","Target","Cq_of_lowest_sample_quantity"]].copy().drop_duplicates(keep='first') # , "intraassay_var"
     std_curve_df=std_curve_df.merge(qpcr_m, how='left') # add Cq_of_lowest_sample_quantity and intraassay variation
     qpcr_processed= determine_samples_BLoQ(qpcr_processed, 40, assay_assessment_df, cutoff)
@@ -597,4 +655,4 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
     std_curve_df=std_curve_df.drop("Cq_of_2ndlowest_std_quantity_gsd", axis=1)
     std_curve_df=std_curve_df.drop("lowest_std_quantity2nd", axis=1)
 
-    return(qpcr_processed, std_curve_df, raw_outliers_flagged_df)
+    return(qpcr_processed, std_curve_df, dilution_expts_df,raw_outliers_flagged_df)
