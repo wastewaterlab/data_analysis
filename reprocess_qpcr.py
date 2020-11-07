@@ -559,6 +559,11 @@ def process_dilutions(qpcr_p):
         a new dataframe with all dilutions
     '''
     qpcr_p['dilution']=1
+    dilution_expts_df=qpcr_p
+    remove=list()
+
+
+
     if(len(qpcr_p.loc[(qpcr_p.is_dilution=='Y')]) > 0):
         qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "dilution"]=pd.to_numeric(qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Sample"].apply(lambda x: x.split('_')[0].replace('x','')))
         qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Quantity_mean"]= qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Quantity_mean"] * qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "dilution"]
@@ -567,7 +572,7 @@ def process_dilutions(qpcr_p):
         dilution_expts_df=qpcr_p.loc[(qpcr_p.is_dilution=='Y'), ].copy()
 
         check=dilution_expts_df.groupby(["Sample", "Target"])["dilution"].count().reset_index()
-        remove=list()
+
         all_samps= qpcr_p.loc[(qpcr_p.is_dilution!='Y'), "Sample"].unique()
         for row in check.itertuples():
             targ=row.Target
@@ -588,9 +593,11 @@ def process_dilutions(qpcr_p):
                     idx=qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(qpcr_p.Sample==samp)&(qpcr_p.Target==targ),"Quantity_mean"].index.values.tolist()
                     remove.append(idx)
 
-    if len(remove) >1:
-        qpcr_p=qpcr_p.loc[~qpcr_p.index.isin(remove)].copy()
 
+    if not remove:
+        qpcr_p=qpcr_p
+    else:
+        qpcr_p=qpcr_p.loc[~qpcr_p.index.isin(remove)].copy()
 
     return(qpcr_p,dilution_expts_df)
 
