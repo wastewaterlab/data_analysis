@@ -656,4 +656,13 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
     std_curve_df=std_curve_df.drop("lowest_std_quantity2nd", axis=1)
     std_curve_df=std_curve_df[std_curve_df.Target != "Xeno"].copy()
 
+
+    #check for duplicates
+    a=qpcr_processed[(qpcr_processed.Sample!="__")&(qpcr_processed.Sample!="")]
+    a=a[a.duplicated(["Sample","Target"],keep=False)].copy()
+    if len(a) > 0:
+        plates=a.plate_id.unique()
+        l=len(plates)
+        warnings.warn("\n\n\n {0} plates have samples that are double listed in qPCR_Cts spreadsheet. Check the following plates and make sure one is_primary_value is set to N:\n\n\n{1}\n\n\n".format(l,plates))
+
     return(qpcr_processed, std_curve_df, dilution_expts_df,raw_outliers_flagged_df)
