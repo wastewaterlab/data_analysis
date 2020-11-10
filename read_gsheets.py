@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import gspread
+import warnings
 
 def read_gsheet(gc, url, tab):
   '''Reads one tab from any google sheet,
@@ -30,7 +31,30 @@ def read_sample_data(gc, samples_url, rna_tab, facility_lookup):
   rna_data.elution_vol_ul = pd.to_numeric(rna_data.elution_vol_ul, errors='coerce')
   rna_data.effective_vol_extracted_ml = pd.to_numeric(rna_data.effective_vol_extracted_ml, errors='coerce')
   rna_data.bCoV_spike_vol_ul = pd.to_numeric(rna_data.bCoV_spike_vol_ul, errors='coerce')
+
+  #check for duplicates
+  a=rna_data[(rna_data.sample_id!="__")&(rna_data.sample_id!="")]
+  a=a[a.duplicated(["sample_id"],keep=False)].copy()
+  if len(a) > 0:
+      samps=a.sample_id.unique()
+      l=len(samps)
+      warnings.warn("\n\n\n {0} samples are double listed in sample tracking spreadsheet. Check the following samples:\n\n\n{1}\n\n\n".format(l,samps))
+
   return rna_data
+
+
+def adjust_for_dilution(qpcr_data):
+      '''
+      calculates adjusted quantity based on dilution,
+      labels is_primary_value as "No" if there are multiple dilutions for the same sample,
+      produces a dataframe that includes all the dilutions for a sample (if there are multiple)
+      '''
+      #subset
+      qpcr_data['dilution']=1
+      qpcr_data.loc[(qpcr_data.is_dilution== "Y"),"dilution"]=qpcr_data['Sample'].apply(lambda x: x.split('_')[0].replace('x',''))
+      qpcr_data["Sample_full"]=qpcr_data["Sample"]
+      # qpcr_inhibition["Sample"]=qpcr_inhibition["Sample"].apply(lambda x: x.split('_',1)[1])
+      return(qpcr_data)
 
 def read_qpcr_data(gc, qpcr_url, qpcr_results_tab, qpcr_plates_tab):
   ''' Read in raw qPCR data page from the qPCR spreadsheet
@@ -38,6 +62,8 @@ def read_qpcr_data(gc, qpcr_url, qpcr_results_tab, qpcr_plates_tab):
   qpcr_data = read_gsheet(gc, qpcr_url, qpcr_results_tab)
   qpcr_plates = read_gsheet(gc, qpcr_url, qpcr_plates_tab)
   qpcr_data = qpcr_data.merge(qpcr_plates, how='left', on='plate_id')
+  qpcr_data =adjust_for_dilution(qpcr_data)
+
 
   # filter to remove secondary values for a sample run more than once
   qpcr_data=qpcr_data[qpcr_data.is_primary_value=='Y']
