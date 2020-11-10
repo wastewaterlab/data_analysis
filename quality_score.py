@@ -349,6 +349,41 @@ def extraction_neg_controlQ(param, Cq_of_lowest_std_quantity, points_list):
 
     return([score, flag, point_deduction])
 
+def get_scoring_matrix(score_dict=None):
+    '''
+    define the scoring matrix
+    input must be either None or a dictionary
+    keys: efficiency, r2, num_std_points
+    '''
+    p = score_dict
+    if score_dict is None:
+        p = {"efficiency":[0.06,1,0.7,0.2],
+             "r2":[0.06,1,0.7,0.2],
+             "num_std_points":[0.07,1,0.2,0],
+             "used_cong_std":[0.04,1,np.nan, 0],
+             "no_template_control":[0.1,1,0.8,0],
+             "num_tech_reps":[0.2,1,0.8,0],
+             "pcr_inhibition":[0.1,1,np.nan,0],
+             "sample_storage":[0.09,1,0.8,0],
+             "extraction_neg_control":[0.1,1,0.8,0]}
+
+    else:
+        check_keys = ['efficiency', 'r2', 'num_std_points', 'used_cong_std', 'no_template_control', 'num_tech_reps', 'pcr_inhibition', 'sample_storage', 'extraction_neg_control']
+        if not all(key in p.keys() for key in check_keys):
+            raise ValueError('missing keys in score_dict')
+    points = pd.DataFrame.from_dict(p)
+    points['points'] = ['weight', 'pts_goodQ', 'pts_okQ', 'pts_poorQ']
+
+
+    ## calculate max score by manipulating the points dataframe
+
+    points_t = points.transpose()
+    points_t.loc['points'].tolist()
+    points_t.columns = points_t.loc['points']
+    points_t = points_t.drop('points', axis = 0)
+    max_score = (points_t.weight * points_t.pts_goodQ).sum()
+
+    return(points, max_score)
 # def calculate_quality_score(p, params_considered, df):
 #
 #     points = pd.DataFrame.from_dict(p)
