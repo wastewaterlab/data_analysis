@@ -296,15 +296,14 @@ def sample_storageQ(date_extract, date_sampling, stored_minus_80, stored_minus_2
         return([score, flag, point_deduction])
 
     # check sample hold time
+    hold_time = date_extract - date_sampling
 
-    hold_time = datetime.strptime(date_extract, '%Y-%m-%d') - datetime.strptime(date_sampling, '%Y-%m-%d')
-
-    if hold_time < timedelta(days=0):
+    if hold_time < np.timedelta64(0, 'D'):
         score = np.nan
         flag = 'date_extract before date_sampling'
-    elif hold_time <= timedelta(days=3):
+    elif hold_time <= np.timedelta64(3, 'D'):
         score = weight*pts_goodQ
-    elif hold_time <= timedelta(days=5):
+    elif hold_time <= np.timedelta64(5, 'D'):
         score = weight*pts_okQ
         point_deduction = 'hold time 3-5 days'
     else:
