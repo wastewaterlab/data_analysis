@@ -308,7 +308,7 @@ def get_scoring_matrix(score_dict=None):
         p = {"efficiency":[0.06,1,0.7,0.2],
              "r2":[0.06,1,0.7,0.2],
              "num_std_points":[0.07,1,0.2,0],
-             "used_cong_std":[0.04,1,np.nan, 0],
+             #"used_cong_std":[0.04,1,np.nan, 0],
              "no_template_control":[0.1,1,0.8,0],
              "num_tech_reps":[0.2,1,0.8,0],
              "pcr_inhibition":[0.1,1,np.nan,0],
