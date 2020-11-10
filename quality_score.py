@@ -231,13 +231,13 @@ def sample_storageQ(date_extract, date_sampling, stored_minus_80, stored_minus_2
         return([score, flag, point_deduction])
 
     # check if dates are missing from data
-    if (date_extract is np.nan) or (date_extract == 0) or (date_extract is np.nat):
+    if (date_extract is np.nan) or (date_extract == 0) or (pd.isnull(row.date_extract)):
         # should actually clean the data so this doesn't need to be here
         flag = 'check date_extract'
         score = np.nan
         return([score, flag, point_deduction])
 
-    if (date_sampling is np.nan) or (date_sampling == 0) or (date_sampling is np.nat):
+    if (date_sampling is np.nan) or (date_sampling == 0) or (pd.isnull(row.date_sampling)):
         flag = 'check date_sampling'
         score = np.nan
         return([score, flag, point_deduction])
