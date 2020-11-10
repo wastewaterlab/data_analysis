@@ -3,65 +3,8 @@ import numpy as np
 from datetime import datetime
 from datetime import timedelta
 
-p = {"efficiency":[0.06,1,0.7,0.2],
-     "r2":[0.06,1,0.7,0.2],
-     "num_std_points":[0.07,1,0.2,0],
-     "used_cong_std":[0.04,1,np.nan, 0],
-     "no_template_control":[0.1,1,0.8,0],
-     "num_tech_reps":[0.2,1,0.8,0],
-     "pcr_inhibition":[0.1,1,np.nan,0],
-     "sample_storage":[0.09,1,0.8,0],
-     "extraction_neg_control":[0.1,1,0.8,0]}
-
-params_considered = ['efficiency', 'r2', 'num_std_points',
-                     'used_cong_std', 'no_template_control',
-                     'num_tech_reps', 'pcr_inhibition',
-                     'sample_storage', 'extraction_neg_control']
-
-'''
-for a processed data frame, will give quality score info
-
-params
-p is a dictionary indicating point values. All point values have 3 conditions
-where C1 meets acceptable qa/qc for that column, C2 is slightly concerning, and C3 is
-very concerning. The weight should be between 0 and 1 and compares the dictionary entries to each other
-p should be in the format of 'params_considered': [weight, C1, C2, C3].
-params_considered is a list of strings in p to include in the analysis
-
-example: ['eff_std', "Rsq_std",'n_std','n_reps','NTC_std','is_inhibited']
-
-df columns (should correspond to columns listed in params_considered):
-Target
-efficiency
-r2
-num_points
-ntc_result & Cq_of_lowest_std_quantity
-replicate_count & is_undetermined_count
-is_inhibited
-date_extract & date_sampling & stored_minus_80 & stored_minus_20
-PBS_result & Cq_of_lowest_std_quantity
-
-result:
-returns the same dataframe with the following columns
-
-quality_score: points from p as a percentage
-
-flags: any samples with quality_score = np.nan have
-flag(s) indicating why in the flags column
-
-point_deduction: provides reason(s) for point deduction
-
-'''
-
-# go thru each data point (row) and do all params at once
-# get weight and points for good, ok, poor
-# 1. define function for each component of the r2_score
-# 2. iterate thru each row, calling all the functions
-# 3. sum the score and add it as a column
-#############
-
 def efficiencyQ(param, points_list):
-    '''given std curve efficiency and list of weights and points
+    '''given efficiency (standard curve efficiency) and list of weights and points
     return quality_score'''
 
     weight = points_list[0]
@@ -93,7 +36,7 @@ def efficiencyQ(param, points_list):
     return([score, flag, point_deduction])
 
 def r2Q(param, points_list):
-    '''given std curve r2 and list of weights and points
+    '''given r2 (qPCR standard curve r2) and list of weights and points
     return quality_score'''
 
     weight = points_list[0]
@@ -122,7 +65,8 @@ def r2Q(param, points_list):
     return([score, flag, point_deduction])
 
 def num_std_pointsQ(param, points_list):
-    '''given number of points in the standard curve and list of weights and points
+    '''given num_points (number of points in the standard curve)
+    and list of weights and points
     return quality_score'''
 
     weight = points_list[0]
@@ -151,10 +95,12 @@ def num_std_pointsQ(param, points_list):
     return([score, flag, point_deduction])
 
 def num_tech_repsQ(param, is_undetermined_count, points_list):
-    '''given number of technical replicates,
-    number of true undetermined values in triplicates
+    '''
+    given replicate_count (number of technical replicates passing outlier test),
+    is_undetermined_count (number of true undetermined values in triplicates)
     and list of weights and points
-    return quality_score'''
+    return quality_score
+    '''
 
     weight = points_list[0]
     pts_goodQ = points_list[1]
@@ -195,7 +141,7 @@ def num_tech_repsQ(param, is_undetermined_count, points_list):
     return([score, flag, point_deduction])
 
 def no_template_controlQ(param, Cq_of_lowest_std_quantity, points_list):
-    '''given no-template control outcome (pos/neg)
+    '''given ntc_result (no-template control outcome)
     and list of weights and points
     return quality_score'''
 
@@ -233,7 +179,7 @@ def no_template_controlQ(param, Cq_of_lowest_std_quantity, points_list):
     return([score, flag, point_deduction])
 
 def pcr_inhibitionQ(param, points_list):
-    '''given number of points in the standard curve and list of weights and points
+    '''given is_inhibited and list of weights and points
     return quality_score'''
 
     weight = points_list[0]
@@ -263,7 +209,8 @@ def pcr_inhibitionQ(param, points_list):
     return([score, flag, point_deduction])
 
 def sample_storageQ(date_extract, date_sampling, stored_minus_80, stored_minus_20, points_list):
-    '''given number of points in the standard curve and list of weights and points
+    '''given date_extract, date_sampling, stored_minus_80, stored_minus_20 and
+    list of weights and points
     return quality_score'''
 
     weight = points_list[0]
@@ -313,7 +260,7 @@ def sample_storageQ(date_extract, date_sampling, stored_minus_80, stored_minus_2
     return([score, flag, point_deduction])
 
 def extraction_neg_controlQ(param, Cq_of_lowest_std_quantity, points_list):
-    '''given number of points in the standard curve and list of weights and points
+    '''given PBS_result and Cq_of_lowest_std_quantity and list of weights and points
     return quality_score'''
 
     weight = points_list[0]
@@ -353,7 +300,8 @@ def get_scoring_matrix(score_dict=None):
     '''
     define the scoring matrix
     input must be either None or a dictionary
-    keys: efficiency, r2, num_std_points
+    dictionary keys must include: 'efficiency', 'r2', 'num_std_points', 'used_cong_std', 'no_template_control', 'num_tech_reps', 'pcr_inhibition', 'sample_storage', 'extraction_neg_control'
+    dictionary values must be a list: [weight, pts_goodQ, pts_okQ, pts_poorQ]
     '''
     p = score_dict
     if score_dict is None:
@@ -384,18 +332,83 @@ def get_scoring_matrix(score_dict=None):
     max_score = (points_t.weight * points_t.pts_goodQ).sum()
 
     return(points, max_score)
-# def calculate_quality_score(p, params_considered, df):
-#
-#     points = pd.DataFrame.from_dict(p)
-#
-#     for row in df.itertuples():
-#         score_df = []
-#
-#         results = efficiencyQ(row.efficiency, points.efficiency.tolist())
-#         score_df.append(results)
-#
-#         results = r2Q(row.r2, points.r2.tolist())
-#         score_df.append(results)
-#
-#         results = num_std_pointsQ(row.num_points, points.num_std_points)
-#         score_df.append(results)
+
+def quality_score(df, scoring_dict=None):
+    '''
+    given a dataframe with all data from wastewater testing
+    and a dictionary of scoring values
+    calculate a quality score for each data point
+
+    Params
+    df : dataframe with columns:
+        Sample
+        Target
+        plate_id
+        efficiency
+        r2
+        num_points
+        replicate_count
+        is_undetermined_count
+        ntc_result
+        Cq_of_lowest_std_quantity
+        is_inhibited
+        date_extract
+        date_sampling
+        stored_minus_80
+        stored_minus_20
+        PBS_result
+    score_dict : input for get_scoring_matrix() (see that function)
+
+    goes thru each data point (row) and calculates each component of the score
+    sums score for that row and concatenates flags and point_deductions
+    normalizes all scores to max_score
+    '''
+
+    points, max_score = get_scoring_matrix(scoring_dict)
+
+
+    final_scores_df = []
+    for row in df.itertuples():
+        # make empty score dataframe for this row
+
+        # call each scoring function and save results in score_df
+        efficiency = efficiencyQ(row.efficiency, points.efficiency.tolist())
+
+        r2 = r2Q(row.r2, points.r2.tolist())
+
+        num_std_points = num_std_pointsQ(row.num_points, points.num_std_points)
+
+        num_tech_reps = num_tech_repsQ(row.replicate_count, row.is_undetermined_count, points.num_tech_reps)
+
+        no_template_control = no_template_controlQ(row.ntc_result, pd.to_numeric(row.Cq_of_lowest_std_quantity), points.no_template_control)
+
+        pcr_inhibition = pcr_inhibitionQ(row.is_inhibited, points.pcr_inhibition)
+
+        sample_storage = sample_storageQ(row.date_extract, row.date_sampling, row.stored_minus_80, row.stored_minus_20, points.sample_storage)
+
+        extraction_neg_control = extraction_neg_controlQ(row.PBS_result, row.Cq_of_lowest_std_quantity, points.extraction_neg_control)
+
+        # combine all scores for this row into single dataframe
+        score_df = [efficiency, r2, num_std_points, num_tech_reps,no_template_control,
+                    pcr_inhibition, extraction_neg_control] #sample_storage
+        score_df = pd.DataFrame.from_records(score_df, columns=['score', 'flag', 'point_deduction'])
+
+        # calculate final score, combine all flags and all point deductions
+        score = 0
+        flags = np.nan
+        point_deductions = np.nan
+        if 'set to 0' not in score_df.flag:
+            score = score_df.score.sum()
+        if len(score_df.flag.dropna()) > 0:
+            flags = '; '.join(score_df.flag.dropna())
+        if len(score_df.point_deduction.dropna()) > 0:
+            point_deductions = '; '.join(score_df.point_deduction.dropna())
+        results = [row.Sample, row.Target, row.plate_id, score, flags, point_deductions]
+
+        # save final score for the row
+        final_scores_df.append(results)
+
+    final_scores_df = pd.DataFrame.from_records(final_scores_df, columns=['Sample', 'Target', 'plate_id', 'score', 'flag', 'point_deduction'])
+    final_scores_df['quality_score'] = (final_scores_df.score / max_score)*100
+
+    return(final_scores_df)
