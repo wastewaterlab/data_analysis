@@ -15,7 +15,7 @@ def calculate_gc_per_l(qpcr_data, replace_bloq= False ):
             Quantity_mean
             template_volume
             elution_vol_ul
-            effective_vol_extracted_ml
+            weight_vol_extracted_ml
         if replace_bloq is true
             bloq
             lowest_std_quantity
@@ -31,7 +31,7 @@ def calculate_gc_per_l(qpcr_data, replace_bloq= False ):
     qpcr_data['gc_per_ul_input'] = qpcr_data['Quantity_mean'].astype(float) / qpcr_data['template_volume'].astype(float)
 
     # multiply input conc (gc / ul) by elution volume (ul) and divide by volume concentrated (mL). Multiply by 1000 to get to gc / L.
-    qpcr_data['gc_per_L'] = 1000 * qpcr_data['gc_per_ul_input'].astype(float) * qpcr_data['elution_vol_ul'].astype(float) / qpcr_data['effective_vol_extracted_ml'].astype(float)
+    qpcr_data['gc_per_L'] = 1000 * qpcr_data['gc_per_ul_input'].astype(float) * qpcr_data['elution_vol_ul'].astype(float) / qpcr_data['weight_vol_extracted_ml'].astype(float)
 
 
 
@@ -159,7 +159,7 @@ def xeno_inhibition_test(qpcr_data, x=1):
   std_col=target_s[target_s.Task=='Standard'].copy()
   std_col=std_col[["plate_id", 'Task','Quantity_std_crv','additional_target','Ct_vet_mean']].copy()
   std_col.columns=["plate_id",'Task','Quantity_std_crv','additional_target','Ct_control_mean']
-  
+
   xeno_fin_all=target[target.Task=='Unknown'].copy()
   xeno_fin_all=xeno_fin_all.merge(ntc_col, how='left')
   xeno_fin_all["dCt"]= (xeno_fin_all["Ct_vet_mean"]- xeno_fin_all["Ct_control_mean"])
