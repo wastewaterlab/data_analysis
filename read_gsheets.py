@@ -52,7 +52,7 @@ def adjust_for_dilution(qpcr_data):
       '''
       #subset
       qpcr_data['dilution']=1
-      qpcr_data.loc[(qpcr_data.is_dilution== "Y"),"dilution"]=qpcr_data['Sample'].apply(lambda x: x.split('_')[0].replace('x',''))
+      qpcr_data.loc[(qpcr_data.is_dilution== "Y"),"dilution"]=qpcr_data['Sample'].apply(lambda x: x.split('_')[0].replace('X',''))
       qpcr_data["Sample_full"]=qpcr_data["Sample"]
       # qpcr_inhibition["Sample"]=qpcr_inhibition["Sample"].apply(lambda x: x.split('_',1)[1])
       return(qpcr_data)
