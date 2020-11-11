@@ -226,7 +226,7 @@ def sample_storageQ(date_extract, date_sampling, stored_minus_80, stored_minus_2
     # check if sample was frozen before extraction
     #(TODO: there should just be one column for all sample storage ['fresh', '4C', '-20', '-80'])
     if (stored_minus_80 == 1) or (stored_minus_20 == 1):
-        score = 0.09
+        score = 0
         flag = 'Sample was frozen before extraction'
         return([score, flag, point_deduction])
 
@@ -386,8 +386,13 @@ def quality_score(df, scoring_dict=None):
         extraction_neg_control = extraction_neg_controlQ(row.PBS_result, row.Cq_of_lowest_std_quantity, points.extraction_neg_control)
 
         # combine all scores for this row into single dataframe
-        score_df = [efficiency, r2, num_std_points, num_tech_reps,no_template_control,
-                    pcr_inhibition, extraction_neg_control] #sample_storage
+        score_df = [efficiency, r2,
+                    num_std_points,
+                    num_tech_reps,
+                    no_template_control,
+                    sample_storage,
+                    pcr_inhibition,
+                    extraction_neg_control]
         score_df = pd.DataFrame.from_records(score_df, columns=['score', 'flag', 'point_deduction'])
 
         # calculate final score, combine all flags and all point deductions
