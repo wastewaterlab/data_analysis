@@ -556,7 +556,7 @@ def process_dilutions(qpcr_p):
 
 
     if(len(qpcr_p.loc[(qpcr_p.is_dilution=='Y')]) > 0):
-        qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "dilution"]=pd.to_numeric(qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Sample"].apply(lambda x: x.split('_')[0].replace('x','')))
+        #qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "dilution"]=pd.to_numeric(qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Sample"].apply(lambda x: x.split('_')[0].replace('x','')))
         qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Quantity_mean"]= qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Quantity_mean"] * qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "dilution"]
         qpcr_p['sample_full']=qpcr_p['Sample']
         qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Sample"]=qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Sample"].apply(lambda x: x.split('_',1)[1])
