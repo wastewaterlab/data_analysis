@@ -226,7 +226,7 @@ def sample_storageQ(date_extract, date_sampling, stored_minus_80, stored_minus_2
     # check if sample was frozen before extraction
     #(TODO: there should just be one column for all sample storage ['fresh', '4C', '-20', '-80'])
     if (stored_minus_80 == 1) or (stored_minus_20 == 1):
-        score = 0
+        score = 0.09
         flag = 'Sample was frozen before extraction'
         return([score, flag, point_deduction])
 
@@ -234,19 +234,16 @@ def sample_storageQ(date_extract, date_sampling, stored_minus_80, stored_minus_2
     if (date_extract is np.nan) or (date_extract == 0) or (pd.isnull(date_extract)):
         # should actually clean the data so this doesn't need to be here
         flag = 'check date_extract'
-        score = np.nan
         return([score, flag, point_deduction])
 
     if (date_sampling is np.nan) or (date_sampling == 0) or (pd.isnull(date_sampling)):
         flag = 'check date_sampling'
-        score = np.nan
         return([score, flag, point_deduction])
 
     # check sample hold time
     hold_time = date_extract - date_sampling
 
     if hold_time < np.timedelta64(0, 'D'):
-        score = np.nan
         flag = 'date_extract before date_sampling'
     elif hold_time <= np.timedelta64(3, 'D'):
         score = weight*pts_goodQ
