@@ -89,7 +89,7 @@ def num_std_pointsQ(param, points_list):
         score = weight*pts_okQ
         point_deduction = f'{param_name} ok'
     elif (param < 3): #poor
-        score = weight*pts_poorQ
+        flag = 'set to 0'
         point_deduction = f'{param_name} poor'
 
     return([score, flag, point_deduction])
