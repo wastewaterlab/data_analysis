@@ -139,7 +139,7 @@ def xeno_inhibition_test(qpcr_data, x=1):
   target['p_id']=qpcr_data.plate_id.astype('str').str.cat(qpcr_data.Well, sep ="_")
   target=target.merge(p_w_targets, how='left', on='p_id')
   if target.additional_target.astype('str').str.contains(',').any():
-      print(target[target.additional_target.str.contains(',')])
+      print(target.additional_target.unique())
       raise ValueError('Error: update function, more than 2 multiplexed targets or one of the two multiplexed targets is not xeno')
 
   target_s=target.groupby(["Sample",'additional_target','plate_id','Task']).agg(Ct_vet_mean=('Cq', lambda x:  np.nan if all(np.isnan(x)) else sci.gmean(x.dropna(),axis=0)),
