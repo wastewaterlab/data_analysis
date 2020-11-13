@@ -46,13 +46,11 @@ def read_sample_data(gc, samples_url, rna_tab, facility_lookup):
 
 def adjust_for_dilution(qpcr_data):
       '''
-      calculates adjusted quantity based on dilution,
-      labels is_primary_value as "No" if there are multiple dilutions for the same sample,
-      produces a dataframe that includes all the dilutions for a sample (if there are multiple)
+     replaces sample name and provides dilutionn column
       '''
       #subset
       qpcr_data['dilution']=1
-      qpcr_data.loc[(qpcr_data.is_dilution== "Y"),"dilution"]=qpcr_data['Sample'].apply(lambda x: x.split('_')[0].replace('X',''))
+      qpcr_data.loc[(qpcr_data.is_dilution== "Y"),"dilution"]=qpcr_data['Sample'].apply(lambda x: x.split('_')[0].replace('X','').replace('x',''))
       qpcr_data["Sample_full"]=qpcr_data["Sample"]
       # qpcr_inhibition["Sample"]=qpcr_inhibition["Sample"].apply(lambda x: x.split('_',1)[1])
       return(qpcr_data)
