@@ -564,22 +564,26 @@ def process_dilutions(qpcr_p):
 
         check=dilution_expts_df.groupby(["Sample", "Target"])["dilution"].count().reset_index()
 
-        all_samps= qpcr_p.loc[(qpcr_p.is_dilution!='Y'), "Sample"].unique()
+        all_samps= qpcr_p.loc[(qpcr_p.is_dilution!='Y'), ].copy()
+        all_samps["warnid"]=all_samps.Sample.str.cat(all_samps.Target, sep ="_")
+        all_samps=all_samps["warnid"].unique()
+
         for row in check.itertuples():
             targ=row.Target
             samp=row.Sample
+            wid= "_".join([targ,samp])
             if row.dilution >1:
                 all_idx=qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(qpcr_p.Sample==samp)&(qpcr_p.Target==targ),"Quantity_mean"].index.values.tolist()
                 max_idx=qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(qpcr_p.Sample==samp)&(qpcr_p.Target==targ),"Quantity_mean"].idxmax()
                 lis=list([x for x in all_idx if x != max_idx])
                 remove = remove + lis
-                if samp in all_samps:
+                if wid in all_samps:
                     warnings.warn("\n\n\n{} is double listed as a dilution sample and a non dilution sample. Change one is_primary_value. Currently the dilution value is removed in the code.\n\n\n".format(samp))
                     remove.append(max_idx)
 
 
             else:
-                if samp in all_samps:
+                if wid in all_samps:
                     warnings.warn("\n\n\n{} is double listed as a dilution sample and a non dilution sample. Change one is_primary_value. Currently the dilution value is removed in the code.\n\n\n".format(samp))
                     idx=qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(qpcr_p.Sample==samp)&(qpcr_p.Target==targ),"Quantity_mean"].index.values.tolist()
                     remove.append(idx)
@@ -587,6 +591,9 @@ def process_dilutions(qpcr_p):
 
     if not remove:
         qpcr_p=qpcr_p
+    elif len(remove)==1:
+        remove=remove[0]
+        qpcr_p=qpcr_p.drop(remove)
     else:
         qpcr_p=qpcr_p.loc[~qpcr_p.index.isin(remove)].copy()
 
