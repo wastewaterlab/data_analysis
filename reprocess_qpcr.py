@@ -400,7 +400,7 @@ def process_unknown(plate_df, std_curve_info):
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
     unknown_df['Cq_of_lowest_sample_quantity'] = np.nan
     unknown_df['percent_CV']=(unknown_df['Q_init_std']-1)*100#the geometric std - 1 is the coefficient of variation using quant studio quantities to capture all the variation in the plate
-    unknown_df['intraassay_var']= unknown_df['percent_CV'].mean()
+    unknown_df['intraassay_var']= np.nanmeaan(unknown_df['percent_CV'])
 
     # Set the Cq of the lowest std quantity for different ssituations
     if len(unknown_df.Task) == 0: #only standard curve plate
