@@ -110,20 +110,22 @@ def normalize_to_18S(qpcr_data, replace_bloq= False):
 
     return qpcr_m
 
-def xeno_inhibition_test(qpcr_data, x=1):
+def xeno_inhibition_test(qpcr_data_xeno,qpcr_data, x=1):
   '''
         Calculates the difference in Ct compared to the NTC for xeno inhibition test, outputs a list of inhibited samples
 
           Params
             optional x: the dCt defined as inhibited
-            qpcr_data-- dataframe with qpcr technical triplicates averaged. Requires the columns
-                    Target
+            qpcr_data (main dfm)
+            qpcr_data_xeno-- dataframe with qpcr technical triplicates averaged. Requires the columns
+                    Target (includes xeno)
                     plate_id
                     Well
                     Quantity_mean
                     Sample
                     Task
           Returns
+          qpcr_data with is_inhibited column
           xeno_fin_all -- calculates the difference in Ct values of the negative control (spiked with xeno) to the sample spiked with xeno, adds column for inhibited (Yes or No)
           ntc_col -- all of the negative control values for xeno
   '''
@@ -167,7 +169,15 @@ def xeno_inhibition_test(qpcr_data, x=1):
   xeno_fin_all.loc[(xeno_fin_all.dCt>x),"inhibited"]="Yes"
 
   ntc_std_control= ntc_col_c.append(std_col)
-  return xeno_fin_all, ntc_std_control
+
+  inhibited=xeno_fin_all[xeno_fin_all.dCt>1].Sample.unique()
+  not_inhibited=xeno_fin_all[xeno_fin_all.dCt<=1].Sample.unique()
+
+  qpcr_data["is_inhibited"]='unknown'
+  qpcr_data.loc[qpcr_data.Sample.isin(inhibited),"is_inhibited"]= True
+  qpcr_data.loc[qpcr_data.Sample.isin(not_inhibited),"is_inhibited"]= False
+
+  return qpcr_data, xeno_fin_all, ntc_std_control
 
 def get_GFP_recovery(qpcr_averaged):
     '''
