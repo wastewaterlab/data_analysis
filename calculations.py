@@ -110,7 +110,7 @@ def normalize_to_18S(qpcr_data, replace_bloq= False):
 
     return qpcr_m
 
-def xeno_inhibition_test(qpcr_data_xeno,qpcr_data, x=1):
+def xeno_inhibition_test(qpcr_data,qpcr_normd, x=1):
   '''
         Calculates the difference in Ct compared to the NTC for xeno inhibition test, outputs a list of inhibited samples
 
@@ -173,11 +173,11 @@ def xeno_inhibition_test(qpcr_data_xeno,qpcr_data, x=1):
   inhibited=xeno_fin_all[xeno_fin_all.dCt>1].Sample.unique()
   not_inhibited=xeno_fin_all[xeno_fin_all.dCt<=1].Sample.unique()
 
-  qpcr_data["is_inhibited"]='unknown'
-  qpcr_data.loc[qpcr_data.Sample.isin(inhibited),"is_inhibited"]= True
-  qpcr_data.loc[qpcr_data.Sample.isin(not_inhibited),"is_inhibited"]= False
+  qpcr_normd["is_inhibited"]='unknown'
+  qpcr_normd.loc[qpcr_normd.Sample.isin(inhibited),"is_inhibited"]= True
+  qpcr_normd.loc[qpcr_normd.Sample.isin(not_inhibited),"is_inhibited"]= False
 
-  return qpcr_data, xeno_fin_all, ntc_std_control
+  return qpcr_normd, xeno_fin_all, ntc_std_control
 
 def get_GFP_recovery(qpcr_averaged):
     '''
