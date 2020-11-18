@@ -277,7 +277,7 @@ def combine_triplicates(plate_df_in, checks_include):
 
     plate_df = plate_df_in.copy() # fixes pandas warnings
 
-    groupby_list = ['plate_id', 'Sample', 'Sample_plate',
+    groupby_list = ['plate_id', 'Sample', 'sample_full','Sample_plate',
                     'Target','Task', 'inhibition_testing','is_dilution',"dilution"]
 
     # make copy of Cq column and later turn this to np.nan for outliers
