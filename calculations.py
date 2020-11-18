@@ -152,12 +152,13 @@ def xeno_inhibition_test(qpcr_data,qpcr_normd, x=1):
 
   #subset and recombine to get NTC as a col
   ntc_col_c=target[target.Task=='Negative Control'].copy()
+  print(ntc_col_c)
   ntc_col=ntc_col_c[["plate_id",'additional_target','Ct_vet_mean']].copy()
   ntc_col.columns=["plate_id",'additional_target','Ct_control_mean']
 
   ntc_col_c=ntc_col_c[["plate_id",'Task','Quantity_std_crv','additional_target','Ct_vet_mean']].copy()
   ntc_col_c.columns=["plate_id",'Task','Quantity_std_crv','additional_target','Ct_control_mean']
-  print(ntc_col_c)
+
   std_col=target_s[target_s.Task=='Standard'].copy()
   std_col=std_col[["plate_id", 'Task','Quantity_std_crv','additional_target','Ct_vet_mean']].copy()
   std_col.columns=["plate_id",'Task','Quantity_std_crv','additional_target','Ct_control_mean']
