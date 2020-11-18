@@ -144,12 +144,12 @@ def xeno_inhibition_test(qpcr_data,qpcr_normd, x=1):
       print(target.additional_target.unique())
       raise ValueError('Error: update function, more than 2 multiplexed targets or one of the two multiplexed targets is not xeno')
 
-  target_s=target.groupby(["Sample",'additional_target','plate_id','Task']).agg(Ct_vet_mean=('Cq', lambda x:  np.nan if all(np.isnan(x)) else sci.gmean(x.dropna(),axis=0)),
+  target_s=target.groupby(["Sample","sample_full",'additional_target','plate_id','Task']).agg(Ct_vet_mean=('Cq', lambda x:  np.nan if all(np.isnan(x)) else sci.gmean(x.dropna(),axis=0)),
                                                                     Quantity_std_crv=('Quantity','max'), #just for standards
                                                                     Ct_vet_std=('Cq', lambda x: np.nan if ((len(x.dropna()) <2 )| all(np.isnan(x)) ) else (sci.gstd(x.dropna(),axis=0))),
                                                                     Ct_vet_count=('Cq','count')).reset_index()
   target=target_s[(target_s.Task!='Standard')].copy() #remove standards
-
+  print(target.head())
   #subset and recombine to get NTC as a col
   ntc_col_c=target[target.Task=='Negative Control'].copy()
   ntc_col=ntc_col_c[["plate_id",'additional_target','Ct_vet_mean']].copy()
