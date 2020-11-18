@@ -535,9 +535,8 @@ def determine_samples_BLoQ(qpcr_p, max_cycles, assay_assessment_df, include_LoD=
 def process_dilutions(qpcr_p):
     '''
     from processed unknown qpcr data this function:
-    1. looks for diluted samples & adds a dilution colum that is 1 for  everything exception those marked as dilutions
+    1. looks for diluted samples
     2. adjusts quantities for the dilution,
-    3. renames samples marked as diluted to remove the dilution factor
     4. Makes these into a new dilution_experiments dataframe
     5. checks that there are no other non dilution combinations of sample and target for the samples marked as dilutions
         in the origional dataframe. If there are, it removes the diluted sample(s) from the dataframe and throws a warning with the sample name
@@ -558,8 +557,6 @@ def process_dilutions(qpcr_p):
 
     if(len(qpcr_p.loc[(qpcr_p.is_dilution=='Y')]) > 0):
         qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Quantity_mean"]= qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Quantity_mean"] * qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "dilution"]
-        qpcr_p['sample_full']=qpcr_p['Sample']
-        qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Sample"]=qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Sample"].apply(lambda x: x.split('_',1)[1])
         dilution_expts_df=qpcr_p.loc[(qpcr_p.is_dilution=='Y'), ].copy()
 
         check=dilution_expts_df.groupby(["Sample", "Target"])["dilution"].count().reset_index()
