@@ -662,7 +662,8 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
     std_curve_df=std_curve_df.drop("Cq_of_2ndlowest_std_quantity_gsd", axis=1)
     std_curve_df=std_curve_df.drop("lowest_std_quantity2nd", axis=1)
     std_curve_df=std_curve_df[std_curve_df.Target != "Xeno"].copy()
-
+    qpcr_full_dilution_name= qpcr_processed[['plate_id','Target','Sample','sample_full']].copy()
+    raw_outliers_flagged_df=raw_outliers_flagged_df.merge(qpcr_full_dilution_name)
 
     #check for duplicates
     a=qpcr_processed[(qpcr_processed.Sample!="__")&(qpcr_processed.Sample!="")]
