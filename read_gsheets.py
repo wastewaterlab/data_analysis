@@ -52,8 +52,8 @@ def adjust_for_dilution(qpcr_data):
       qpcr_data['dilution']=1
       qpcr_data.loc[(qpcr_data.is_dilution== "Y"),"dilution"]=qpcr_data['Sample'].apply(lambda x: x.split('_')[0].replace('X','').replace('x',''))
       qpcr_data['dilution']=pd.to_numeric(qpcr_data['dilution'])
-      qpcr_p['sample_full']=qpcr_p['Sample']
-      qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Sample"]=qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Sample"].apply(lambda x: x.split('_',1)[1])
+      qpcr_data['sample_full']=qpcr_data['Sample']
+      qpcr_data.loc[(qpcr_data.is_dilution=='Y'), "Sample"]=qpcr_data.loc[(qpcr_data.is_dilution=='Y'), "Sample"].apply(lambda x: x.split('_',1)[1])
       return(qpcr_data)
 
 def read_qpcr_data(gc, qpcr_url, qpcr_results_tab, qpcr_plates_tab):
