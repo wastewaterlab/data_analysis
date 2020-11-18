@@ -138,7 +138,6 @@ def xeno_inhibition_test(qpcr_data,qpcr_normd, x=1):
 
   #subset out xeno samples, merge with previous, use to calculate mean and std
   target=qpcr_data[(qpcr_data.Target=='Xeno')].copy() #includes NTC & stds
-  print(target.Task.unique())
   target['p_id']=qpcr_data.plate_id.astype('str').str.cat(qpcr_data.Well, sep ="_")
   target=target.merge(p_w_targets, how='left', on='p_id')
   if target.additional_target.astype('str').str.contains(',').any():
