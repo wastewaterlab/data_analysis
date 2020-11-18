@@ -149,7 +149,7 @@ def xeno_inhibition_test(qpcr_data,qpcr_normd, x=1):
                                                                     Ct_vet_std=('Cq', lambda x: np.nan if ((len(x.dropna()) <2 )| all(np.isnan(x)) ) else (sci.gstd(x.dropna(),axis=0))),
                                                                     Ct_vet_count=('Cq','count')).reset_index()
   target=target_s[(target_s.Task!='Standard')].copy() #remove standards
-  print(target.head())
+
   #subset and recombine to get NTC as a col
   ntc_col_c=target[target.Task=='Negative Control'].copy()
   ntc_col=ntc_col_c[["plate_id",'additional_target','Ct_vet_mean']].copy()
@@ -157,7 +157,7 @@ def xeno_inhibition_test(qpcr_data,qpcr_normd, x=1):
 
   ntc_col_c=ntc_col_c[["plate_id",'Task','Quantity_std_crv','additional_target','Ct_vet_mean']].copy()
   ntc_col_c.columns=["plate_id",'Task','Quantity_std_crv','additional_target','Ct_control_mean']
-
+  print(ntc_col_c)
   std_col=target_s[target_s.Task=='Standard'].copy()
   std_col=std_col[["plate_id", 'Task','Quantity_std_crv','additional_target','Ct_vet_mean']].copy()
   std_col.columns=["plate_id",'Task','Quantity_std_crv','additional_target','Ct_control_mean']
