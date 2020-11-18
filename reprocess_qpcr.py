@@ -556,6 +556,7 @@ def process_dilutions(qpcr_p):
     remove=list()
 
     if(len(qpcr_p.loc[(qpcr_p.is_dilution=='Y')]) > 0):
+        qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(np.isnan(qpcr_p.Quantity_mean)), "Quantity_mean"]=0
         qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Quantity_mean"]= qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Quantity_mean"] * qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "dilution"]
         dilution_expts_df=qpcr_p.loc[(qpcr_p.is_dilution=='Y'), ].copy()
         check=dilution_expts_df.groupby(["Sample", "Target"])["dilution"].count().reset_index()
