@@ -63,6 +63,8 @@ def extract_dilution(qpcr_data):
     qpcr_data = qpcr_data.rename(columns = {'Sample_new' : 'Sample', 'Sample' : 'sample_full'})
     qpcr_data.dilution = pd.to_numeric(qpcr_data.dilution)
 
+    return(qpcr_data)
+
 def read_qpcr_data(gc, qpcr_url, qpcr_results_tab, qpcr_plates_tab):
   ''' Read in raw qPCR data page from the qPCR spreadsheet
   '''
