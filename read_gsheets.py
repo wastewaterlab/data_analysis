@@ -31,8 +31,8 @@ def read_sample_data(gc, samples_url, rna_tab, facility_lookup, salted_tube_weig
   rna_data['date_sampling'] = pd.to_datetime(rna_data['date_sampling'], errors='coerce') #convert date column to datetime #,errors='coerce'
   rna_data.elution_vol_ul = pd.to_numeric(rna_data.elution_vol_ul, errors='coerce')
   rna_data.effective_vol_extracted_ml = pd.to_numeric(rna_data.effective_vol_extracted_ml, errors='coerce')
-  if weight_vol_extracted_ml in rna_data.columns.tolist():
-      rna_data.weight_vol_extracted_ml = pd.to_numeric(rna_data.weight_vol_extracted_ml)
+  #if 'weight_vol_extracted_ml' in rna_data.columns.tolist():
+  rna_data.weight_vol_extracted_ml = pd.to_numeric(rna_data.weight_vol_extracted_ml)
   # else:
   #     rna_data.weight_vol_extracted_ml = rna_data.weight - salted_tube_weight
   #     rna_data.loc[rna_data.weight_vol_extracted_ml.isna(), 'weight_vol_extracted_ml'] = 40 # if weight is missing, assign value of 40
