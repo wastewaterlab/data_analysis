@@ -208,8 +208,8 @@ def pcr_inhibitionQ(param, points_list):
 
     return([score, flag, point_deduction])
 
-def sample_storageQ(date_extract, date_sampling, stored_minus_80, stored_minus_20, points_list):
-    '''given date_extract, date_sampling, stored_minus_80, stored_minus_20 and
+def sample_storageQ(date_extract, date_sampling, points_list):
+    '''given date_extract, date_sampling and
     list of weights and points
     return quality_score'''
 
@@ -225,10 +225,6 @@ def sample_storageQ(date_extract, date_sampling, stored_minus_80, stored_minus_2
 
     # check if sample was frozen before extraction
     #(TODO: there should just be one column for all sample storage ['fresh', '4C', '-20', '-80'])
-    if (stored_minus_80 == 1) or (stored_minus_20 == 1):
-        score = 0
-        flag = 'Sample was frozen before extraction'
-        return([score, flag, point_deduction])
 
     # check if dates are missing from data
     if (date_extract is np.nan) or (date_extract == 0) or (pd.isnull(date_extract)):
@@ -381,7 +377,7 @@ def quality_score(df, scoring_dict=None):
 
         pcr_inhibition = pcr_inhibitionQ(row.is_inhibited, points.pcr_inhibition)
 
-        sample_storage = sample_storageQ(row.date_extract, row.date_sampling, row.stored_minus_80, row.stored_minus_20, points.sample_storage)
+        sample_storage = sample_storageQ(row.date_extract, row.date_sampling, points.sample_storage)
 
         extraction_neg_control = extraction_neg_controlQ(row.PBS_result, row.Cq_of_lowest_std_quantity, points.extraction_neg_control)
 
