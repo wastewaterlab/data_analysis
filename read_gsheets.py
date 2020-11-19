@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import gspread
+import re
 import warnings
 
 def read_gsheet(gc, url, tab):
@@ -14,7 +15,7 @@ def read_gsheet(gc, url, tab):
   df=df.replace('NA',np.nan)
   return df
 
-def read_sample_data(gc, samples_url, rna_tab, facility_lookup):
+def read_sample_data(gc, samples_url, rna_tab, facility_lookup, salted_tube_weight=23.485):
   ''' Reads in sample extraction and sample tracking data.
   Returns a dataframe of both merged'''
 
@@ -30,7 +31,11 @@ def read_sample_data(gc, samples_url, rna_tab, facility_lookup):
   rna_data['date_sampling'] = pd.to_datetime(rna_data['date_sampling'], errors='coerce') #convert date column to datetime #,errors='coerce'
   rna_data.elution_vol_ul = pd.to_numeric(rna_data.elution_vol_ul, errors='coerce')
   rna_data.effective_vol_extracted_ml = pd.to_numeric(rna_data.effective_vol_extracted_ml, errors='coerce')
-  rna_data.weight_vol_extracted_ml =pd.to_numeric(rna_data.weight_vol_extracted_ml)
+  if weight_vol_extracted_ml in rna_data.columns.tolist():
+      rna_data.weight_vol_extracted_ml = pd.to_numeric(rna_data.weight_vol_extracted_ml)
+  # else:
+  #     rna_data.weight_vol_extracted_ml = rna_data.weight - salted_tube_weight
+  #     rna_data.loc[rna_data.weight_vol_extracted_ml.isna(), 'weight_vol_extracted_ml'] = 40 # if weight is missing, assign value of 40
   rna_data.bCoV_spike_vol_ul = pd.to_numeric(rna_data.bCoV_spike_vol_ul, errors='coerce')
 
   #check for duplicates
@@ -44,17 +49,19 @@ def read_sample_data(gc, samples_url, rna_tab, facility_lookup):
   return rna_data
 
 
-def adjust_for_dilution(qpcr_data):
-      '''
-     replaces sample name and provides dilutionn column
-      '''
-      #subset
-      qpcr_data['dilution']=1
-      qpcr_data.loc[(qpcr_data.is_dilution== "Y"),"dilution"]=qpcr_data['Sample'].apply(lambda x: x.split('_')[0].replace('X','').replace('x',''))
-      qpcr_data['dilution']=pd.to_numeric(qpcr_data['dilution'])
-      qpcr_data['sample_full']=qpcr_data['Sample']
-      qpcr_data.loc[(qpcr_data.is_dilution=='Y'), "Sample"]=qpcr_data.loc[(qpcr_data.is_dilution=='Y'), "Sample"].apply(lambda x: x.split('_',1)[1])
-      return(qpcr_data)
+def extract_dilution(qpcr_data):
+    '''
+    splits the sample name if it starts with digitX_ (also handles lowercase x)
+    captures the dilution in a new column, renames samples
+    if samples were not diluted, dilution will be 1
+    '''
+    dilution_sample_names_df = qpcr_data.Sample.str.extract(r'^(\d+)[X,x]_(.+)', expand=True)
+    dilution_sample_names_df = dilution_sample_names_df.rename(columns = {0: 'dilution', 1: 'Sample_new'})
+    qpcr_data = pd.concat([qpcr_data, dilution_sample_names_df], axis=1)
+    qpcr_data.loc[qpcr_data.Sample_new.isna(), 'Sample_new'] = qpcr_data.Sample
+    qpcr_data.loc[qpcr_data.dilution.isna(), 'dilution'] = 1
+    qpcr_data = qpcr_data.rename(columns = {'Sample_new' : 'Sample', 'Sample' : 'sample_full'})
+    qpcr_data.dilution = pd.to_numeric(qpcr_data.dilution)
 
 def read_qpcr_data(gc, qpcr_url, qpcr_results_tab, qpcr_plates_tab):
   ''' Read in raw qPCR data page from the qPCR spreadsheet
@@ -62,7 +69,7 @@ def read_qpcr_data(gc, qpcr_url, qpcr_results_tab, qpcr_plates_tab):
   qpcr_data = read_gsheet(gc, qpcr_url, qpcr_results_tab)
   qpcr_plates = read_gsheet(gc, qpcr_url, qpcr_plates_tab)
   qpcr_data = qpcr_data.merge(qpcr_plates, how='left', on='plate_id')
-  qpcr_data =adjust_for_dilution(qpcr_data)
+  qpcr_data = extract_dilution(qpcr_data)
 
 
   # filter to remove secondary values for a sample run more than once
