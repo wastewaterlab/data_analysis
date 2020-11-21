@@ -4,7 +4,7 @@ import gspread
 import re
 import warnings
 
-def read_gsheet(gc, url, tab):
+def read_table(gc, url, tab):
     '''
     Reads pandas df or one tab from any google sheet,
     makes first row headers,
@@ -41,8 +41,8 @@ def read_sample_data(gc, url, samples, sites, salted_tube_weight=23.485):
     # TODO check if all rows are unique in samples_df and sites_df (see example of this being done below, commented out)
     # TODO check if all required fields are present; note for samples_df, rows need to be filled in only if "date_extracted" is not NaN, otherwise, the sample was archived and not used
 
-    samples_df = read_gsheet(gc, url, samples)
-    sites_df = read_gsheet(gc, url, sites)
+    samples_df = read_table(gc, url, samples)
+    sites_df = read_table(gc, url, sites)
 
     # TODO check if all rows are unique in samples_df and sites_df (see example of this being done below, commented out)
     # TODO check if all required fields are present; note for samples_df, rows need to be filled in only if "date_extracted" is not NaN, otherwise, the sample was archived and not used
@@ -90,34 +90,36 @@ def extract_dilution(qpcr_data):
 
     return(qpcr_data)
 
-def read_qpcr_data(gc, qpcr_url, qpcr_results_tab, qpcr_plates_tab):
+def read_qpcr_data(gc, url, qpcr, plates):
   ''' Read in raw qPCR data page from the qPCR spreadsheet
   '''
-  qpcr_data = read_gsheet(gc, qpcr_url, qpcr_results_tab)
-  qpcr_plates = read_gsheet(gc, qpcr_url, qpcr_plates_tab)
+  qpcr_data = read_table(gc, url, qpcr)
+  qpcr_plates = read_table(gc, url, plates)
+
   qpcr_data = qpcr_data.merge(qpcr_plates, how='left', on='plate_id')
   qpcr_data = extract_dilution(qpcr_data)
 
-
   # filter to remove secondary values for a sample run more than once
-  qpcr_data=qpcr_data[qpcr_data.is_primary_value=='Y']
+  qpcr_data = qpcr_data[qpcr_data.is_primary_value != 'N']
 
-  # create field for sample-plate combos in case same sample run on >1 plate
-  qpcr_data['Sample_plate']= qpcr_data.Sample.str.cat(qpcr_data.plate_id, sep ="+")
+  # create field for sample-plate combos in case same sample was run on >1 plate
+  # separator is "+"
+  qpcr_data['Sample_plate']= qpcr_data.Sample + '+' + qpcr_data.plate_id.astype(str)
 
-  # create column to preserve info about undetermined values
-  qpcr_data['is_undetermined'] = False
-  qpcr_data['is_undetermined'] = qpcr_data.Cq == 'Undetermined'
+  # create column to preserve info about true undetermined values
+  qpcr_data['is_undetermined'] = False # create column
+  # set column equal to boolean outcome of asking if Cq is Undetermined
+  qpcr_data['is_undetermined'] = (qpcr_data.Cq == 'Undetermined')
 
   # convert fields to numerics and dates
   qpcr_data.Quantity = pd.to_numeric(qpcr_data.Quantity, errors='coerce')
   qpcr_data.template_volume = pd.to_numeric(qpcr_data.template_volume, errors='coerce')
   qpcr_data.Cq = pd.to_numeric(qpcr_data.Cq, errors='coerce')
   qpcr_data.plate_id = pd.to_numeric(qpcr_data.plate_id, errors='coerce')
-  qpcr_data.Plate_date = pd.to_datetime(qpcr_data.Plate_date, errors='coerce')
+  qpcr_data.plate_date = pd.to_datetime(qpcr_data.plate_date, errors='coerce')
 
   # get a column with only the target (separate info about the standard and master mix)
-  qpcr_data['Target_full']= qpcr_data['Target']
-  qpcr_data['Target']=qpcr_data['Target'].apply(lambda x: x.split()[0])
+  qpcr_data['Target_full'] = qpcr_data['Target']
+  qpcr_data['Target'] = qpcr_data['Target'].apply(lambda x: x.split()[0])
 
   return(qpcr_data)
