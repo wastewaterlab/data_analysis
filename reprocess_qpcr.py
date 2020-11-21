@@ -232,16 +232,16 @@ def process_unknown(plate_df, std_curve_info):
 
 def process_ntc(plate_df):
     ntc = plate_df[plate_df.Task == 'Negative Control']
-    ntc_result = np.nan
+    ntc_is_neg = False
+    ntc_Cq = np.nan
     if ntc.is_undetermined.all():
-        ntc_result = 'negative'
+        ntc_is_neg = True
     else:
-        if all(np.isnan(ntc.Cq)):
-            ntc_result = np.nan #avoid error
+        if all(ntc.Cq.isna()): # this case should never happen
+            ntc_is_neg = np.nan
         else:
-            ntc_result = np.nanmin(ntc.Cq)
-    return(ntc_result)
-
+            ntc_Cq = np.nanmin(ntc.Cq)
+    return(ntc_is_neg, ntc_Cq)
 
 
 def determine_samples_BLoD(raw_outliers_flagged_df, cutoff):
@@ -410,7 +410,7 @@ def process_qpcr_raw(qpcr_raw,include_LoD=False,cutoff=0.9):
     raw_outliers_flagged_df = []
     for [plate_id, target], df in qpcr_raw.groupby(["plate_id", "Target"]):
 
-        ntc_result = process_ntc(df)
+        ntc_is_neg, ntc_Cq = process_ntc(df)
         outliers_flagged, no_outliers_df = combine_triplicates(df)
 
         # define outputs and fill with default values
@@ -421,7 +421,7 @@ def process_qpcr_raw(qpcr_raw,include_LoD=False,cutoff=0.9):
         num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, lowest_std_quantity2nd,Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd, slope, intercept, r2, efficiency = process_standard(no_outliers_df)
         std_curve_info = [num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity, lowest_std_quantity2nd,Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd,slope, intercept, r2, efficiency]
         unknown_df = process_unknown(no_outliers_df, std_curve_info)
-        std_curve_df.append([plate_id, target, num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity,lowest_std_quantity2nd, Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd, slope, intercept, r2, efficiency, ntc_result])
+        std_curve_df.append([plate_id, target, num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity,lowest_std_quantity2nd, Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd, slope, intercept, r2, efficiency, ntc_is_neg, ntc_Cq])
         qpcr_processed.append(unknown_df)
         raw_outliers_flagged_df.append(outliers_flagged)
 
@@ -442,7 +442,8 @@ def process_qpcr_raw(qpcr_raw,include_LoD=False,cutoff=0.9):
                                                         'intercept',
                                                         'r2',
                                                         'efficiency',
-                                                        'ntc_result'])
+                                                        'ntc_is_neg',
+                                                        'ntc_Cq'])
     qpcr_processed = pd.concat(qpcr_processed)
     qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on=['plate_id', 'Target'])
     qpcr_processed,dilution_expts_df = process_dilutions(qpcr_processed)

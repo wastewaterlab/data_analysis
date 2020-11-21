@@ -140,8 +140,8 @@ def num_tech_repsQ(param, is_undetermined_count, points_list):
 
     return([score, flag, point_deduction])
 
-def no_template_controlQ(param, Cq_of_lowest_std_quantity, points_list):
-    '''given ntc_result (no-template control outcome)
+def no_template_controlQ(ntc_is_neg, ntc_Cq, Cq_of_lowest_std_quantity, points_list):
+    '''given ntc_is_neg, ntc_Cq (no-template control outcomes)
     and list of weights and points
     return quality_score'''
 
@@ -155,11 +155,11 @@ def no_template_controlQ(param, Cq_of_lowest_std_quantity, points_list):
     flag = np.nan
     point_deduction = np.nan
 
-    if param is np.nan:
+    if ntc_is_neg is np.nan:
         flag = f'check {param_name}'
         return([score, flag, point_deduction])
 
-    if param =='negative': #good
+    if ntc_is_neg: #good
         score = weight*pts_goodQ
         return([score, flag, point_deduction])
 
@@ -167,7 +167,7 @@ def no_template_controlQ(param, Cq_of_lowest_std_quantity, points_list):
         flag = f'check Cq_of_lowest_std_quantity'
         return([score, flag, point_deduction])
 
-    elif float(param) > (Cq_of_lowest_std_quantity + 1):
+    elif float(ntc_Cq) > (Cq_of_lowest_std_quantity + 1):
         # the ntc amplified but was least 1 Ct higher than the lowest conconcentration point on the standard curve
         score = weight*pts_okQ
         point_deduction = f'{param_name} had low-level amplification'
@@ -342,7 +342,8 @@ def quality_score(df, scoring_dict=None):
         num_points
         replicate_count
         is_undetermined_count
-        ntc_result
+        ntc_is_neg
+        ntc_Cq
         Cq_of_lowest_std_quantity
         is_inhibited
         date_extract
@@ -373,7 +374,7 @@ def quality_score(df, scoring_dict=None):
 
         num_tech_reps = num_tech_repsQ(row.replicate_count, row.is_undetermined_count, points.num_tech_reps)
 
-        no_template_control = no_template_controlQ(row.ntc_result, pd.to_numeric(row.Cq_of_lowest_std_quantity), points.no_template_control)
+        no_template_control = no_template_controlQ(row.ntc_is_neg, row.ntc_Cq, pd.to_numeric(row.Cq_of_lowest_std_quantity), points.no_template_control)
 
         pcr_inhibition = pcr_inhibitionQ(row.is_inhibited, points.pcr_inhibition)
 
