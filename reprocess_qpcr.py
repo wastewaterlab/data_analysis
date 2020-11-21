@@ -11,184 +11,11 @@ from scipy.stats import gstd
 from sklearn.utils import resample
 import pdb
 from sklearn.metrics import r2_score
-from statistics import median
 #grubbs test package
 import outliers
 from outliers import smirnov_grubbs as grubbs
 import warnings
 
-# found dixon's test at https://sebastianraschka.com/Articles/2014_dixon_test.html#implementing-a-dixon-q-test-function
-# no need to re-invent the wheel
-
-# dictionary to look up the critical Q-values (dictionary values)
-# for different sample sizes 3+
-
-q90 = [0.941, 0.765, 0.642, 0.56, 0.507, 0.468, 0.437,
-       0.412, 0.392, 0.376, 0.361, 0.349, 0.338, 0.329,
-       0.32, 0.313, 0.306, 0.3, 0.295, 0.29, 0.285, 0.281,
-       0.277, 0.273, 0.269, 0.266, 0.263, 0.26
-      ]
-
-q95 = [0.97, 0.829, 0.71, 0.625, 0.568, 0.526, 0.493, 0.466,
-       0.444, 0.426, 0.41, 0.396, 0.384, 0.374, 0.365, 0.356,
-       0.349, 0.342, 0.337, 0.331, 0.326, 0.321, 0.317, 0.312,
-       0.308, 0.305, 0.301, 0.29
-      ]
-
-q99 = [0.994, 0.926, 0.821, 0.74, 0.68, 0.634, 0.598, 0.568,
-       0.542, 0.522, 0.503, 0.488, 0.475, 0.463, 0.452, 0.442,
-       0.433, 0.425, 0.418, 0.411, 0.404, 0.399, 0.393, 0.388,
-       0.384, 0.38, 0.376, 0.372
-       ]
-
-Q90 = {n:q for n,q in zip(range(3,len(q90)+1), q90)}
-Q95 = {n:q for n,q in zip(range(3,len(q95)+1), q95)}
-Q99 = {n:q for n,q in zip(range(3,len(q99)+1), q99)}
-
-def dixon_test(data, left=True, right=True, q_dict=Q95):
-    """
-    Keyword arguments:
-        data = A ordered or unordered list of data points (int or float).
-        left = Q-test of minimum value in the ordered list if True.
-        right = Q-test of maximum value in the ordered list if True.
-        q_dict = A dictionary of Q-values for a given confidence level,
-            where the dict. keys are sample sizes N, and the associated values
-            are the corresponding critical Q values. E.g.,
-            {3: 0.97, 4: 0.829, 5: 0.71, 6: 0.625, ...}
-
-    Returns a list of 2 values for the outliers, or None.
-    E.g.,
-       for [1,1,1] -> [None, None]
-       for [5,1,1] -> [None, 5]
-       for [5,1,5] -> [1, None]
-
-    """
-    assert(left or right), 'At least one of the variables, `left` or `right`, must be True.'
-    assert(len(data) >= 3), 'At least 3 data points are required'
-    assert(len(data) <= max(q_dict.keys())), 'Sample size too large'
-
-    sdata = sorted(data)
-    Q_mindiff, Q_maxdiff = (0,0), (0,0)
-
-    if left:
-        Q_min = (sdata[1] - sdata[0])
-        try:
-            Q_min /= (sdata[-1] - sdata[0])
-        except ZeroDivisionError:
-            pass
-        Q_mindiff = (Q_min - q_dict[len(data)], sdata[0])
-
-    if right:
-        Q_max = abs((sdata[-2] - sdata[-1]))
-        try:
-            Q_max /= abs((sdata[0] - sdata[-1]))
-        except ZeroDivisionError:
-            pass
-        Q_maxdiff = (Q_max - q_dict[len(data)], sdata[-1])
-
-    if not Q_mindiff[0] > 0 and not Q_maxdiff[0] > 0:
-        outliers = [None, None]
-
-    elif Q_mindiff[0] == Q_maxdiff[0]:
-        outliers = [Q_mindiff[1], Q_maxdiff[1]]
-
-    elif Q_mindiff[0] > Q_maxdiff[0]:
-        outliers = [Q_mindiff[1], None]
-
-    else:
-        outliers = [None, Q_maxdiff[1]]
-
-    return outliers
-
-def get_pass_dixonsq(df_in, groupby_list):
-    '''get the whether the observation pass dixons'q or not
-    Parameters
-    ----------
-    df: pandas dataframe
-         contains relevant information to test triplicates
-    groupby_list: list
-        list of variables to be grouped by
-    Returns
-    -------
-    df: pandas dataframe
-         pass_dixonsq added where needed
-    '''
-    df = df_in.copy() # fixes pandas warnings
-    df["pass_dixonsq"] = 1
-    df.loc[df[df.Cq.isna()].index, 'pass_dixonsq'] = 0
-
-    for _, data in df.groupby(groupby_list):
-        # slice out triplicate values
-        tri_vals = data['Cq_copy']
-
-        # assigning the ones that don't pass dixonsq to be 0
-        # if there are less than 3 values, automatically keeping them
-        if len(tri_vals) == 3:
-            dt_vals = dixon_test(tri_vals)
-            if dt_vals != [None, None]:
-                if None in dt_vals:
-                    dt_vals.remove(None)
-                for outlier in dt_vals:
-                    df.loc[data[data.Cq_copy == float(outlier)].index, 'pass_dixonsq'] = 0
-    return(df)
-
-def median_test(Cqs, max_spread = 0.5):
-  '''
-  for a group of Cqs, test whether each
-  is within max_spread of the median
-
-  params
-  Cqs: pandas series of Cts
-  max_spread: defaults to 0.5 Ct
-
-  result: list of booleans, same length as Cqs
-  '''
-  num_points = len(Cqs[~Cqs.isna()])
-  if num_points > 2:
-    m = median(Cqs[~Cqs.isna()])
-    median_dist = [abs(i-m) <= max_spread for i in Cqs]
-
-  #median of 2 numbers will split between them, half max_spread
-  elif num_points == 2:
-    m = median(Cqs[~Cqs.isna()])
-    median_dist = [abs(i-m) <= (max_spread / 2)  for i in Cqs]
-
-  #no median_test can be done
-  elif num_points < 2:
-    median_dist = [False  for i in Cqs]
-  return(median_dist)
-
-def test_median_test():
-  t1 = pd.Series([36.0, 36.4, 37.0])
-  r1 = [True, True, False]
-
-  t2 = pd.Series([36.0, 37.0, np.nan])
-  t3 = pd.Series([np.nan, np.nan, 35.0])
-  t4 = pd.Series([np.nan, np.nan, np.nan])
-  r2 = [False, False, False]
-
-  assert r1 == median_test(t1)
-  assert r2 == median_test(t2)
-  assert r2 == median_test(t3)
-  assert r2 == median_test(t4)
-test_median_test()
-
-def get_pass_median_test(plate_df, groupby_list):
-  # make list that will become new df
-  plate_df_with_median_test = []
-
-  # iterate thru the dataframe, grouped by Sample
-  # this gives us a mini-df with just one sample in each iteration
-  for groupby_list, df in plate_df.groupby(groupby_list,  as_index=False):
-    d = df.copy() # avoid set with copy warning
-
-    # make new column 'median_test' that includes the results of the test
-    d.loc[:, 'median_test'] = median_test(d.Cq)
-    plate_df_with_median_test.append(d)
-
-  # put the dataframe back together
-  plate_df_with_median_test = pd.concat(plate_df_with_median_test)
-  return(plate_df_with_median_test)
 
 def get_pass_grubbs_test(plate_df, groupby_list):
   # make list that will become new df
@@ -247,9 +74,9 @@ def compute_linear_info(plate_data):
     # abline_values = [slope * i + intercept for i in x]
     return(slope, intercept, r2, efficiency)#, abline_values])
 
-def combine_triplicates(plate_df_in, checks_include):
+def combine_triplicates(plate_df_in):
     '''
-    Flag outliers via Dixon's Q, homemade "median_test", ans/or grubbs test
+    Flag outliers via Grubbs test
     Calculate the Cq means, Cq stds, counts before & after removing outliers
 
     Params
@@ -257,20 +84,12 @@ def combine_triplicates(plate_df_in, checks_include):
         qpcr data in pandas df, must be 1 plate with 1 target
         should be in the format from QuantStudio3 with
         columns 'Target', 'Sample', 'Cq'
-    checks_include:
-        which way to check for outliers options are
-        ('all', 'dixonsq_only', 'std_check_only','grubbs_only', None)
+
     Returns
-    plate_df: same data, with additional columns depending on checks_include
-        pass_dixonsq (0 or 1)
-        median_test (True or False)
+    plate_df: same data, with additional column from Grubb's test
         Cq_mean (calculated mean of Cq after excluding outliers)
         Q_QuantStudio_std (calculated standard deviation based on QuantStudio output) for intrassay coefficient of variation
     '''
-
-    if (checks_include not in ['all', 'dixonsq_only', 'median_only','grubbs_only', None]):
-        raise ValueError('''invalid input, must be one of the following: 'all', 'grubbs_only',
-                      'dixonsq_only', 'median_only'or None''')
 
     if len(plate_df_in.Target.unique()) > 1:
         raise ValueError('''More than one target in this dataframe''')
@@ -280,26 +99,11 @@ def combine_triplicates(plate_df_in, checks_include):
     groupby_list = ['plate_id', 'Sample', 'sample_full','Sample_plate',
                     'Target','Task', 'inhibition_testing','is_dilution',"dilution"]
 
-    # make copy of Cq column and later turn this to np.nan for outliers
+    # make copy of Cq column and turn this to np.nan for outliers
+    # so that they will not be included in the aggregations below
     plate_df['Cq_copy'] = plate_df['Cq'].copy()
-
-    # Test triplicates with Dixon's Q
-    #use_dixonsq = False
-    if checks_include in ['all', 'dixonsq_only']:
-        #use_dixonsq = True
-        plate_df = get_pass_dixonsq(plate_df, ['Sample'])
-        # convert point failing the outlier test(s) to np.nan in Cq_copy column
-        plate_df.loc[plate_df.pass_dixonsq==0, 'Cq_copy'] = np.nan
-
-    # Test triplicates with another outlier test? (same format as for dixonsq)
-    if checks_include in ['all', 'median_only']:
-       plate_df = get_pass_median_test(plate_df, ['Sample'])
-       plate_df.loc[plate_df.median_test == False, 'Cq_copy'] = np.nan
-
-    # Test triplicates with another outlier test? (same format as for dixonsq)
-    if checks_include in ['all', 'grubbs_only']:
-       plate_df = get_pass_grubbs_test(plate_df, ['Sample'])
-       plate_df.loc[plate_df.grubbs_test == False, 'Cq_copy'] = np.nan
+    plate_df = get_pass_grubbs_test(plate_df, ['Sample'])
+    plate_df.loc[plate_df.grubbs_test == False, 'Cq_copy'] = np.nan
 
     # summarize to get mean, std, counts with and without outliers removed
 
@@ -440,7 +244,7 @@ def process_ntc(plate_df):
 
 
 
-def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
+def determine_samples_BLoD(raw_outliers_flagged_df, cutoff):
         '''
         For each target in raw qpcr data, this function defines the limit of quantification as the fraction of qpcr replicates at a quantity that are detectable
         It works depending on which test was selected, so if grubbs was selected, it only evaluates for replicates that pass grubbs
@@ -455,12 +259,8 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
             a dataframe with Target and the limit of detection
         '''
         dfm= raw_outliers_flagged_df
-        if checks_include in ['all', 'grubbs_only']:
-            dfm=dfm[dfm.grubbs_test==True].copy()
-        if checks_include in ['all', 'median_only']:
-            dfm=dfm[dfm.median_test==True].copy()
-        if checks_include in ['all', 'dixonsq_only']:
-            dfm=dfm[dfm.pass_dixonsq==True].copy()
+        dfm=dfm[dfm.grubbs_test==True].copy()
+
 
         dfm=dfm[dfm.Task=='Standard'] #only standards
         dfm=dfm[dfm.Quantity!=0] #no NTCs
@@ -596,25 +396,22 @@ def process_dilutions(qpcr_p):
 
     return(qpcr_p,dilution_expts_df)
 
-def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
+def process_qpcr_raw(qpcr_raw,include_LoD=False,cutoff=0.9):
     '''wrapper to process whole sheet at once by plate_id and Target
     params
     qpcr_raw: df from read_qpcr_data()
-    checks_include: how to remove outliers ('all', 'dixonsq_only', 'median_only')
     optional:
     include_LoD adds blod column and moves lowest standard quantity and Cq of lowest standard quantity based on LoD
     cutoff is the fraction of positive replicates in standard curves allowed to consider that standard curve point detectable (used if previous is true)
     '''
-    if (checks_include not in ['all', 'dixonsq_only', 'median_only','grubbs_only', None]):
-        raise ValueError('''invalid input, must be one of the following: 'all', 'grubs_only',
-                      'dixonsq_only', 'median_only'or None''')
+
     std_curve_df = []
     qpcr_processed = []
     raw_outliers_flagged_df = []
     for [plate_id, target], df in qpcr_raw.groupby(["plate_id", "Target"]):
 
         ntc_result = process_ntc(df)
-        outliers_flagged, no_outliers_df = combine_triplicates(df, checks_include)
+        outliers_flagged, no_outliers_df = combine_triplicates(df)
 
         # define outputs and fill with default values
         num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity,lowest_std_quantity2nd, Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd,slope, intercept, r2, efficiency = np.nan, np.nan,np.nan, np.nan,np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
@@ -630,7 +427,7 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
 
     # compile into dataframes
     raw_outliers_flagged_df = pd.concat(raw_outliers_flagged_df)
-    assay_assessment_df=determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include)
+    assay_assessment_df=determine_samples_BLoD(raw_outliers_flagged_df, cutoff)
     std_curve_df = pd.DataFrame.from_records(std_curve_df,
                                              columns = ['plate_id',
                                                         'Target',
