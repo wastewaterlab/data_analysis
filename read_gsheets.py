@@ -54,6 +54,7 @@ def read_sample_data(gc, url, samples, sites, salted_tube_weight=23.485):
     rna_data.date_extract = pd.to_datetime(rna_data.date_extract, errors='coerce')
     rna_data.elution_vol_ul = pd.to_numeric(rna_data.elution_vol_ul, errors='coerce')
     rna_data.effective_vol_extracted_ml = pd.to_numeric(rna_data.effective_vol_extracted_ml, errors='coerce')
+    rna_data.weight = pd.to_numeric(rna_data.weight)
     rna_data.weight_vol_extracted_ml = pd.to_numeric(rna_data.weight_vol_extracted_ml)
     rna_data.bCoV_spike_vol_ul = pd.to_numeric(rna_data.bCoV_spike_vol_ul, errors='coerce')
     rna_data.GFP_spike_vol_ul = pd.to_numeric(rna_data.GFP_spike_vol_ul, errors='coerce')
