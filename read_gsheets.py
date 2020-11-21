@@ -5,15 +5,20 @@ import re
 import warnings
 
 def read_gsheet(gc, url, tab):
-  '''Reads one tab from any google sheet,
-  makes first row headers,
-  replaces NA values,
-  returns pandas dataframe.'''
-  df = pd.DataFrame(gc.open_by_url(url).worksheet(tab).get_all_values())
-  df.columns = df.iloc[0] #make first row the header
-  df = df.iloc[1:]
-  df=df.replace('NA',np.nan)
-  return df
+    '''
+    Reads pandas df or one tab from any google sheet,
+    makes first row headers,
+    replaces NA values,
+    returns pandas dataframe
+    '''
+    if gc is None:
+        df = pd.read_csv(url)
+    else:
+        df = pd.DataFrame(gc.open_by_url(url).worksheet(tab).get_all_values())
+        df.columns = df.iloc[0] #make first row the header
+        df = df.iloc[1:]
+        df=df.replace('NA',np.nan)
+    return(df)
 
 def read_sample_data(gc, samples_url, rna_tab, facility_lookup, salted_tube_weight=23.485):
   ''' Reads in sample extraction and sample tracking data.
