@@ -2,13 +2,11 @@ import pandas as pd
 import numpy  as np
 import warnings
 
-def get_extraction_control(qpcr_averaged):
+def get_extraction_control(qpcr_averaged, control_sample_code='control_control_PBS'):
     '''
     determine whether negative controls in each batch were negative (extraction_control_is_neg)
     if negative controls were positive, show the value (extraction_control_Cq)
     if negative controls were missing, return values as None and NaN
-
-    # Xeno must be removed before running this or else all negative controls will appear positive
 
     Params
     dataframe with columns:
@@ -17,6 +15,8 @@ def get_extraction_control(qpcr_averaged):
         is_undetermined_count
         Cq_init_min # should we be using Cq_mean?
     '''
+
+    # Xeno must be removed before running this or else all negative controls will appear positive
     if 'Xeno' in qpcr_averaged.Target.to_list():
         warnings.warn('Xeno must be removed before this function is run')
 
@@ -29,8 +29,8 @@ def get_extraction_control(qpcr_averaged):
         extraction_control_Cq = np.nan
 
         # if batch has control
-        if 'control_control_PBS' in df.sample_code.to_list():
-            extraction_controls = df[df.sample_code == 'control_control_PBS']
+        if control_sample_code in df.sample_code.to_list():
+            extraction_controls = df[df.sample_code == control_sample_code]
 
             # if at least one control was not undetermined in all 3 replicates
             if extraction_controls.is_undetermined_count.min() < 3:
