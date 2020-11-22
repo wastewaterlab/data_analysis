@@ -1,57 +1,53 @@
-import pandas as pd
-import numpy as np
-from sklearn.linear_model import LinearRegression
-import sys
 import math
+import numpy as np
+import outliers
+from outliers import smirnov_grubbs as grubbs
+import pandas as pd
 from pandas.api.types import CategoricalDtype
+import pdb
 from scipy import stats as sci
 from scipy.stats import linregress
 from scipy.stats.mstats import gmean
 from scipy.stats import gstd
-from sklearn.utils import resample
-import pdb
+from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
-#grubbs test package
-import outliers
-from outliers import smirnov_grubbs as grubbs
+from sklearn.utils import resample
+import sys
 import warnings
 
 
-def get_pass_grubbs_test(plate_df, groupby_list):
-  # make list that will become new df
-  plate_df_with_grubbs_test = pd.DataFrame()
+def get_pass_grubbs_test(plate_df, groupby_list, max_std_for_2_reps=0.2, alpha=0.025):
+    '''
+    max_std_for_2_reps value is from https://www.gene-quantification.de/dhaene-hellemans-qc-data-2010.pdf
+    '''
 
-  # iterate thru the dataframe, grouped by Sample
-  # this gives us a mini-df with just one sample in each iteration
-  for groupby_list, df in plate_df.groupby(groupby_list,  as_index=False):
-    d = df.copy() # avoid set with copy warning
-    # d.Cq=[round(n, 2) for n in d.Cq]
-    # make new column 'grubbs_test' that includes the results of the test
-    if (len(d.Cq.dropna())<3): #cannot evaluate for fewer than 3 values
+    # make new df
+    plate_df_with_grubbs_test = pd.DataFrame()
 
-        if (len(d.Cq.dropna())==2) & (np.std(d.Cq.dropna()) <0.2): #got this from https://www.gene-quantification.de/dhaene-hellemans-qc-data-2010.pdf
-            d.loc[:, 'grubbs_test'] = True
-            plate_df_with_grubbs_test=plate_df_with_grubbs_test.append(d)
+    # iterate thru the dataframe, grouped by Sample
+    for groupby_list, df in plate_df.groupby(groupby_list, as_index=False):
+        # make new column 'pass_grubbs_test' that includes the results of the test
+        df['pass_grubbs_test'] = None
+
+        if (len(df.Cq.dropna())<3): #cannot evaluate for fewer than 3 values
+            if (len(df.Cq.dropna())==2) & (np.std(df.Cq.dropna()) < max_std_for_2_reps):
+                df['pass_grubbs_test'] = True
+            else:
+                df['pass_grubbs_test'] = False
         else:
-            d.loc[:, 'grubbs_test'] = False
-            plate_df_with_grubbs_test=plate_df_with_grubbs_test.append(d)
 
-    else:
+            b = list(df.Cq) #grubbs takes unindexed list
+            outliers = grubbs.max_test_outliers(b, alpha)
+            if len(outliers) > 0:
+                df['pass_grubbs_test'] = True
+                df.loc[df.Cq.isin(outliers), 'pass_grubbs_test'] = False
+            else:
+                df['pass_grubbs_test'] = True
 
-        b=list(d.Cq) #needs to be given unindexed list
-        outliers=grubbs.max_test_outliers(b, alpha=0.025)
-        if len(outliers) > 0:
-            d.loc[:, 'grubbs_test'] = True
-            d.loc[d.Cq.isin(outliers), 'grubbs_test'] = False
-            plate_df_with_grubbs_test=plate_df_with_grubbs_test.append(d)
-        else:
-            d.loc[:, 'grubbs_test'] = True
-            plate_df_with_grubbs_test=plate_df_with_grubbs_test.append(d)
+        plate_df_with_grubbs_test = plate_df_with_grubbs_test.append(df)
 
-  return(plate_df_with_grubbs_test)
-  # put the dataframe back together
-  plate_df_with_grubbs_test = pd.concat(plate_df_with_grubbs_test)
-  return(plate_df_with_grubbs_test)
+    return(plate_df_with_grubbs_test)
+
 
 def compute_linear_info(plate_data):
     '''compute the information for linear regression
@@ -79,6 +75,8 @@ def combine_triplicates(plate_df_in):
     Flag outliers via Grubbs test
     Calculate the Cq means, Cq stds, counts before & after removing outliers
 
+    # TODO save triplicates in a new field
+
     Params
     plate_df_in:
         qpcr data in pandas df, must be 1 plate with 1 target
@@ -102,8 +100,8 @@ def combine_triplicates(plate_df_in):
     # make copy of Cq column and turn this to np.nan for outliers
     # so that they will not be included in the aggregations below
     plate_df['Cq_copy'] = plate_df['Cq'].copy()
-    plate_df = get_pass_grubbs_test(plate_df, ['Sample'])
-    plate_df.loc[plate_df.grubbs_test == False, 'Cq_copy'] = np.nan
+    plate_df = get_pass_grubbs_test(plate_df, ['sample_full'])
+    plate_df.loc[plate_df.pass_grubbs_test == False, 'Cq_copy'] = np.nan
 
     # summarize to get mean, std, counts with and without outliers removed
 
@@ -238,7 +236,7 @@ def process_ntc(plate_df):
         ntc_is_neg = True
     else:
         if all(ntc.Cq.isna()): # this case should never happen
-            ntc_is_neg = np.nan
+            ntc_is_neg = np.nan # change NaN to None for dtype consistency
         else:
             ntc_Cq = np.nanmin(ntc.Cq)
     return(ntc_is_neg, ntc_Cq)
@@ -259,7 +257,7 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff):
             a dataframe with Target and the limit of detection
         '''
         dfm= raw_outliers_flagged_df
-        dfm=dfm[dfm.grubbs_test==True].copy()
+        dfm=dfm[dfm.pass_grubbs_test==True].copy()
 
 
         dfm=dfm[dfm.Task=='Standard'] #only standards
