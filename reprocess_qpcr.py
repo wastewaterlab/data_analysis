@@ -42,37 +42,62 @@ def grubbs_test(replicates, max_std_for_2_reps=0.2, alpha=0.025):
 
     return(replicates_out)
 
-def get_pass_grubbs_test(plate_df, groupby_list, max_std_for_2_reps=0.2, alpha=0.025):
+def get_gstd(replicates_in):
+    gstd_value = np.nan
+    replicates_no_nan = [x for x in replicates_in if ~np.isnan(x)]
+    if len(replicates_no_nan) >= 2:
+        gstd_value = sci.gstd(replicates_no_nan)
+    return(gstd_value)
+
+
+def get_gmean(replicates_in):
+    gmean_value = np.nan
+    replicates_no_nan = [x for x in replicates_in if ~np.isnan(x)]
+    if len(replicates_no_nan) >= 1:
+        gmean_value = sci.gmean(replicates_no_nan)
+    return(gmean_value)
+
+
+def combine_replicates(plate_df, collapse_on=['Sample', 'dilution', 'Target', 'Task']):
+    '''
+    collapse replicates with identical attributes as determined by collapse_on list
+    calculate summary columns
+
+    Params
+    plate_df: preprocessed plate dataframe from read_qpcr_data()
+        # remove Omit == 'TRUE'
+        # remove inhibition testing plates (in case not cleaned)
+        # remove blank Sample names (these should have been Omit == TRUE but sometimes not entered correctly)
+        # create dilution column by splitting Sample
+        # create is_undetermined column
+    collapse_on: list of attributes that define technical replicates
+
+    Returns
+    plate_df: collapsed plate with summary columns for the combined technical replicates
     '''
 
-    '''
+    # collapse replicates
+    plate_df = plate_df[['Sample', 'dilution', 'Target', 'Task', 'Cq', 'Quantity', 'is_undetermined']]
+    plate_df = plate_df.groupby(collapse_on).agg(lambda x: x.tolist())
+    plate_df = plate_df.reset_index()
 
-    # make new df
-    plate_df_with_grubbs_test = pd.DataFrame()
+    # create summary columns describing all replicates
+    plate_df['Cq_no_outliers'] = plate_df.Cq.apply(lambda x: grubbs_test(x))
 
-    # iterate thru the dataframe, grouped by Sample
-    for groupby_list, df in plate_df.groupby(groupby_list, as_index=False):
-        # make new column 'pass_grubbs_test' that includes the results of the test
-        df['pass_grubbs_test'] = None
+    plate_df['Cq_init_mean'] = plate_df.Cq.apply(np.mean)
+    plate_df['Cq_init_std'] = plate_df.Cq.apply(lambda x: get_gstd(x))
+    plate_df['Cq_init_min'] = plate_df.Cq.apply(np.min)
+    plate_df['replicate_init_count'] = plate_df.Cq.apply(lambda x: len(x))
 
-        if (len(df.Cq.dropna())<3): #cannot evaluate for fewer than 3 values
-            if (len(df.Cq.dropna())==2) & (np.std(df.Cq.dropna()) < max_std_for_2_reps):
-                df['pass_grubbs_test'] = True
-            else:
-                df['pass_grubbs_test'] = False
-        else:
+    plate_df['Q_init_mean'] = plate_df.Quantity.apply(np.mean)
+    plate_df['Q_init_std'] = plate_df.Quantity.apply(lambda x: get_gstd(x))
 
-            b = list(df.Cq) #grubbs takes unindexed list
-            outliers = grubbs.max_test_outliers(b, alpha)
-            if len(outliers) > 0:
-                df['pass_grubbs_test'] = True
-                df.loc[df.Cq.isin(outliers), 'pass_grubbs_test'] = False
-            else:
-                df['pass_grubbs_test'] = True
-
-        plate_df_with_grubbs_test = plate_df_with_grubbs_test.append(df)
-
-    return(plate_df_with_grubbs_test)
+    plate_df['Cq_mean'] = plate_df.Cq_no_outliers.apply(lambda x: get_gmean(x))
+    plate_df['Cq_std'] = plate_df.Cq_no_outliers.apply(lambda x: get_gstd(x))
+    plate_df['replicate_count'] = plate_df.Cq_no_outliers.apply(lambda x: len(x))
+    plate_df['is_undetermined_count'] = plate_df.is_undetermined.apply(lambda x: sum(x))
+    plate_df = plate_df.sort_values(['Target', 'Sample', 'dilution'])
+    return(plate_df)
 
 
 def compute_linear_info(plate_data):
@@ -96,59 +121,6 @@ def compute_linear_info(plate_data):
     # abline_values = [slope * i + intercept for i in x]
     return(slope, intercept, r2, efficiency)#, abline_values])
 
-def combine_triplicates(plate_df_in):
-    '''
-    Flag outliers via Grubbs test
-    Calculate the Cq means, Cq stds, counts before & after removing outliers
-
-    # TODO save triplicates in a new field
-
-    Params
-    plate_df_in:
-        qpcr data in pandas df, must be 1 plate with 1 target
-        should be in the format from QuantStudio3 with
-        columns 'Target', 'Sample', 'Cq'
-
-    Returns
-    plate_df: same data, with additional column from Grubb's test
-        Cq_mean (calculated mean of Cq after excluding outliers)
-        Q_QuantStudio_std (calculated standard deviation based on QuantStudio output) for intrassay coefficient of variation
-    '''
-
-    if len(plate_df_in.Target.unique()) > 1:
-        raise ValueError('''More than one target in this dataframe''')
-
-    plate_df = plate_df_in.copy() # fixes pandas warnings
-
-    groupby_list = ['plate_id', 'Sample', 'sample_full','Sample_plate',
-                    'Target','Task', 'inhibition_testing','is_dilution',"dilution"]
-
-    # make copy of Cq column and turn this to np.nan for outliers
-    # so that they will not be included in the aggregations below
-    plate_df['Cq_copy'] = plate_df['Cq'].copy()
-    plate_df = get_pass_grubbs_test(plate_df, ['sample_full'])
-    plate_df.loc[plate_df.pass_grubbs_test == False, 'Cq_copy'] = np.nan
-
-    # summarize to get mean, std, counts with and without outliers removed
-
-    plate_df_avg = plate_df.groupby(groupby_list).agg(
-                                               template_volume=('template_volume','max'),
-                                               Q_init_mean=('Quantity','max'), #only needed to preserve quantity information for standards later
-                                               Q_init_std=('Quantity', lambda x: np.nan if ( (len(x.dropna()) <2 )| all(np.isnan(x)) ) else (sci.gstd(x.dropna(),axis=0))),
-                                               # Q_QuantStudio_std = ('Quantity', 'std'),
-                                               Cq_init_mean=('Cq', 'mean'),
-                                               Cq_init_std=('Cq', 'std'),
-                                               Cq_init_min=('Cq', 'min'),
-                                               replicate_init_count=('Cq','count'),
-                                               Cq_mean=('Cq', lambda x:  np.nan if all(np.isnan(x)) else sci.gmean(x.dropna(),axis=0)),
-                                               Cq_std=('Cq', lambda x: np.nan if ((len(x.dropna()) <2 )| all(np.isnan(x)) ) else (sci.gstd(x.dropna(),axis=0))),
-                                               replicate_count=('Cq_copy', 'count'),
-                                               is_undetermined_count=('is_undetermined', 'sum')
-                                               )
-    # note: count in agg will exclude nan
-    plate_df_avg = plate_df_avg.reset_index()
-
-    return(plate_df, plate_df_avg)
 
 def process_standard(plate_df):
     '''
