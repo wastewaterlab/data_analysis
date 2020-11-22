@@ -15,10 +15,36 @@ from sklearn.utils import resample
 import sys
 import warnings
 
+## TODO: rewrite everything to handle sets of triplicates
+
+def grubbs_test(replicates, max_std_for_2_reps=0.2, alpha=0.025):
+    '''
+    from list of triplicates, determine passing replicates
+
+    Params
+    replicates: list of Cq values for replicates (usually triplicate)
+    max_std_for_2_reps: from https://www.gene-quantification.de/dhaene-hellemans-qc-data-2010.pdf
+    alpha: alpha for grubb's test
+
+    Returns
+    list of replicates passing grubb's test
+    '''
+
+    replicates_out = []
+
+    replicates_no_nan = [x for x in replicates_in if ~np.isnan(x)]
+    if len(replicates_no_nan) >= 3:
+        outliers = grubbs.max_test_outliers(replicates_no_nan, alpha)
+        # drop the outliers from the list
+        replicates_out = [x for x in replicates_no_nan if x not in outliers]
+    elif (len(replicates_no_nan)) == 2 and (np.std(replicates_no_nan) < max_std_for_2_reps):
+        replicates_out = replicates_no_nan
+
+    return(replicates_out)
 
 def get_pass_grubbs_test(plate_df, groupby_list, max_std_for_2_reps=0.2, alpha=0.025):
     '''
-    max_std_for_2_reps value is from https://www.gene-quantification.de/dhaene-hellemans-qc-data-2010.pdf
+
     '''
 
     # make new df
