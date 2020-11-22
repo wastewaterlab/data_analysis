@@ -252,8 +252,8 @@ def sample_storageQ(date_extract, date_sampling, points_list):
 
     return([score, flag, point_deduction])
 
-def extraction_neg_controlQ(param, Cq_of_lowest_std_quantity, points_list):
-    '''given PBS_result and Cq_of_lowest_std_quantity and list of weights and points
+def extraction_neg_controlQ(extraction_control_is_neg, extraction_control_Cq, Cq_of_lowest_std_quantity, points_list):
+    '''given extraction control info and Cq_of_lowest_std_quantity and list of weights and points
     return quality_score'''
 
     weight = points_list[0]
@@ -270,7 +270,7 @@ def extraction_neg_controlQ(param, Cq_of_lowest_std_quantity, points_list):
         flag = f'check {param_name}'
         return([score, flag, point_deduction])
 
-    if param =='negative': #good
+    if extraction_control_is_neg: #good
         score = weight*pts_goodQ
         return([score, flag, point_deduction])
 
@@ -278,7 +278,7 @@ def extraction_neg_controlQ(param, Cq_of_lowest_std_quantity, points_list):
         flag = f'check Cq_of_lowest_std_quantity'
         return([score, flag, point_deduction])
 
-    elif float(param) > (Cq_of_lowest_std_quantity + 1):
+    elif float(extraction_control_Cq) > (Cq_of_lowest_std_quantity + 1):
         # the ntc amplified but was least 1 Ct higher than the lowest conconcentration point on the standard curve
         score = weight*pts_okQ
         point_deduction = f'{param_name} had low-level amplification'
@@ -380,7 +380,7 @@ def quality_score(df, scoring_dict=None):
 
         sample_storage = sample_storageQ(row.date_extract, row.date_sampling, points.sample_storage)
 
-        extraction_neg_control = extraction_neg_controlQ(row.PBS_result, row.Cq_of_lowest_std_quantity, points.extraction_neg_control)
+        extraction_neg_control = extraction_neg_controlQ(row.extraction_control_is_neg, row.extraction_control_Cq, row.Cq_of_lowest_std_quantity, points.extraction_neg_control)
 
         # combine all scores for this row into single dataframe
         score_df = [efficiency, r2,
