@@ -266,7 +266,7 @@ def extraction_neg_controlQ(extraction_control_is_neg, extraction_control_Cq, Cq
     flag = np.nan
     point_deduction = np.nan
 
-    if param is np.nan:
+    if extraction_control_is_neg is None:
         flag = f'check {param_name}'
         return([score, flag, point_deduction])
 
