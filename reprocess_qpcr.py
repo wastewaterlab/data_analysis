@@ -32,7 +32,7 @@ def grubbs_test(replicates, max_std_for_2_reps=0.2, alpha=0.025):
 
     replicates_out = []
 
-    replicates_no_nan = [x for x in replicates_in if ~np.isnan(x)]
+    replicates_no_nan = [x for x in replicates if ~np.isnan(x)]
     if len(replicates_no_nan) >= 3:
         outliers = grubbs.max_test_outliers(replicates_no_nan, alpha)
         # drop the outliers from the list
@@ -42,17 +42,17 @@ def grubbs_test(replicates, max_std_for_2_reps=0.2, alpha=0.025):
 
     return(replicates_out)
 
-def get_gstd(replicates_in):
+def get_gstd(replicates):
     gstd_value = np.nan
-    replicates_no_nan = [x for x in replicates_in if ~np.isnan(x)]
+    replicates_no_nan = [x for x in replicates if ~np.isnan(x)]
     if len(replicates_no_nan) >= 2:
         gstd_value = sci.gstd(replicates_no_nan)
     return(gstd_value)
 
 
-def get_gmean(replicates_in):
+def get_gmean(replicates):
     gmean_value = np.nan
-    replicates_no_nan = [x for x in replicates_in if ~np.isnan(x)]
+    replicates_no_nan = [x for x in replicates if ~np.isnan(x)]
     if len(replicates_no_nan) >= 1:
         gmean_value = sci.gmean(replicates_no_nan)
     return(gmean_value)
