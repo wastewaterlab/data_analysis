@@ -116,7 +116,9 @@ def compute_linear_info(plate_data):
     predict = np.poly1d(model)
     r2 = r2_score(y, predict(x))
     slope, intercept = model
-    efficiency = (10**(-1/slope)) - 1
+    efficiency = np.nan
+    if (slope != 0) and (slope != np.inf):
+        efficiency = (10**(-1/slope)) - 1
 
     # abline_values = [slope * i + intercept for i in x]
     return(slope, intercept, r2, efficiency)#, abline_values])
