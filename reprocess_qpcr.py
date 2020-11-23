@@ -150,7 +150,6 @@ def process_standard(plate_df, loq_min_reps=(2/3)):
         raise ValueError('''More than one target in this dataframe''')
 
     # define outputs
-
     slope = np.nan
     intercept = np.nan
     r2 = np.nan
@@ -222,7 +221,7 @@ def process_standard(plate_df, loq_min_reps=(2/3)):
     return(std_curve_info)
 
 
-def process_unknown(plate_df, std_curve_intercept, std_curve_slope):
+def process_unknown(plate_df, std_curve_intercept, std_curve_slope, loq_Cq):
     '''
     Calculates quantity based on Cq_mean and standard curve
     Params
@@ -244,6 +243,7 @@ def process_unknown(plate_df, std_curve_intercept, std_curve_slope):
     unknown_df['Quantity_mean'] = np.nan
     intraassay_var = np.nan
     Cq_of_lowest_sample_quantity = np.nan
+    unknown_df['below_limit_of_quantification'] = None
 
     # use standard curve to calculate the quantities for each sample from Cq_mean
     unknown_df['Quantity_mean'] = 10**((unknown_df['Cq_mean'] - std_curve_intercept)/std_curve_slope)
@@ -257,6 +257,11 @@ def process_unknown(plate_df, std_curve_intercept, std_curve_slope):
     if (len(unknown_df.Task) > 0) and not (unknown_df.Cq_mean.isna().all()):
         # plate contains unknowns and at least some have Cq_mean
         Cq_of_lowest_sample_quantity = np.nanmax(unknown_df.Cq_mean)
+
+    # determine if samples are below the limit of quantification
+    if loq_Cq is not np.nan:
+        unknown_df.loc[unknown_df.Cq_mean > loq_Cq, 'below_limit_of_quantification'] = True
+        unknown_df.loc[unknown_df.Cq_mean <= loq_Cq, 'below_limit_of_quantification'] = False
 
     return(unknown_df, intraassay_var, Cq_of_lowest_sample_quantity)
 
@@ -278,7 +283,7 @@ def process_ntc(plate_df):
     return(ntc_is_neg, ntc_Cq)
 
 
-def determine_samples_BLoQ(qpcr_p, max_cycles, assay_assessment_df, include_LoD=False):
+def determine_samples_BLoQ(qpcr_p, max_cycles=40, assay_assessment_df, include_LoD=False):
     '''
     from processed unknown qpcr data and the max cycles allowed (usually 40) this will return qpcr_processed with a boolean column indicating samples bloq.
     samples that have Cq_mean that is nan are classified as bloq (including true negatives and  samples removed during processing)
@@ -312,8 +317,6 @@ def determine_samples_BLoQ(qpcr_p, max_cycles, assay_assessment_df, include_LoD=
     qpcr_p.loc[(qpcr_p.Cq_mean >= max_cycles),'bloq']= True
     qpcr_p.loc[(qpcr_p.Cq_mean > qpcr_p.Cq_of_lowest_std_quantity),'bloq']= True
     qpcr_p.loc[(qpcr_p.Cq_mean <= qpcr_p.Cq_of_lowest_std_quantity)&(qpcr_p.Cq_mean < max_cycles),'bloq']= False
-
-
 
     return(qpcr_p)
 
