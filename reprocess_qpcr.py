@@ -122,9 +122,14 @@ def compute_linear_info(plate_data):
     return(slope, intercept, r2, efficiency)#, abline_values])
 
 
-def process_standard(plate_df):
+def process_standard(plate_df, loq_min_reps=(2/3)):
     '''
     from single plate with single target, calculate standard curve info
+
+    Defines the limit of quantification as the lowest pt on the std curve
+    where the fraction of detected replicates meets the cutoff
+    Note: Evaluates only the replicates that pass grubb's test
+    TODO decide if this is a fair way to evaluate LoD- Grubb's test seems too stringent on standards in particular
 
     Params:
         plate_df: output from combine_replicates(); df containing Cq_mean
@@ -138,6 +143,8 @@ def process_standard(plate_df):
         intercept:
         r2:
         efficiency:
+        lod_Cq: the Cq for the limit of quantification
+        lod_Quantity: the quantity for the limit of quantification
     '''
     if len(plate_df.Target.unique()) > 1:
         raise ValueError('''More than one target in this dataframe''')
@@ -154,7 +161,8 @@ def process_standard(plate_df):
     Cq_of_2ndlowest_std_quantity_gsd = np.nan
     lowest_std_quantity = np.nan
     lowest_std_quantity2nd = np.nan
-
+    loq_Cq = np.nan
+    loq_Quantity = np.nan
 
     #what is the lowest sample Cq and quantity on this plate
     standard_df = plate_df[plate_df.Task == 'Standard'].copy()
@@ -182,6 +190,21 @@ def process_standard(plate_df):
         if num_points > 2:
             slope, intercept, r2, efficiency = compute_linear_info(standard_df)
 
+    ## determine LoQ
+    # determine the fraction of the replicates that were detectable
+    standard_df['fraction_positive'] = np.nan
+    standard_df['fraction_positive'] = standard_df.replicate_count / standard_df.replicate_init_count
+
+    #only take the portion of the dataframe that is >= the cutoff
+    standard_df = standard_df[standard_df.fraction_positive >= loq_min_reps].copy()
+
+    # if there are standards that meet the cutoff
+    # find the lowest quantity and report it and its Cq_mean as the LoD values
+    if len(standard_df) > 0:
+        standard_df = standard_df.sort_values('Q_init_mean')
+        loq_Cq = standard_df.Cq_mean.values[0]
+        loq_Quantity = standard_df.Q_init_mean.values[0]
+
     std_curve_info = (num_points,
                       Cq_of_lowest_std_quantity,
                       Cq_of_2ndlowest_std_quantity,
@@ -192,7 +215,10 @@ def process_standard(plate_df):
                       slope,
                       intercept,
                       r2,
-                      efficiency)
+                      efficiency,
+                      loq_Cq,
+                      loq_Quantity)
+
     return(std_curve_info)
 
 
@@ -250,46 +276,6 @@ def process_ntc(plate_df):
         else:
             ntc_Cq = np.nanmin(ntc.Cq)
     return(ntc_is_neg, ntc_Cq)
-
-
-def determine_loq(plate_df, cutoff=(2/3)):
-    '''
-    Defines the limit of quantification as the lowest pt on the std curve
-    where the fraction of detected replicates meets the cutoff
-    Note: Evaluates only the replicates that pass grubb's test
-    TODO decide if this is a fair way to evaluate LoD- Grubb's test seems too stringent on standards in particular
-    Requires a single target.
-
-    Params:
-        plate_df
-    Returns
-        lod_Cq: the Cq for the limit of quantification
-        lod_Quantity: the quantity for the limit of quantification
-    '''
-    if len(plate_df.Target.unique()) > 1:
-        raise ValueError('''More than one target in this dataframe''')
-
-    # define outputs
-    lod_Cq = np.nan
-    lod_Quantity = np.nan
-
-    standard_df = plate_df[plate_df.Task=='Standard'].copy()
-
-    # determine the fraction of the replicates that were detectable
-    standard_df['fraction_positive'] = np.nan
-    standard_df['fraction_positive'] = standard_df.replicate_count / standard_df.replicate_init_count
-
-    #only take the portion of the dataframe that is >= the cutoff
-    standard_df = standard_df[standard_df.fraction_positive >= cutoff].copy()
-
-    # if there are standards that meet the cutoff
-    # find the lowest quantity and report it and its Cq_mean as the LoD values
-    if len(standard_df) > 0:
-        standard_df.sort_values('Quantity')
-        lod_Cq = standard_df.Cq_mean.values[0]
-        lod_Quantity = standard_df.Q_init_mean.values[0]
-
-    return(lod_Cq, lod_Quantity)
 
 
 def determine_samples_BLoQ(qpcr_p, max_cycles, assay_assessment_df, include_LoD=False):
