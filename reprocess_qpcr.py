@@ -150,44 +150,45 @@ def process_standard(plate_df, loq_min_reps=(2/3)):
         raise ValueError('''More than one target in this dataframe''')
 
     # define outputs
-    slope = np.nan
-    intercept = np.nan
-    r2 = np.nan
-    efficiency = np.nan
-    Cq_of_lowest_std_quantity = np.nan
-    Cq_of_2ndlowest_std_quantity = np.nan
-    Cq_of_lowest_std_quantity_gsd = np.nan
-    Cq_of_2ndlowest_std_quantity_gsd = np.nan
-    lowest_std_quantity = np.nan
-    lowest_std_quantity2nd = np.nan
-    loq_Cq = np.nan
-    loq_Quantity = np.nan
+    std_curve = {'num_points': np.nan,
+                 'slope': np.nan,
+                 'intercept': np.nan,
+                 'r2': np.nan,
+                 'efficiency': np.nan,
+    # Cq_of_lowest_std_quantity = np.nan
+    # Cq_of_2ndlowest_std_quantity = np.nan
+    # Cq_of_lowest_std_quantity_gsd = np.nan
+    # Cq_of_2ndlowest_std_quantity_gsd = np.nan
+    # lowest_std_quantity = np.nan
+    # lowest_std_quantity2nd = np.nan
+                 'loq_Cq': np.nan,
+                 'loq_Quantity': np.nan}
 
     #what is the lowest sample Cq and quantity on this plate
     standard_df = plate_df[plate_df.Task == 'Standard'].copy()
 
     # require at least 2 replicates
     standard_df = standard_df[standard_df.replicate_count > 1]
-    num_points = len(standard_df)
+    std_curve['num_points'] = len(standard_df)
 
-    if num_points >= 2:
+    if std_curve['num_points'] >= 2:
         standard_df['log_Quantity'] = np.log10(standard_df['Q_init_mean'])
 
-        #find the Cq_mean of the lowest and second lowest (for LoQ) standard quantity
-        standard_df = standard_df.sort_values('Q_init_mean')
-        Cq_of_lowest_std_quantity = standard_df.Cq_mean.values[0]
-        Cq_of_2ndlowest_std_quantity = standard_df.Cq_mean.values[1]
+        # # find the Cq_mean of the lowest and second lowest (for LoQ) standard quantity
+        # standard_df = standard_df.sort_values('Q_init_mean')
+        # Cq_of_lowest_std_quantity = standard_df.Cq_mean.values[0]
+        # Cq_of_2ndlowest_std_quantity = standard_df.Cq_mean.values[1]
+        #
+        # #find the geometric standard deviation of the Cq of the lowest and second lowest (for LoQ) standard quantity
+        # Cq_of_lowest_std_quantity_gsd = standard_df.Cq_std.values[0]
+        # Cq_of_2ndlowest_std_quantity_gsd = standard_df.Cq_std.values[1]
+        #
+        # # the lowest and second lowest (for LoQ) standard quantity
+        # lowest_std_quantity = standard_df.Q_init_mean.values[0]
+        # lowest_std_quantity2nd = standard_df.Q_init_mean.values[1]
 
-        #find the geometric standard deviation of the Cq of the lowest and second lowest (for LoQ) standard quantity
-        Cq_of_lowest_std_quantity_gsd = standard_df.Cq_std.values[0]
-        Cq_of_2ndlowest_std_quantity_gsd = standard_df.Cq_std.values[1]
-
-        # the lowest and second lowest (for LoQ) standard quantity
-        lowest_std_quantity = standard_df.Q_init_mean.values[0]
-        lowest_std_quantity2nd = standard_df.Q_init_mean.values[1]
-
-        if num_points > 2:
-            slope, intercept, r2, efficiency = compute_linear_info(standard_df)
+        if std_curve['num_points'] > 2:
+            std_curve['slope'], std_curve['intercept'], std_curve['r2'], std_curve['efficiency'] = compute_linear_info(standard_df)
 
     ## determine LoQ
     # determine the fraction of the replicates that were detectable
@@ -201,27 +202,13 @@ def process_standard(plate_df, loq_min_reps=(2/3)):
     # find the lowest quantity and report it and its Cq_mean as the LoD values
     if len(standard_df) > 0:
         standard_df = standard_df.sort_values('Q_init_mean')
-        loq_Cq = standard_df.Cq_mean.values[0]
-        loq_Quantity = standard_df.Q_init_mean.values[0]
+        std_curve['loq_Cq'] = standard_df.Cq_mean.values[0]
+        std_curve['loq_Quantity'] = standard_df.Q_init_mean.values[0]
 
-    std_curve_info = (num_points,
-                      Cq_of_lowest_std_quantity,
-                      Cq_of_2ndlowest_std_quantity,
-                      lowest_std_quantity,
-                      lowest_std_quantity2nd,
-                      Cq_of_lowest_std_quantity_gsd,
-                      Cq_of_2ndlowest_std_quantity_gsd,
-                      slope,
-                      intercept,
-                      r2,
-                      efficiency,
-                      loq_Cq,
-                      loq_Quantity)
-
-    return(std_curve_info)
+    return(std_curve)
 
 
-def process_unknown(plate_df, std_curve_intercept, std_curve_slope, loq_Cq):
+def process_unknown(plate_df, std_curve_intercept, std_curve_slope, std_curve_loq_Cq):
     '''
     Calculates quantity based on Cq_mean and standard curve
     Params
@@ -259,9 +246,9 @@ def process_unknown(plate_df, std_curve_intercept, std_curve_slope, loq_Cq):
         Cq_of_lowest_sample_quantity = np.nanmax(unknown_df.Cq_mean)
 
     # determine if samples are below the limit of quantification
-    if loq_Cq is not np.nan:
-        unknown_df.loc[unknown_df.Cq_mean > loq_Cq, 'below_limit_of_quantification'] = True
-        unknown_df.loc[unknown_df.Cq_mean <= loq_Cq, 'below_limit_of_quantification'] = False
+    if std_curve_loq_Cq is not np.nan:
+        unknown_df.loc[unknown_df.Cq_mean > std_curve_loq_Cq, 'below_limit_of_quantification'] = True
+        unknown_df.loc[unknown_df.Cq_mean <= std_curve_loq_Cq, 'below_limit_of_quantification'] = False
 
     return(unknown_df, intraassay_var, Cq_of_lowest_sample_quantity)
 
@@ -281,177 +268,3 @@ def process_ntc(plate_df):
         else:
             ntc_Cq = np.nanmin(ntc.Cq)
     return(ntc_is_neg, ntc_Cq)
-
-
-def determine_samples_BLoQ(qpcr_p, max_cycles=40, assay_assessment_df, include_LoD=False):
-    '''
-    from processed unknown qpcr data and the max cycles allowed (usually 40) this will return qpcr_processed with a boolean column indicating samples bloq.
-    samples that have Cq_mean that is nan are classified as bloq (including true negatives and  samples removed during processing)
-    If include LoD is true, assay_assessment_df comes from determines_samples_BLO
-
-    Params:
-        Cq_mean the combined triplicates of the sample
-        Cq_of_lowest_sample_quantity the max cq of the samples on the plate
-
-    Returns
-        same data with column bloq a boolean column indicating if the sample is below the limit of quantification
-    '''
-
-    if include_LoD:
-        qpcr_p["blod"]= np.nan
-        targs=qpcr_p.Target.unique()
-        for target in targs:
-            C_value=float(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Cq"])
-            Q_value=float(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Quantity"])
-            if np.isnan(C_value):
-                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"blod"]= np.nan
-            else:
-                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"blod"]= True
-                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean <= C_value),"blod"]= False
-                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"Cq_of_lowest_std_quantity"]= qpcr_p.Cq_of_2ndlowest_std_quantity
-                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"Cq_of_lowest_std_quantity_gsd"]= qpcr_p.Cq_of_2ndlowest_std_quantity_gsd
-                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"lowest_std_quantity"]= qpcr_p.lowest_std_quantity2nd
-
-    qpcr_p['bloq']=np.nan
-    qpcr_p.loc[(np.isnan(qpcr_p.Cq_mean)),'bloq']= True
-    qpcr_p.loc[(qpcr_p.Cq_mean >= max_cycles),'bloq']= True
-    qpcr_p.loc[(qpcr_p.Cq_mean > qpcr_p.Cq_of_lowest_std_quantity),'bloq']= True
-    qpcr_p.loc[(qpcr_p.Cq_mean <= qpcr_p.Cq_of_lowest_std_quantity)&(qpcr_p.Cq_mean < max_cycles),'bloq']= False
-
-    return(qpcr_p)
-
-def process_dilutions(qpcr_p):
-    '''
-    from processed unknown qpcr data this function:
-    1. looks for diluted samples
-    2. adjusts quantities for the dilution,
-    4. Makes these into a new dilution_experiments dataframe
-    5. checks that there are no other non dilution combinations of sample and target for the samples marked as dilutions
-        in the origional dataframe. If there are, it removes the diluted sample(s) from the dataframe and throws a warning with the sample name
-    6. checks if  there are multiple entries with the same sample name and  target in the diluted samples:
-        if there are it chooses the one with the highest N1 value and keeps that in the dataframe and removes the other one (both will be in dilution_experiments)
-
-    Params:
-        is_dilution
-        Target
-        Quantity_mean
-        dilution
-    Returns
-        same dataframe without duplicated process_dilutions
-        a new dataframe with all dilutions
-    '''
-    dilution_expts_df=qpcr_p
-    remove=list()
-
-    if(len(qpcr_p.loc[(qpcr_p.is_dilution=='Y')]) > 0):
-        qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(np.isnan(qpcr_p.Quantity_mean)), "Quantity_mean"]=0
-        qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Quantity_mean"]= qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Quantity_mean"] * qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "dilution"]
-        dilution_expts_df=qpcr_p.loc[(qpcr_p.is_dilution=='Y'), ].copy()
-        check=dilution_expts_df.groupby(["Sample", "Target"])["dilution"].count().reset_index()
-
-        all_samps= qpcr_p.loc[(qpcr_p.is_dilution!='Y'), ].copy()
-        all_samps["warnid"]=all_samps.Sample.str.cat(all_samps.Target, sep ="_")
-        all_samps=all_samps["warnid"].unique()
-
-        for row in check.itertuples():
-            targ=row.Target
-            samp=row.Sample
-            wid= "_".join([targ,samp])
-            if row.dilution >1:
-                all_idx=qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(qpcr_p.Sample==samp)&(qpcr_p.Target==targ),"Quantity_mean"].index.values.tolist()
-                max_idx=qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(qpcr_p.Sample==samp)&(qpcr_p.Target==targ),"Quantity_mean"].idxmax()
-                lis=list([x for x in all_idx if x != max_idx])
-                remove = remove + lis
-                if wid in all_samps:
-                    warnings.warn("\n\n\n{} is double listed as a dilution sample and a non dilution sample. Change one is_primary_value. Currently the dilution value is removed in the code.\n\n\n".format(samp))
-                    remove.append(max_idx)
-
-
-            else:
-                if wid in all_samps:
-                    warnings.warn("\n\n\n{} is double listed as a dilution sample and a non dilution sample. Change one is_primary_value. Currently the dilution value is removed in the code.\n\n\n".format(samp))
-                    idx=qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(qpcr_p.Sample==samp)&(qpcr_p.Target==targ),"Quantity_mean"].index.values.tolist()
-                    remove.append(idx)
-
-
-    if not remove:
-        qpcr_p=qpcr_p
-    elif len(remove)==1:
-        remove=remove[0]
-        qpcr_p=qpcr_p.drop(remove)
-    else:
-        qpcr_p=qpcr_p.loc[~qpcr_p.index.isin(remove)].copy()
-
-    return(qpcr_p,dilution_expts_df)
-
-def process_qpcr_raw(qpcr_raw,include_LoD=False,cutoff=0.9):
-    '''wrapper to process whole sheet at once by plate_id and Target
-    params
-    qpcr_raw: df from read_qpcr_data()
-    optional:
-    include_LoD adds blod column and moves lowest standard quantity and Cq of lowest standard quantity based on LoD
-    cutoff is the fraction of positive replicates in standard curves allowed to consider that standard curve point detectable (used if previous is true)
-    '''
-
-    std_curve_df = []
-    qpcr_processed = []
-    raw_outliers_flagged_df = []
-    for [plate_id, target], df in qpcr_raw.groupby(["plate_id", "Target"]):
-
-        ntc_is_neg, ntc_Cq = process_ntc(df)
-        outliers_flagged, no_outliers_df = combine_triplicates(df)
-
-        # define outputs and fill with default values
-        num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity,lowest_std_quantity2nd, Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd,slope, intercept, r2, efficiency = np.nan, np.nan,np.nan, np.nan,np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
-
-        # if there are >3 pts in std curve, calculate stats and recalculate quants
-        num_points = no_outliers_df[no_outliers_df.Task == 'Standard'].drop_duplicates('Sample').shape[0]
-        num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, lowest_std_quantity2nd,Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd, slope, intercept, r2, efficiency = process_standard(no_outliers_df)
-        std_curve_info = [num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity, lowest_std_quantity2nd,Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd,slope, intercept, r2, efficiency]
-        unknown_df = process_unknown(no_outliers_df, std_curve_info)
-        std_curve_df.append([plate_id, target, num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity,lowest_std_quantity2nd, Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd, slope, intercept, r2, efficiency, ntc_is_neg, ntc_Cq])
-        qpcr_processed.append(unknown_df)
-        raw_outliers_flagged_df.append(outliers_flagged)
-
-    # compile into dataframes
-    raw_outliers_flagged_df = pd.concat(raw_outliers_flagged_df)
-    assay_assessment_df=determine_samples_BLoD(raw_outliers_flagged_df, cutoff)
-    std_curve_df = pd.DataFrame.from_records(std_curve_df,
-                                             columns = ['plate_id',
-                                                        'Target',
-                                                        'num_points',
-                                                        'Cq_of_lowest_std_quantity',
-                                                        'Cq_of_2ndlowest_std_quantity',
-                                                        'lowest_std_quantity',
-                                                        'lowest_std_quantity2nd',
-                                                        'Cq_of_lowest_std_quantity_gsd',
-                                                        'Cq_of_2ndlowest_std_quantity_gsd',
-                                                        'slope',
-                                                        'intercept',
-                                                        'r2',
-                                                        'efficiency',
-                                                        'ntc_is_neg',
-                                                        'ntc_Cq'])
-    qpcr_processed = pd.concat(qpcr_processed)
-    qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on=['plate_id', 'Target'])
-    qpcr_processed,dilution_expts_df = process_dilutions(qpcr_processed)
-
-    #make  columns calculated in other functions to go in the standard curve info
-    qpcr_m=qpcr_processed[["plate_id","Target","Cq_of_lowest_sample_quantity",'intraassay_var']].copy().drop_duplicates(keep='first')
-    std_curve_df=std_curve_df.merge(qpcr_m, how='left') # add Cq_of_lowest_sample_quantity and intraassay variation
-
-    qpcr_processed= determine_samples_BLoQ(qpcr_processed, 40, assay_assessment_df, cutoff)
-    std_curve_df=std_curve_df.drop("Cq_of_2ndlowest_std_quantity", axis=1)
-    std_curve_df=std_curve_df.drop("Cq_of_2ndlowest_std_quantity_gsd", axis=1)
-    std_curve_df=std_curve_df.drop("lowest_std_quantity2nd", axis=1)
-    std_curve_df=std_curve_df[std_curve_df.Target != "Xeno"].copy()
-
-    #check for duplicates
-    a=qpcr_processed[(qpcr_processed.Sample!="__")&(qpcr_processed.Sample!="")]
-    a=a[a.duplicated(["Sample","Target"],keep=False)].copy()
-    if len(a) > 0:
-        plates=a.plate_id.unique()
-        l=len(plates)
-        warnings.warn("\n\n\n {0} plates have samples that are double listed in qPCR_Cts spreadsheet. Check the following plates and make sure one is_primary_value is set to N:\n\n\n{1}\n\n\n".format(l,plates))
-
-    return(qpcr_processed, std_curve_df, dilution_expts_df,raw_outliers_flagged_df)
