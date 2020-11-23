@@ -370,12 +370,11 @@ def process_standard(plate_df):
         lowest_std_quantity = np.nan
         sort_b=standard_df.sort_values(by='Q_init_mean',ascending=True).copy().reset_index()
                 # the lowest and second lowest (for LoQ) standard quantity
-        lowest_std_quantity = sort_b.Q_init_mean.values[0]
         lowest_std_quantity2nd = sort_b.Q_init_mean.values[1]
         slope, intercept, r2, efficiency = (np.nan, np.nan, np.nan, np.nan)
 
         if num_points > 2:
-            lowest_std_quantity = 10**min(standard_df.log_Quantity)
+            lowest_std_quantity = sort_b.Q_init_mean.values[0]
             slope, intercept, r2, efficiency = compute_linear_info(std_curve_df)
 
     return(num_points, Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, lowest_std_quantity2nd,Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd, slope, intercept, r2, efficiency)
