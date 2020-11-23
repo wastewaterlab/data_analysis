@@ -124,11 +124,11 @@ def compute_linear_info(plate_data):
 
 def process_standard(plate_df):
     '''
-    from single plate with single target, calculate standard curve
+    from single plate with single target, calculate standard curve info
 
     Params:
-        plate_df: output from combine_triplicates(); df containing Cq_mean
-        must be single plate with single target
+        plate_df: output from combine_replicates(); df containing Cq_mean
+            must be single plate with single target
     Returns
         num_points: number of points used in new std curve
         Cq_of_lowest_std_quantity: the Cq value of the lowest pt used in the new std curve
@@ -142,41 +142,59 @@ def process_standard(plate_df):
     if len(plate_df.Target.unique()) > 1:
         raise ValueError('''More than one target in this dataframe''')
 
+    # define outputs
+
+    slope = np.nan
+    intercept = np.nan
+    r2 = np.nan
+    efficiency = np.nan
+    Cq_of_lowest_std_quantity = np.nan
+    Cq_of_2ndlowest_std_quantity = np.nan
+    Cq_of_lowest_std_quantity_gsd = np.nan
+    Cq_of_2ndlowest_std_quantity_gsd = np.nan
+    lowest_std_quantity = np.nan
+    lowest_std_quantity2nd = np.nan
+
 
     #what is the lowest sample Cq and quantity on this plate
     standard_df = plate_df[plate_df.Task == 'Standard'].copy()
 
-    # require at least 2 triplicates or else convert to nan
+    # require at least 2 replicates
     standard_df = standard_df[standard_df.replicate_count > 1]
+    num_points = len(standard_df)
 
-    standard_df['log_Quantity'] = np.log10(standard_df['Q_init_mean'])
-    std_curve_df = standard_df[['Cq_mean', 'log_Quantity', "Cq_std"]].drop_duplicates().dropna()
-    num_points = std_curve_df.shape[0]
+    if num_points >= 2:
+        standard_df['log_Quantity'] = np.log10(standard_df['Q_init_mean'])
 
-    if (all(standard_df.Cq_mean == "") | len(standard_df.Cq_mean) <2):
-        slope, intercept, r2, efficiency,Cq_of_lowest_std_quantity,Cq_of_2ndlowest_std_quantity,Cq_of_lowest_std_quantity_gsd,Cq_of_2ndlowest_std_quantity_gsd,lowest_std_quantity,lowest_std_quantity2nd = np.nan,np.nan,np.nan, np.nan, np.nan, np.nan,np.nan, np.nan,np.nan, np.nan
-    else:
-        #find the Cq of the lowest and second lowest (for LoQ) standard quantity
-        Cq_of_lowest_std_quantity = max(standard_df.Cq_mean)
-        sort_a=standard_df.sort_values(by='Cq_mean',ascending=True).copy().reset_index()
-        Cq_of_2ndlowest_std_quantity = sort_a.Cq_mean[1]
+        #find the Cq_mean of the lowest and second lowest (for LoQ) standard quantity
+        standard_df = standard_df.sort_values('Q_init_mean')
+        Cq_of_lowest_std_quantity = standard_df.Cq_mean.values[0]
+        Cq_of_2ndlowest_std_quantity = standard_df.Cq_mean.values[1]
 
         #find the geometric standard deviation of the Cq of the lowest and second lowest (for LoQ) standard quantity
-        sort_a=standard_df.sort_values(by='Cq_mean',ascending=True).copy().reset_index()
-        Cq_of_lowest_std_quantity_gsd = sort_a.Cq_std[0]
-        Cq_of_2ndlowest_std_quantity_gsd = sort_a.Cq_std[1]
+        Cq_of_lowest_std_quantity_gsd = standard_df.Cq_std.values[0]
+        Cq_of_2ndlowest_std_quantity_gsd = standard_df.Cq_std.values[1]
 
-        # the  lowest and second lowest (for LoQ) standard quantity
-        lowest_std_quantity = np.nan
-        sort_b=standard_df.sort_values(by='log_Quantity',ascending=True).copy().reset_index()
-        lowest_std_quantity2nd= 10**(sort_b.log_Quantity[1])
-        slope, intercept, r2, efficiency = (np.nan, np.nan, np.nan, np.nan)
+        # the lowest and second lowest (for LoQ) standard quantity
+        lowest_std_quantity = standard_df.Q_init_mean.values[0]
+        lowest_std_quantity2nd = standard_df.Q_init_mean.values[1]
 
         if num_points > 2:
-            lowest_std_quantity = 10**min(standard_df.log_Quantity)
-            slope, intercept, r2, efficiency = compute_linear_info(std_curve_df)
+            slope, intercept, r2, efficiency = compute_linear_info(standard_df)
 
-    return(num_points, Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, lowest_std_quantity2nd,Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd, slope, intercept, r2, efficiency)
+    std_curve_info = (num_points,
+                      Cq_of_lowest_std_quantity,
+                      Cq_of_2ndlowest_std_quantity,
+                      lowest_std_quantity,
+                      lowest_std_quantity2nd,
+                      Cq_of_lowest_std_quantity_gsd,
+                      Cq_of_2ndlowest_std_quantity_gsd,
+                      slope,
+                      intercept,
+                      r2,
+                      efficiency)
+    return(std_curve_info)
+
 
 def process_unknown(plate_df, std_curve_info):
     '''
