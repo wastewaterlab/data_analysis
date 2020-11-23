@@ -196,53 +196,44 @@ def process_standard(plate_df):
     return(std_curve_info)
 
 
-def process_unknown(plate_df, std_curve_info):
+def process_unknown(plate_df, std_curve_intercept, std_curve_slope):
     '''
     Calculates quantity based on Cq_mean and standard curve
     Params
-        plate_df: output from combine_triplicates(); df containing Cq_mean
-        must be single plate with single target
-        std_curve_info: output from process_standard() as a list
+        plate_df: output from combine_replicates(); df containing Cq_mean
+            must be single plate with single target
+        std_curve_intercept: output from process_standard()
+        std_curve_slope: output from process_standard()
     Returns
-        unknown_df: the unknown subset of plate_df, with new columns
-        Quantity_mean
-        q_diff
+        unknown_df: the unknown subset of plate_df, with column Quantity_mean
         Cq_of_lowest_sample_quantity: the Cq value of the lowest pt used on the plate
-        these columns represent the recalculated quantity using Cq mean and the
-        slope and intercept from the std curve
-        qpcr_coefficient_var the coefficient of variation for qpcr technical triplicates
-        intraassay_var intraassay variation (arithmetic mean of the coefficient of variation for all triplicates on a plate)
+        intraassay_var intraassay variation (arithmetic mean of the coefficient of variation for all replicates on a plate)
     '''
+    if len(plate_df.Target.unique()) > 1:
+        raise ValueError('''More than one target in this dataframe''')
 
-    [num_points, Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, lowest_std_quantity2nd,Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd, slope, intercept, r2, efficiency] = std_curve_info
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
-    unknown_df['Cq_of_lowest_sample_quantity'] = np.nan
-    unknown_df['percent_CV']=(unknown_df['Q_init_std']-1)*100#the geometric std - 1 is the coefficient of variation using quant studio quantities to capture all the variation in the plate
-    if all(np.isnan(unknown_df['percent_CV'])):
-        unknown_df['intraassay_var'] = np.nan #avoid error
-    else:
-        unknown_df['intraassay_var']= np.nanmean(unknown_df['percent_CV'])
 
-    # Set the Cq of the lowest std quantity for different ssituations
-    if len(unknown_df.Task) == 0: #only standard curve plate
-        unknown_df['Cq_of_lowest_sample_quantity'] = np.nan
-    else:
-        if all(np.isnan(unknown_df.Cq_mean)): #plate with all undetermined samples
-            unknown_df['Cq_of_lowest_sample_quantity']= np.nan #avoid error
-        else:
-            targs=unknown_df.Target.unique() #other  plates (most  cases)
-            for target in targs:
-                unknown_df.loc[(unknown_df.Target==target),'Cq_of_lowest_sample_quantity']=np.nanmax(unknown_df.loc[(unknown_df.Target==target),'Cq_mean']) #because of xeno
-
+    # define outputs
     unknown_df['Quantity_mean'] = np.nan
-    unknown_df['q_diff'] = np.nan
-    unknown_df['Quantity_mean'] = 10**((unknown_df['Cq_mean'] - intercept)/slope)
+    intraassay_var = np.nan
+    Cq_of_lowest_sample_quantity = np.nan
 
-    # if Cq_mean is zero, don't calculate a quantity (turn to NaN)
-    unknown_df.loc[unknown_df[unknown_df.Cq_mean == 0].index, 'Quantity_mean'] = np.nan
-    unknown_df['q_diff'] = unknown_df['Q_init_mean'] - unknown_df['Quantity_mean']
+    # use standard curve to calculate the quantities for each sample from Cq_mean
+    unknown_df['Quantity_mean'] = 10**((unknown_df['Cq_mean'] - std_curve_intercept)/std_curve_slope)
 
-    return(unknown_df)
+    # calculate the coefficient of variation using QuantStudio original quantities to capture variation on the plate
+    if not unknown_df.Q_init_std.isna().all():
+        percent_cv = (unknown_df['Q_init_std']-1)*100
+        intraassay_var = np.nanmean(percent_cv)
+
+    # Set the Cq of the lowest std quantity for different situations
+    if (len(unknown_df.Task) > 0) and not (unknown_df.Cq_mean.isna().all()):
+        # plate contains unknowns and at least some have Cq_mean
+        Cq_of_lowest_sample_quantity = np.nanmax(unknown_df.Cq_mean)
+
+    return(unknown_df, intraassay_var, Cq_of_lowest_sample_quantity)
+
 
 def process_ntc(plate_df):
     ntc = plate_df[plate_df.Task == 'Negative Control']
