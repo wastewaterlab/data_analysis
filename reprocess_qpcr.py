@@ -135,16 +135,17 @@ def process_standard(plate_df, loq_min_reps=(2/3)):
         plate_df: output from combine_replicates(); df containing Cq_mean
             must be single plate with single target
     Returns
-        num_points: number of points used in new std curve
-        Cq_of_lowest_std_quantity: the Cq value of the lowest pt used in the new std curve
-        lowest_std_quantity: the Quantity value of the lowest pt used in the new std curve
-        Cq_of_lowest_std_quantity_gsd: geometric standard dviation of the Cq of the lowest standard quantity
-        slope:
-        intercept:
-        r2:
-        efficiency:
-        lod_Cq: the Cq for the limit of quantification
-        lod_Quantity: the quantity for the limit of quantification
+        dict containing keys:
+            num_points: number of points used in new std curve
+            #Cq_of_lowest_std_quantity: the Cq value of the lowest pt used in the new std curve
+            #lowest_std_quantity: the Quantity value of the lowest pt used in the new std curve
+            #Cq_of_lowest_std_quantity_gsd: geometric standard dviation of the Cq of the lowest standard quantity
+            slope: slope of std curve equation
+            intercept: intercept of std curve equation
+            r2: r2 of linear regression to make std curve
+            efficiency: qPCR efficiency (based on slope, see eq in compute_linear_info)
+            lod_Cq: the Cq for the limit of quantification
+            lod_Quantity: the quantity for the limit of quantification
     '''
     if len(plate_df.Target.unique()) > 1:
         raise ValueError('''More than one target in this dataframe''')
@@ -268,3 +269,73 @@ def process_ntc(plate_df):
         else:
             ntc_Cq = np.nanmin(ntc.Cq)
     return(ntc_is_neg, ntc_Cq)
+
+
+def process_qpcr_plate(plates, loq_min_reps=(2/3)):
+    '''wrapper to process data from a qPCR plate(s) grouped by unique plate_id and Target combo
+    Params
+        plates: df from read_qpcr_data() containing raw qPCR data.
+            NOTE: must have dilution column
+        loq_min_reps: fraction of positive replicates in standard curves allowed to consider that standard curve point quantifiable
+    Returns
+        qpcr_processed: dataframe containing processed qPCR data, replicates collapsed
+        plate_target_info:
+    '''
+    if 'dilution' not in plates.columns:
+        raise ValueError(''' qPCR data is missing column 'dilution' ''')
+
+    plate_target_info = []
+    qpcr_processed = []
+
+    for [plate_id, Target], df in plates.groupby(['plate_id', 'Target']):
+    # process plate
+        plate_attributes = []
+
+        plate_df = combine_replicates(df)
+        std_curve = process_standard(plate_df, loq_min_reps)
+        ntc_is_neg, ntc_Cq = process_ntc(plate_df)
+        unknown_df, intraassay_var, Cq_of_lowest_sample_quantity = process_unknown(plate_df,
+                                                                                   std_curve['intercept'],
+                                                                                   std_curve['slope'],
+                                                                                   std_curve['loq_Cq'])
+
+        # save processed unknowns
+        qpcr_processed.append(unknown_df)
+
+        # save all info about plate x Target:
+        # TODO find cleaner way to save and make a dataframe that knows about column names
+        plate_attributes = [plate_id,
+                            Target,
+                            std_curve['num_points'],
+                            std_curve['slope'],
+                            std_curve['intercept'],
+                            std_curve['r2'],
+                            std_curve['efficiency'],
+                            std_curve['loq_Cq'],
+                            std_curve['loq_Quantity'],
+                            intraassay_var,
+                            Cq_of_lowest_sample_quantity,
+                            ntc_is_neg,
+                            ntc_Cq]
+        #plate_attributes = pd.DataFrame(plate_attributes)
+        plate_target_info.append(plate_attributes)
+
+    # concatenate dataframes for all plate x targets
+    qpcr_processed = pd.concat(qpcr_processed)
+    column_names = ['plate_id',
+    'Target',
+    'num_points',
+    'slope',
+    'intercept',
+    'r2',
+    'efficiency',
+    'loq_Cq',
+    'loq_Quantity',
+    'intraassay_var',
+    'Cq_of_lowest_sample_quantity',
+    'ntc_is_neg',
+    'ntc_Cq']
+
+    plate_target_info = pd.DataFrame.from_records(plate_target_info, columns=column_names)
+
+    return(qpcr_processed, plate_target_info)
