@@ -236,6 +236,9 @@ def process_unknown(plate_df, std_curve_intercept, std_curve_slope):
 
 
 def process_ntc(plate_df):
+    if len(plate_df.Target.unique()) > 1:
+        raise ValueError('''More than one target in this dataframe''')
+
     ntc = plate_df[plate_df.Task == 'Negative Control']
     ntc_is_neg = False
     ntc_Cq = np.nan
@@ -249,53 +252,44 @@ def process_ntc(plate_df):
     return(ntc_is_neg, ntc_Cq)
 
 
-def determine_samples_BLoD(raw_outliers_flagged_df, cutoff):
-        '''
-        For each target in raw qpcr data, this function defines the limit of quantification as the fraction of qpcr replicates at a quantity that are detectable
-        It works depending on which test was selected, so if grubbs was selected, it only evaluates for replicates that pass grubbs
+def determine_loq(plate_df, cutoff=(2/3)):
+    '''
+    Defines the limit of quantification as the lowest pt on the std curve
+    where the fraction of detected replicates meets the cutoff
+    Note: Evaluates only the replicates that pass grubb's test
+    TODO decide if this is a fair way to evaluate LoD- Grubb's test seems too stringent on standards in particular
+    Requires a single target.
 
-        Params:
-            Task
-            Quantity
-            Target
-            Cq
-            Sample
-        Returns
-            a dataframe with Target and the limit of detection
-        '''
-        dfm= raw_outliers_flagged_df
-        dfm=dfm[dfm.pass_grubbs_test==True].copy()
+    Params:
+        plate_df
+    Returns
+        lod_Cq: the Cq for the limit of quantification
+        lod_Quantity: the quantity for the limit of quantification
+    '''
+    if len(plate_df.Target.unique()) > 1:
+        raise ValueError('''More than one target in this dataframe''')
 
+    # define outputs
+    lod_Cq = np.nan
+    lod_Quantity = np.nan
 
-        dfm=dfm[dfm.Task=='Standard'] #only standards
-        dfm=dfm[dfm.Quantity!=0] #no NTCs
-        assay_assessment_df=pd.DataFrame(columns=["Target","LoD_Cq","LoD_Quantity"]) #empty dataframe with desired columns
+    standard_df = plate_df[plate_df.Task=='Standard'].copy()
 
-        #iterate through targets, groupby quantity, and determine the fraction of the replicates that were detectable
-        targs=dfm.Target.unique()
-        for target in targs:
-            df_t=dfm[dfm.Target==target].copy()
-            out=df_t.groupby(["Quantity"]).agg(
-                                    Cq_mean=('Cq', lambda x:  np.nan if all(np.isnan(x)) else sci.gmean(x.dropna(),axis=0)),
-                                    positives=('Cq','count'),
-                                    total=('Sample', 'count')).reset_index()
-            out['fr_pos']=out.positives/out.total
+    # determine the fraction of the replicates that were detectable
+    standard_df['fraction_positive'] = np.nan
+    standard_df['fraction_positive'] = standard_df.replicate_count / standard_df.replicate_init_count
 
-            #only take the portion of the dataframe that is greater than the cutoff
-            out=out[out.fr_pos > cutoff ].copy()
-            #something is there hopefully but if not
-            if len(out.fr_pos)<1:
-                assay_assessment_df=assay_assessment_df.append(pd.DataFrame({'Target':target, "LoD_Cq": np.nan, "LoD_Quantity":np.nan}), ignore_index=True)
+    #only take the portion of the dataframe that is >= the cutoff
+    standard_df = standard_df[standard_df.fraction_positive >= cutoff].copy()
 
-            #usual case for N1/ bCov
-            fin=out[out.fr_pos==min(out.fr_pos)].copy()
-            if len(fin.fr_pos) ==1:
-                assay_assessment_df=assay_assessment_df.append(pd.DataFrame({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}), ignore_index=True)
-            #usual case for PMMoV/18S
-            elif len(fin.fr_pos)>1:
-                fin=out[(out.fr_pos==min(out.fr_pos))&(out.Quantity==min(out.Quantity))].copy()
-                assay_assessment_df=assay_assessment_df.append(pd.DataFrame({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}), ignore_index=True)
-        return (assay_assessment_df)
+    # if there are standards that meet the cutoff
+    # find the lowest quantity and report it and its Cq_mean as the LoD values
+    if len(standard_df) > 0:
+        standard_df.sort_values('Quantity')
+        lod_Cq = standard_df.Cq_mean.values[0]
+        lod_Quantity = standard_df.Q_init_mean.values[0]
+
+    return(lod_Cq, lod_Quantity)
 
 
 def determine_samples_BLoQ(qpcr_p, max_cycles, assay_assessment_df, include_LoD=False):
