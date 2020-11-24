@@ -86,12 +86,12 @@ def combine_replicates(plate_df, collapse_on=['Sample', 'dilution', 'Task']):
     # create summary columns describing all replicates
     plate_df['Cq_no_outliers'] = plate_df.Cq.apply(lambda x: grubbs_test(x))
 
-    plate_df['Cq_init_mean'] = plate_df.Cq.apply(np.mean)
+    plate_df['Cq_init_mean'] = plate_df.Cq.apply(lambda x: get_gmean(x))
     plate_df['Cq_init_std'] = plate_df.Cq.apply(lambda x: get_gstd(x))
     plate_df['Cq_init_min'] = plate_df.Cq.apply(np.min)
     plate_df['replicate_init_count'] = plate_df.Cq.apply(lambda x: len(x))
 
-    plate_df['Q_init_mean'] = plate_df.Quantity.apply(np.mean)
+    plate_df['Q_init_mean'] = plate_df.Quantity.apply(lambda x: get_gmean(x))
     plate_df['Q_init_std'] = plate_df.Quantity.apply(lambda x: get_gstd(x))
 
     plate_df['Cq_mean'] = plate_df.Cq_no_outliers.apply(lambda x: get_gmean(x))
@@ -139,7 +139,7 @@ def process_standard(plate_df, loq_min_reps=(2/3)):
     Returns
         dict containing keys:
             num_points: number of points used in new std curve
-            #Cq_of_lowest_std_quantity: the Cq value of the lowest pt used in the new std curve
+            Cq_of_lowest_std_quantity: the Cq value of the lowest pt used in the new std curve
             #lowest_std_quantity: the Quantity value of the lowest pt used in the new std curve
             #Cq_of_lowest_std_quantity_gsd: geometric standard dviation of the Cq of the lowest standard quantity
             slope: slope of std curve equation
@@ -156,7 +156,7 @@ def process_standard(plate_df, loq_min_reps=(2/3)):
                  'intercept': np.nan,
                  'r2': np.nan,
                  'efficiency': np.nan,
-    # Cq_of_lowest_std_quantity = np.nan
+                 'Cq_of_lowest_std_quantity': np.nan,
     # Cq_of_2ndlowest_std_quantity = np.nan
     # Cq_of_lowest_std_quantity_gsd = np.nan
     # Cq_of_2ndlowest_std_quantity_gsd = np.nan
@@ -177,7 +177,7 @@ def process_standard(plate_df, loq_min_reps=(2/3)):
 
         # # find the Cq_mean of the lowest and second lowest (for LoQ) standard quantity
         # standard_df = standard_df.sort_values('Q_init_mean')
-        # Cq_of_lowest_std_quantity = standard_df.Cq_mean.values[0]
+        std_curve['Cq_of_lowest_std_quantity'] = standard_df.Cq_mean.values[0]
         # Cq_of_2ndlowest_std_quantity = standard_df.Cq_mean.values[1]
         #
         # #find the geometric standard deviation of the Cq of the lowest and second lowest (for LoQ) standard quantity
@@ -265,10 +265,10 @@ def process_ntc(plate_df, plate_id):
     if all(ntc.is_undetermined.values[0]): # is_undetermined is a list, need to access the list itself to ask if all values are True
         ntc_is_neg = True
     else:
-        if ntc.Cq.isna().all(): # this case should never happen
-            ntc_is_neg = np.nan # change NaN to None for dtype consistency
+        if np.isnan(ntc.Cq_init_mean.values[0]): # this case should never happen- if Cq_init_mean is NaN, all values are undetermined
+            ntc_is_neg = None
         else:
-            ntc_Cq = np.nanmin(ntc.Cq)
+            ntc_Cq = ntc.Cq_init_mean
     return(ntc_is_neg, ntc_Cq)
 
 
@@ -316,6 +316,7 @@ def process_qpcr_plate(plates, loq_min_reps=(2/3)):
                             std_curve['efficiency'],
                             std_curve['loq_Cq'],
                             std_curve['loq_Quantity'],
+                            std_curve['Cq_of_lowest_std_quantity'],
                             intraassay_var,
                             Cq_of_lowest_sample_quantity,
                             ntc_is_neg,
@@ -334,6 +335,7 @@ def process_qpcr_plate(plates, loq_min_reps=(2/3)):
     'efficiency',
     'loq_Cq',
     'loq_Quantity',
+    'Cq_of_lowest_std_quantity',
     'intraassay_var',
     'Cq_of_lowest_sample_quantity',
     'ntc_is_neg',
