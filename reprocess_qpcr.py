@@ -650,7 +650,7 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
     qpcr_processed = pd.concat(qpcr_processed)
     qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on=['plate_id', 'Target'])
     qpcr_processed,dilution_expts_df = process_dilutions(qpcr_processed)
-    control_df=qpcr_processed[(qpcr_processed.interceptor=="PBS")|(qpcr_processed.Task!="Unknown")].copy()
+    control_df=qpcr_processed[(qpcr_processed.Sample.str.contains("PBS"))|(qpcr_processed.Task!="Unknown")].copy()
     qpcr_processed=qpcr_processed[qpcr_processed.Task=="Unknown"].copy()
 
     #make  columns calculated in other functions to go in the standard curve info
