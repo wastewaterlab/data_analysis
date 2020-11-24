@@ -4,6 +4,7 @@ import gspread
 import re
 import warnings
 
+#TODO delete effective_vol_extracted_ml column from data tables, just use weight
 def read_table(gc, url, tab):
     '''
     Reads pandas df or one tab from any google sheet,
@@ -54,8 +55,8 @@ def read_sample_data(gc, url, samples, sites, salted_tube_weight=23.485):
     rna_data.date_extract = pd.to_datetime(rna_data.date_extract, errors='coerce')
     rna_data.elution_vol_ul = pd.to_numeric(rna_data.elution_vol_ul, errors='coerce')
     rna_data.effective_vol_extracted_ml = pd.to_numeric(rna_data.effective_vol_extracted_ml, errors='coerce')
-    rna_data.weight = pd.to_numeric(rna_data.weight)
-    rna_data.weight_vol_extracted_ml = pd.to_numeric(rna_data.weight_vol_extracted_ml)
+    rna_data.weight = pd.to_numeric(rna_data.weight, errors='coerce')
+    rna_data.weight_vol_extracted_ml = pd.to_numeric(rna_data.weight_vol_extracted_ml, errors='coerce')
     rna_data.bCoV_spike_vol_ul = pd.to_numeric(rna_data.bCoV_spike_vol_ul, errors='coerce')
     rna_data.GFP_spike_vol_ul = pd.to_numeric(rna_data.GFP_spike_vol_ul, errors='coerce')
 
@@ -91,33 +92,24 @@ def extract_dilution(qpcr_data):
 
     return(qpcr_data)
 
-def read_qpcr_data(gc, url, qpcr, plates):
+def read_qpcr_data(gc, url, qpcr):
   ''' Read in raw qPCR data page from the qPCR spreadsheet
   '''
   qpcr_data = read_table(gc, url, qpcr)
-  qpcr_plates = read_table(gc, url, plates)
-
-  qpcr_data = qpcr_data.merge(qpcr_plates, how='left', on='plate_id')
   qpcr_data = extract_dilution(qpcr_data)
 
   # filter to remove secondary values for a sample run more than once
   qpcr_data = qpcr_data[qpcr_data.is_primary_value != 'N']
 
-  # create field for sample-plate combos in case same sample was run on >1 plate
-  # separator is "+"
-  qpcr_data['Sample_plate']= qpcr_data.Sample + '+' + qpcr_data.plate_id.astype(str)
-
   # create column to preserve info about true undetermined values
-  qpcr_data['is_undetermined'] = False # create column
   # set column equal to boolean outcome of asking if Cq is Undetermined
+  qpcr_data['is_undetermined'] = False
   qpcr_data['is_undetermined'] = (qpcr_data.Cq == 'Undetermined')
 
   # convert fields to numerics and dates
   qpcr_data.Quantity = pd.to_numeric(qpcr_data.Quantity, errors='coerce')
-  qpcr_data.template_volume = pd.to_numeric(qpcr_data.template_volume, errors='coerce')
   qpcr_data.Cq = pd.to_numeric(qpcr_data.Cq, errors='coerce')
   qpcr_data.plate_id = pd.to_numeric(qpcr_data.plate_id, errors='coerce')
-  qpcr_data.plate_date = pd.to_datetime(qpcr_data.plate_date, errors='coerce')
 
   # get a column with only the target (separate info about the standard and master mix)
   qpcr_data['Target_full'] = qpcr_data['Target']
