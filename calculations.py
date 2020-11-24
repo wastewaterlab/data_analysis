@@ -110,39 +110,6 @@ def normalize_to_18S(qpcr_data, replace_bloq= False):
 
     return qpcr_m
 
-def process_xeno_inhibition(qpcr_processed_dilutions_xeno, plate_target_info, plate_id, dCt_cutoff=1):
-    '''
-    takes single plate with Target == Xeno
-    finds NTC for that plate in the plate_target_info table, calculates gmean of Cq for Xeno
-    determines if samples were inhibited relative to NTC, based on the dCt_cutoff
-
-    Params
-    qpcr_processed_dilutions_xeno: processed qPCR data still containing dilutions as separate rows, filtered by Target == 'Xeno'
-    plate_target_info: table containing info about plates, including NTCs and their Cqs
-    plate_id: the plate_id (coming from the groupby that feeds plates into this function)
-    dCt_cutoff: difference between Cq of a sample and Cq of the NTC that defines whether the sample was inhibited, 1 is rule of thumb
-
-    Returns
-    qpcr_processed_dilutions_inhibition: dataframe with columns ['Sample', 'dilution', 'xeno_dCt', 'is_inhibited', 'plate_id']
-        to be merged with qpcr_processed_dilutions, indicating inhibition
-    '''
-
-    # get the geometric mean of the Cqs for the NTCs on the plate
-
-    xeno_ntc_Cq_mean = np.nan
-    xeno_ntc = plate_target_info[(plate_target_info.plate_id == plate_id) & (plate_target_info.Target == 'Xeno')]
-    if (len(xeno_ntc) > 0) and (~xeno_ntc.ntc_Cq.isna().all()): # skip if there is no NTC with Xeno
-        xeno_ntc_Cq_list = xeno_ntc.ntc_Cq.values[0]
-        xeno_ntc_Cq_mean = sci.gmean(xeno_ntc_Cq_list)
-
-    qpcr_processed_dilutions_xeno['xeno_dCt'] = qpcr_processed_dilutions_xeno.Cq_mean - xeno_ntc_Cq_mean
-    qpcr_processed_dilutions_xeno['is_inhibited'] = None
-    qpcr_processed_dilutions_xeno.loc[qpcr_processed_dilutions_xeno.xeno_dCt >= dCt_cutoff, 'is_inhibited'] = True
-    qpcr_processed_dilutions_xeno.loc[qpcr_processed_dilutions_xeno.xeno_dCt < dCt_cutoff, 'is_inhibited'] = False
-
-    qpcr_processed_dilutions_inhibition = qpcr_processed_dilutions_xeno[['Sample', 'dilution', 'xeno_dCt', 'is_inhibited', 'plate_id']]
-
-    return(qpcr_processed_dilutions_inhibition)
 
 def get_GFP_recovery(qpcr_averaged):
     '''
