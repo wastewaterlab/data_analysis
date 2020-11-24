@@ -58,7 +58,7 @@ def get_gmean(replicates):
     return(gmean_value)
 
 
-def combine_replicates(plate_df, collapse_on=['Sample', 'dilution', 'Target', 'Task']):
+def combine_replicates(plate_df, collapse_on=['Sample', 'dilution', 'Task']):
     '''
     collapse replicates with identical attributes as determined by collapse_on list
     calculate summary columns
@@ -75,9 +75,11 @@ def combine_replicates(plate_df, collapse_on=['Sample', 'dilution', 'Target', 'T
     Returns
     plate_df: collapsed plate with summary columns for the combined technical replicates
     '''
+    if len(plate_df.Target.unique()) > 1:
+        raise ValueError('''More than one target in this dataframe''')
 
     # collapse replicates
-    plate_df = plate_df[['Sample', 'dilution', 'Target', 'Task', 'Cq', 'Quantity', 'is_undetermined']]
+    plate_df = plate_df[['Sample', 'dilution', 'Task', 'Cq', 'Quantity', 'is_undetermined']]
     plate_df = plate_df.groupby(collapse_on).agg(lambda x: x.tolist())
     plate_df = plate_df.reset_index()
 
@@ -96,7 +98,7 @@ def combine_replicates(plate_df, collapse_on=['Sample', 'dilution', 'Target', 'T
     plate_df['Cq_std'] = plate_df.Cq_no_outliers.apply(lambda x: get_gstd(x))
     plate_df['replicate_count'] = plate_df.Cq_no_outliers.apply(lambda x: len(x))
     plate_df['is_undetermined_count'] = plate_df.is_undetermined.apply(lambda x: sum(x))
-    plate_df = plate_df.sort_values(['Target', 'Sample', 'dilution'])
+    plate_df = plate_df.sort_values(['Sample', 'dilution'])
     return(plate_df)
 
 
@@ -116,9 +118,7 @@ def compute_linear_info(plate_data):
     predict = np.poly1d(model)
     r2 = r2_score(y, predict(x))
     slope, intercept = model
-    efficiency = np.nan
-    if (slope != 0) and (slope != np.inf):
-        efficiency = (10**(-1/slope)) - 1
+    efficiency = (10**(-1/slope)) - 1
 
     # abline_values = [slope * i + intercept for i in x]
     return(slope, intercept, r2, efficiency)#, abline_values])
@@ -149,8 +149,6 @@ def process_standard(plate_df, loq_min_reps=(2/3)):
             lod_Cq: the Cq for the limit of quantification
             lod_Quantity: the quantity for the limit of quantification
     '''
-    if len(plate_df.Target.unique()) > 1:
-        raise ValueError('''More than one target in this dataframe''')
 
     # define outputs
     std_curve = {'num_points': np.nan,
@@ -224,8 +222,6 @@ def process_unknown(plate_df, std_curve_intercept, std_curve_slope, std_curve_lo
         Cq_of_lowest_sample_quantity: the Cq value of the lowest pt used on the plate
         intraassay_var intraassay variation (arithmetic mean of the coefficient of variation for all replicates on a plate)
     '''
-    if len(plate_df.Target.unique()) > 1:
-        raise ValueError('''More than one target in this dataframe''')
 
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
 
@@ -257,8 +253,6 @@ def process_unknown(plate_df, std_curve_intercept, std_curve_slope, std_curve_lo
 
 
 def process_ntc(plate_df):
-    if len(plate_df.Target.unique()) > 1:
-        raise ValueError('''More than one target in this dataframe''')
 
     ntc = plate_df[plate_df.Task == 'Negative Control']
     ntc_is_neg = False
@@ -301,6 +295,8 @@ def process_qpcr_plate(plates, loq_min_reps=(2/3)):
                                                                                    std_curve['slope'],
                                                                                    std_curve['loq_Cq'])
 
+        unknown_df['plate_id'] = plate_id
+        unknown_df['Target'] = Target
         # save processed unknowns
         qpcr_processed.append(unknown_df)
 
@@ -341,3 +337,44 @@ def process_qpcr_plate(plates, loq_min_reps=(2/3)):
     plate_target_info = pd.DataFrame.from_records(plate_target_info, columns=column_names)
 
     return(qpcr_processed, plate_target_info)
+
+
+def choose_dilution(qpcr_processed):
+    '''
+    multiply quantity by the dilution factor and choose the least inhibited dilution
+    also try to choose a dilution for which the raw Cq_mean was above the limit of quantification
+    NOTE: requires non-duplicated data. If duplicates exist at the level of ['Sample', 'Target', 'dilution'], will warn and then deduplicate.
+
+    Params
+    qpcr_processed: dataframe of processed qPCR data with replicates collapsed but multiple dilutions possible for each sample x target
+
+    Returns
+    qpcr_processed_dilutions: dataframe of processed qPCR data with only the best dilution
+    '''
+
+    # multiply quantity times dilution to get undiluted_quantity
+    qpcr_processed['Quantity_mean_undiluted'] = qpcr_processed['Quantity_mean'] * qpcr_processed['dilution']
+
+    keep = []
+    for [Sample, Target], df in qpcr_processed.groupby(['Sample', 'Target']):
+
+        # check for duplicates, warn and keep just the first one - data should be clean and this shouldn't happen.
+        if len(df.dilution.unique()) != len(df.dilution):
+            plate_ids = df.plate_id.to_list()
+            warnings.warn(f'Sample {Sample} x {Target} has multiple entries with the same dilution factor in plates {plate_ids}')
+            df = df[df.duplicated('dilution', keep='first')]
+
+        # if none of the dilutions were above limit of quantification
+        # keep the 1x dilution
+        if len(df[df.below_limit_of_quantification == False]) == 0:
+            keep.append(df[df.dilution == 1])
+        elif len(df[df.below_limit_of_quantification == False]) == 1:
+            # check which one was above limit of quantification and keep that one
+            keep.append(df[df.below_limit_of_quantification == False])
+        else:
+            # if multiple were above limit of detection, then choose max Quantity_mean_undiluted
+            keep.append(df[df.Quantity_mean_undiluted == df.Quantity_mean_undiluted.max()])
+
+    qpcr_processed_dilutions = pd.concat(keep)
+
+    return(qpcr_processed_dilutions)
