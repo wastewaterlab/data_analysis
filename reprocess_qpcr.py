@@ -398,7 +398,7 @@ def process_unknown(plate_df, std_curve_info):
     '''
 
     [num_points, Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, lowest_std_quantity2nd,Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd, slope, intercept, r2, efficiency] = std_curve_info
-    unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
+    unknown_df = plate_df[plate_df.Task != 'Standard'].copy()
     unknown_df['Cq_of_lowest_sample_quantity'] = np.nan
     unknown_df['percent_CV']=(unknown_df['Q_init_std']-1)*100#the geometric std - 1 is the coefficient of variation using quant studio quantities to capture all the variation in the plate
     if all(np.isnan(unknown_df['percent_CV'])):
@@ -650,6 +650,8 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
     qpcr_processed = pd.concat(qpcr_processed)
     qpcr_processed = qpcr_processed.merge(std_curve_df, how='left', on=['plate_id', 'Target'])
     qpcr_processed,dilution_expts_df = process_dilutions(qpcr_processed)
+    control_df=qpcr_processed[(qpcr_processed.interceptor=="PBS")|(qpcr_processed.Task!="Unknown")].copy()
+    qpcr_processed=qpcr_processed[qpcr_processed.Task=="Unknown"].copy()
 
     #make  columns calculated in other functions to go in the standard curve info
     qpcr_m=qpcr_processed[["plate_id","Target","Cq_of_lowest_sample_quantity",'intraassay_var']].copy().drop_duplicates(keep='first')
@@ -669,4 +671,4 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
         l=len(plates)
         warnings.warn("\n\n\n {0} plates have samples that are double listed in qPCR_Cts spreadsheet. Check the following plates and make sure one is_primary_value is set to N:\n\n\n{1}\n\n\n".format(l,plates))
 
-    return(qpcr_processed, std_curve_df, dilution_expts_df,raw_outliers_flagged_df)
+    return(qpcr_processed, std_curve_df, dilution_expts_df,raw_outliers_flagged_df, control_df)
