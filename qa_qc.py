@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy  as np
+from scipy import stats as sci
 import warnings
 
 def get_extraction_control(qpcr_averaged, control_sample_code='control_control_PBS'):
@@ -13,17 +14,13 @@ def get_extraction_control(qpcr_averaged, control_sample_code='control_control_P
         batch
         sample_code
         is_undetermined_count
-        Cq_init_min # should we be using Cq_mean?
+        Cq_mean
     '''
-
-    # Xeno must be removed before running this or else all negative controls will appear positive
-    if 'Xeno' in qpcr_averaged.Target.to_list():
-        warnings.warn('Xeno must be removed before this function is run')
 
     # make empty dataframe to return
     df_with_extraction_control = pd.DataFrame()
 
-    for batch, df in qpcr_averaged.groupby('batch'):
+    for [batch, Target], df in qpcr_averaged.groupby(['batch', 'Target']):
         # set default values
         extraction_control_is_neg = None
         extraction_control_Cq = np.nan
@@ -69,7 +66,7 @@ def process_xeno_inhibition(qpcr_processed_dilutions_xeno, plate_target_info, pl
     xeno_ntc = plate_target_info[(plate_target_info.plate_id == plate_id) & (plate_target_info.Target == 'Xeno')]
     if (len(xeno_ntc) > 0) and (~xeno_ntc.ntc_Cq.isna().all()): # skip if there is no NTC with Xeno
         xeno_ntc_Cq_list = xeno_ntc.ntc_Cq.values[0]
-        xeno_ntc_Cq_mean = sci.gmean(xeno_ntc_Cq_list)
+        xeno_ntc_Cq_mean = sci.gmean(xeno_ntc_Cq_list) # could use get_gmean() since it ignores nan, but Xeno should never be NaN
 
     qpcr_processed_dilutions_xeno['xeno_dCt'] = qpcr_processed_dilutions_xeno.Cq_mean - xeno_ntc_Cq_mean
     qpcr_processed_dilutions_xeno['is_inhibited'] = None
