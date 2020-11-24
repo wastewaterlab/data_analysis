@@ -252,15 +252,20 @@ def process_unknown(plate_df, std_curve_intercept, std_curve_slope, std_curve_lo
     return(unknown_df, intraassay_var, Cq_of_lowest_sample_quantity)
 
 
-def process_ntc(plate_df):
-
-    ntc = plate_df[plate_df.Task == 'Negative Control']
+def process_ntc(plate_df, plate_id):
+    # ideally there should be only one way of marking a negative control, but data entry is inconsistent
+    ntc = plate_df[(plate_df.Task == 'Negative Control') | (plate_df.Sample == 'NTC')]
     ntc_is_neg = False
     ntc_Cq = np.nan
-    if ntc.is_undetermined.all():
+
+    if len(ntc) == 0:
+        warnings.warn(f'Plate {plate_id} is missing NTC')
+        return(None, np.nan)
+
+    if all(ntc.is_undetermined.values[0]): # is_undetermined is a list, need to access the list itself to ask if all values are True
         ntc_is_neg = True
     else:
-        if all(ntc.Cq.isna()): # this case should never happen
+        if ntc.Cq.isna().all(): # this case should never happen
             ntc_is_neg = np.nan # change NaN to None for dtype consistency
         else:
             ntc_Cq = np.nanmin(ntc.Cq)
@@ -289,7 +294,7 @@ def process_qpcr_plate(plates, loq_min_reps=(2/3)):
 
         plate_df = combine_replicates(df)
         std_curve = process_standard(plate_df, loq_min_reps)
-        ntc_is_neg, ntc_Cq = process_ntc(plate_df)
+        ntc_is_neg, ntc_Cq = process_ntc(plate_df, plate_id)
         unknown_df, intraassay_var, Cq_of_lowest_sample_quantity = process_unknown(plate_df,
                                                                                    std_curve['intercept'],
                                                                                    std_curve['slope'],
