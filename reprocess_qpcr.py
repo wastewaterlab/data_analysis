@@ -39,10 +39,10 @@ def grubbs_test(replicates, max_std_for_2_reps=0.2, alpha=0.025):
         replicates_out = [x for x in replicates_no_nan if x not in outliers]
     elif (len(replicates_no_nan)) == 2 and (np.std(replicates_no_nan) < max_std_for_2_reps):
         replicates_out = replicates_no_nan
-    elif (len(replicates_no_nan)) == 2 and (np.std(replicates_no_nan) >= max_std_for_2_reps)
-        replicates_out = np.min(replicates_no_nan)
+    elif (len(replicates_no_nan)) == 2 and (np.std(replicates_no_nan) >= max_std_for_2_reps):
+        replicates_out = [np.min(replicates_no_nan)] # return list of len 1
     elif (len(replicates_no_nan)) == 1:
-        replicates_out = replicates_no_nan
+        replicates_out = replicates_no_nan # return the one value left in the list
 
     return(replicates_out)
 
