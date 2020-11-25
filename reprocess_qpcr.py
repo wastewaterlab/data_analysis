@@ -88,7 +88,7 @@ def combine_replicates(plate_df, collapse_on=['Sample', 'dilution', 'Task']):
 
     plate_df['Cq_init_mean'] = plate_df.Cq.apply(lambda x: get_gmean(x))
     plate_df['Cq_init_std'] = plate_df.Cq.apply(lambda x: get_gstd(x))
-    plate_df['Cq_init_min'] = plate_df.Cq.apply(np.min)
+    plate_df['Cq_init_min'] = plate_df.Cq.apply(np.min) # change to np.nanmin (drops nan) but first check if all are nan or if list is empty to avoid warnings
     plate_df['replicate_init_count'] = plate_df.Cq.apply(lambda x: len(x))
 
     plate_df['Q_init_mean'] = plate_df.Quantity.apply(lambda x: get_gmean(x))

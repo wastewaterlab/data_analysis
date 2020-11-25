@@ -32,7 +32,7 @@ def get_extraction_control(qpcr_averaged, control_sample_code='control_control_P
             # if at least one control was not undetermined in all 3 replicates
             if extraction_controls.is_undetermined_count.min() < 3:
                 extraction_control_is_neg = False
-                extraction_control_Cq = extraction_controls.Cq_mean.min()
+                extraction_control_Cq = extraction_controls.Cq_init_mean.min()
             else:
                 extraction_control_is_neg = True
 
