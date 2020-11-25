@@ -94,10 +94,10 @@ def num_std_pointsQ(param, points_list):
 
     return([score, flag, point_deduction])
 
-def num_tech_repsQ(param, is_undetermined_count, points_list):
+def num_tech_repsQ(param, nondetect_count, points_list):
     '''
     given replicate_count (number of technical replicates passing outlier test),
-    is_undetermined_count (number of true undetermined values in triplicates)
+    nondetect_count (number of true undetermined values in triplicates)
     and list of weights and points
     return quality_score
     '''
@@ -126,15 +126,15 @@ def num_tech_repsQ(param, is_undetermined_count, points_list):
         point_deduction = f'{param_name} = 1'
     # check if it was a true non-detect; TODO think more about this
     elif (param == 0 ):
-        if (is_undetermined_count >= 3):
+        if (nondetect_count >= 3):
             score = weight*pts_goodQ
-        elif (is_undetermined_count == 2):
+        elif (nondetect_count == 2):
             score = weight*pts_okQ
             point_deduction = 'no reps passed outlier test and number of technical replicates was 2, not 3'
-        elif (is_undetermined_count == 1):
+        elif (nondetect_count == 1):
             score = weight*pts_poorQ
             point_deduction = 'no reps passed outlier test and number of technical replicates was 1, not 3'
-        elif (is_undetermined_count == 0):
+        elif (nondetect_count == 0):
             flag = 'set to 0'
             point_deduction = '0 replicates'
 
@@ -341,7 +341,7 @@ def quality_score(df, scoring_dict=None):
         r2
         num_points
         replicate_count
-        is_undetermined_count
+        nondetect_count
         ntc_is_neg
         ntc_Cq
         Cq_of_lowest_std_quantity
@@ -372,7 +372,7 @@ def quality_score(df, scoring_dict=None):
 
         num_std_points = num_std_pointsQ(row.num_points, points.num_std_points)
 
-        num_tech_reps = num_tech_repsQ(row.replicate_count, row.is_undetermined_count, points.num_tech_reps)
+        num_tech_reps = num_tech_repsQ(row.replicate_count, row.nondetect_count, points.num_tech_reps)
 
         no_template_control = no_template_controlQ(row.ntc_is_neg, row.ntc_Cq, pd.to_numeric(row.Cq_of_lowest_std_quantity), points.no_template_control)
 

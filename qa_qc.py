@@ -13,7 +13,7 @@ def get_extraction_control(qpcr_averaged, control_sample_code='control_control_P
     dataframe with columns:
         batch
         sample_code
-        is_undetermined_count
+        nondetect_count
         Cq_mean
     '''
 
@@ -30,7 +30,7 @@ def get_extraction_control(qpcr_averaged, control_sample_code='control_control_P
             extraction_controls = df[df.sample_code == control_sample_code]
 
             # if at least one control was not undetermined in all 3 replicates
-            if extraction_controls.is_undetermined_count.min() < 3:
+            if extraction_controls.nondetect_count.min() < 3:
                 extraction_control_is_neg = False
                 extraction_control_Cq = extraction_controls.Cq_init_mean.min()
             else:

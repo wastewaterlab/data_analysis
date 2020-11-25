@@ -104,7 +104,7 @@ def combine_replicates(plate_df, collapse_on=['Sample', 'dilution', 'Task']):
         plate_df['Cq_mean'] = plate_df.Cq_no_outliers.apply(np.nanmean)
         plate_df['Cq_std'] = plate_df.Cq_no_outliers.apply(np.nanstd)
         plate_df['replicate_count'] = plate_df.Cq_no_outliers.apply(len)
-        plate_df['is_undetermined_count'] = plate_df.is_undetermined.apply(sum)
+        plate_df['nondetect_count'] = plate_df.is_undetermined.apply(sum)
     plate_df = plate_df.sort_values(['Sample', 'dilution'])
     return(plate_df)
 
