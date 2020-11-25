@@ -275,7 +275,7 @@ def process_ntc(plate_df, plate_id):
         if np.isnan(ntc.Cq_init_mean.values[0]): # this case should never happen- if Cq_init_mean is NaN, all values are undetermined
             ntc_is_neg = None
         else:
-            ntc_Cq = ntc.Cq_init_mean
+            ntc_Cq = ntc.Cq_init_mean.values[0]
     return(ntc_is_neg, ntc_Cq)
 
 

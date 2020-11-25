@@ -192,11 +192,8 @@ def pcr_inhibitionQ(param, points_list):
     flag = np.nan
     point_deduction = np.nan
 
-    if (param is np.nan): #should score be na or zero in this case?
-        flag = f'check {param_name}'
-        return([score, flag, point_deduction])
-
-    if param == 'unknown': #should score be na or zero in this case?
+    if( param == 'unknown') | (param is np.nan) | (param is None): #should score be na or zero in this case?
+        score = weight*pts_goodQ
         flag = 'test for inhibition has not been performed'
         return([score, flag, point_deduction])
 

@@ -65,8 +65,7 @@ def process_xeno_inhibition(qpcr_processed_dilutions_xeno, plate_target_info, pl
     xeno_ntc_Cq_mean = np.nan
     xeno_ntc = plate_target_info[(plate_target_info.plate_id == plate_id) & (plate_target_info.Target == 'Xeno')]
     if (len(xeno_ntc) > 0) and (~xeno_ntc.ntc_Cq.isna().all()): # skip if there is no NTC with Xeno
-        xeno_ntc_Cq_list = xeno_ntc.ntc_Cq.values[0]
-        xeno_ntc_Cq_mean = sci.gmean(xeno_ntc_Cq_list) # could use get_gmean() since it ignores nan, but Xeno should never be NaN
+        xeno_ntc_Cq_mean = xeno_ntc.ntc_Cq.values[0]
 
     qpcr_processed_dilutions_xeno['xeno_dCt'] = qpcr_processed_dilutions_xeno.Cq_mean - xeno_ntc_Cq_mean
     qpcr_processed_dilutions_xeno['is_inhibited'] = None
