@@ -86,18 +86,21 @@ def combine_replicates(plate_df, collapse_on=['Sample', 'dilution', 'Task']):
     # create summary columns describing all replicates
     plate_df['Cq_no_outliers'] = plate_df.Cq.apply(lambda x: grubbs_test(x))
 
-    plate_df['Cq_init_mean'] = plate_df.Cq.apply(lambda x: get_gmean(x))
-    plate_df['Cq_init_std'] = plate_df.Cq.apply(lambda x: get_gstd(x))
-    plate_df['Cq_init_min'] = plate_df.Cq.apply(np.min) # change to np.nanmin (drops nan) but first check if all are nan or if list is empty to avoid warnings
-    plate_df['replicate_init_count'] = plate_df.Cq.apply(lambda x: len(x))
+    # np.nanmean etc. will warn if all reps are nan, but still return nan so it's fine
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        plate_df['Cq_init_mean'] = plate_df.Cq.apply(np.nanmean)
+        plate_df['Cq_init_std'] = plate_df.Cq.apply(np.nanstd)
+        plate_df['Cq_init_min'] = plate_df.Cq.apply(np.nanmin)
+        plate_df['replicate_init_count'] = plate_df.Cq.apply(len)
 
-    plate_df['Q_init_mean'] = plate_df.Quantity.apply(lambda x: get_gmean(x))
-    plate_df['Q_init_std'] = plate_df.Quantity.apply(lambda x: get_gstd(x))
+        plate_df['Q_init_mean'] = plate_df.Quantity.apply(get_gmean)
+        plate_df['Q_init_std'] = plate_df.Quantity.apply(get_gstd)
 
-    plate_df['Cq_mean'] = plate_df.Cq_no_outliers.apply(lambda x: get_gmean(x))
-    plate_df['Cq_std'] = plate_df.Cq_no_outliers.apply(lambda x: get_gstd(x))
-    plate_df['replicate_count'] = plate_df.Cq_no_outliers.apply(lambda x: len(x))
-    plate_df['is_undetermined_count'] = plate_df.is_undetermined.apply(lambda x: sum(x))
+        plate_df['Cq_mean'] = plate_df.Cq_no_outliers.apply(np.nanmean)
+        plate_df['Cq_std'] = plate_df.Cq_no_outliers.apply(np.nanstd)
+        plate_df['replicate_count'] = plate_df.Cq_no_outliers.apply(len)
+        plate_df['is_undetermined_count'] = plate_df.is_undetermined.apply(sum)
     plate_df = plate_df.sort_values(['Sample', 'dilution'])
     return(plate_df)
 
