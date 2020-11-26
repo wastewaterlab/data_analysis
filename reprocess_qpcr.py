@@ -17,13 +17,12 @@ import warnings
 
 ## TODO: rewrite everything to handle sets of triplicates
 
-def grubbs_test(replicates, max_std_for_2_reps=0.2, alpha=0.025):
+def grubbs_test(replicates, alpha=0.025):
     '''
     from list of triplicates, determine passing replicates
 
     Params
     replicates: list of Cq values for replicates (usually triplicate)
-    max_std_for_2_reps: from https://www.gene-quantification.de/dhaene-hellemans-qc-data-2010.pdf
     alpha: alpha for grubb's test
 
     Returns
@@ -37,11 +36,7 @@ def grubbs_test(replicates, max_std_for_2_reps=0.2, alpha=0.025):
         outliers = grubbs.max_test_outliers(replicates_no_nan, alpha)
         # drop the outliers from the list
         replicates_out = [x for x in replicates_no_nan if x not in outliers]
-    elif (len(replicates_no_nan)) == 2 and (np.std(replicates_no_nan) < max_std_for_2_reps):
-        replicates_out = replicates_no_nan
-    elif (len(replicates_no_nan)) == 2 and (np.std(replicates_no_nan) >= max_std_for_2_reps):
-        replicates_out = [np.min(replicates_no_nan)] # return list of len 1
-    elif (len(replicates_no_nan)) == 1:
+    else:
         replicates_out = replicates_no_nan # return the one value left in the list
 
     return(replicates_out)
@@ -131,7 +126,7 @@ def compute_linear_info(plate_data):
     return(slope, intercept, r2, efficiency)#, abline_values])
 
 
-def process_standard(plate_df, loq_min_reps=(2/3)):
+def process_standard(plate_df, loq_min_reps=(2/3), duplicate_max_std=0.2):
     '''
     from single plate with single target, calculate standard curve info
 
@@ -172,18 +167,23 @@ def process_standard(plate_df, loq_min_reps=(2/3)):
                  'loq_Cq': np.nan,
                  'loq_Quantity': np.nan}
 
-    #what is the lowest sample Cq and quantity on this plate
     standard_df = plate_df[plate_df.Task == 'Standard'].copy()
 
-    # require at least 2 replicates
-    standard_df = standard_df[standard_df.replicate_count > 1]
+    # rules for including a point on the standard curve:
+    # must have amplified for at least 2 of 3 technical replicates
+    # if a point amplified for only 2 of 3 replicates, check that they have std < 0.2 or else remove
+    df_2reps = standard_df[(standard_df.nondetect_count == 1) & (standard_df.Cq_init_std < duplicate_max_std)]
+    df_3reps = standard_df[standard_df.nondetect_count == 0]
+    standard_df = pd.concat([df_2reps, df_3reps])
+    #standard_df = standard_df[~standard_df.Cq_mean.isna()]
+
     std_curve['num_points'] = len(standard_df)
 
     if std_curve['num_points'] >= 2:
         standard_df['log_Quantity'] = np.log10(standard_df['Q_init_mean'])
 
         # # find the Cq_mean of the lowest and second lowest (for LoQ) standard quantity
-        # standard_df = standard_df.sort_values('Q_init_mean')
+        standard_df = standard_df.sort_values('Q_init_mean')
         std_curve['Cq_of_lowest_std_quantity'] = standard_df.Cq_mean.values[0]
         # Cq_of_2ndlowest_std_quantity = standard_df.Cq_mean.values[1]
         #
@@ -199,6 +199,7 @@ def process_standard(plate_df, loq_min_reps=(2/3)):
             std_curve['slope'], std_curve['intercept'], std_curve['r2'], std_curve['efficiency'] = compute_linear_info(standard_df)
 
     ## determine LoQ
+    # TODO revisit the definitions of Limits of Quantification vs Detection
     # determine the fraction of the replicates that were detectable
     standard_df['fraction_positive'] = np.nan
     standard_df['fraction_positive'] = standard_df.replicate_count / standard_df.replicate_init_count
