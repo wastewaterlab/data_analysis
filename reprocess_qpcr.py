@@ -126,7 +126,7 @@ def compute_linear_info(plate_data):
     return(slope, intercept, r2, efficiency)#, abline_values])
 
 
-def process_standard(plate_df, loq_min_reps=(2/3), duplicate_max_std=0.2):
+def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2):
     '''
     from single plate with single target, calculate standard curve info
 
@@ -151,6 +151,21 @@ def process_standard(plate_df, loq_min_reps=(2/3), duplicate_max_std=0.2):
             lod_Cq: the Cq for the limit of quantification
             lod_Quantity: the quantity for the limit of quantification
     '''
+    # defaults
+    std_curve_N1_default = {'num_points': 0,
+                            'slope': -3.446051, 'intercept': 37.827506,
+                            'r2': np.nan,
+                            'efficiency': np.nan,
+                            'Cq_of_lowest_std_quantity': np.nan,
+                            'loq_Cq': np.nan,
+                            'loq_Quantity': np.nan} # from plate 1093
+    std_curve_PMMoV_default = {'num_points': 0,
+                               'slope': -3.548825, 'intercept': 42.188174,
+                               'r2': np.nan,
+                               'efficiency': np.nan,
+                               'Cq_of_lowest_std_quantity': np.nan,
+                               'loq_Cq': np.nan,
+                               'loq_Quantity': np.nan} # from plate 1092
 
     # define outputs
     std_curve = {'num_points': np.nan,
@@ -159,13 +174,14 @@ def process_standard(plate_df, loq_min_reps=(2/3), duplicate_max_std=0.2):
                  'r2': np.nan,
                  'efficiency': np.nan,
                  'Cq_of_lowest_std_quantity': np.nan,
-    # Cq_of_2ndlowest_std_quantity = np.nan
-    # Cq_of_lowest_std_quantity_gsd = np.nan
-    # Cq_of_2ndlowest_std_quantity_gsd = np.nan
-    # lowest_std_quantity = np.nan
-    # lowest_std_quantity2nd = np.nan
                  'loq_Cq': np.nan,
                  'loq_Quantity': np.nan}
+                 # Cq_of_2ndlowest_std_quantity = np.nan
+                 # Cq_of_lowest_std_quantity_gsd = np.nan
+                 # Cq_of_2ndlowest_std_quantity_gsd = np.nan
+                 # lowest_std_quantity = np.nan
+                 # lowest_std_quantity2nd = np.nan
+    used_default_curve = False
 
     standard_df = plate_df[plate_df.Task == 'Standard'].copy()
 
@@ -175,28 +191,46 @@ def process_standard(plate_df, loq_min_reps=(2/3), duplicate_max_std=0.2):
     df_2reps = standard_df[(standard_df.nondetect_count == 1) & (standard_df.Cq_init_std < duplicate_max_std)]
     df_3reps = standard_df[standard_df.nondetect_count == 0]
     standard_df = pd.concat([df_2reps, df_3reps])
-    #standard_df = standard_df[~standard_df.Cq_mean.isna()]
+    # catch-all to make sure no points are included that have no Cq_mean or have just 1 replicate after outlier removal
+    standard_df = standard_df[(~standard_df.Cq_mean.isna()) & (standard_df.replicate_count > 1)]
 
     std_curve['num_points'] = len(standard_df)
 
-    if std_curve['num_points'] >= 2:
+    if std_curve['num_points'] > 2:
         standard_df['log_Quantity'] = np.log10(standard_df['Q_init_mean'])
+        std_curve['slope'], std_curve['intercept'], std_curve['r2'], std_curve['efficiency'] = compute_linear_info(standard_df)
 
-        # # find the Cq_mean of the lowest and second lowest (for LoQ) standard quantity
         standard_df = standard_df.sort_values('Q_init_mean')
         std_curve['Cq_of_lowest_std_quantity'] = standard_df.Cq_mean.values[0]
+        # # find the Cq_mean of the lowest and second lowest (for LoQ) standard quantity
         # Cq_of_2ndlowest_std_quantity = standard_df.Cq_mean.values[1]
-        #
         # #find the geometric standard deviation of the Cq of the lowest and second lowest (for LoQ) standard quantity
         # Cq_of_lowest_std_quantity_gsd = standard_df.Cq_std.values[0]
         # Cq_of_2ndlowest_std_quantity_gsd = standard_df.Cq_std.values[1]
-        #
         # # the lowest and second lowest (for LoQ) standard quantity
         # lowest_std_quantity = standard_df.Q_init_mean.values[0]
         # lowest_std_quantity2nd = standard_df.Q_init_mean.values[1]
 
-        if std_curve['num_points'] > 2:
-            std_curve['slope'], std_curve['intercept'], std_curve['r2'], std_curve['efficiency'] = compute_linear_info(standard_df)
+
+    # if curve is poor or missing, replace with defaults
+    if target == 'N1':
+        if (np.isnan(std_curve['slope'])) or \
+           (std_curve['slope'] > -2.5) or \
+           (std_curve['slope'] < -5.0) or \
+           (np.isnan(std_curve['intercept'])) or \
+           (std_curve['intercept'] > 50) or \
+           (std_curve['intercept'] < 30):
+           std_curve = std_curve_N1_default
+           used_default_curve = True
+    elif target == 'PMMoV':
+        if (np.isnan(std_curve['slope'])) or \
+           (std_curve['slope'] > -2.5) or \
+           (std_curve['slope'] < -5.0) or \
+           (np.isnan(std_curve['intercept'])) or \
+           (std_curve['intercept'] > 50) or \
+           (std_curve['intercept'] < 30):
+           std_curve = std_curve_PMMoV_default
+           used_default_curve = True
 
     ## determine LoQ
     # TODO revisit the definitions of Limits of Quantification vs Detection
@@ -214,7 +248,7 @@ def process_standard(plate_df, loq_min_reps=(2/3), duplicate_max_std=0.2):
         std_curve['loq_Cq'] = standard_df.Cq_mean.values[0]
         std_curve['loq_Quantity'] = standard_df.Q_init_mean.values[0]
 
-    return(std_curve)
+    return(std_curve, used_default_curve)
 
 
 def process_unknown(plate_df, std_curve_intercept, std_curve_slope, std_curve_loq_Cq):
@@ -296,12 +330,12 @@ def process_qpcr_plate(plates, loq_min_reps=(2/3)):
     plate_target_info = []
     qpcr_processed = []
 
-    for [plate_id, Target], df in plates.groupby(['plate_id', 'Target']):
+    for [plate_id, target], df in plates.groupby(['plate_id', 'Target']):
     # process plate
         plate_attributes = []
 
         plate_df = combine_replicates(df)
-        std_curve = process_standard(plate_df, loq_min_reps)
+        std_curve, used_default_curve = process_standard(plate_df, target, loq_min_reps)
         ntc_is_neg, ntc_Cq = process_ntc(plate_df, plate_id)
         unknown_df, intraassay_var, Cq_of_lowest_sample_quantity = process_unknown(plate_df,
                                                                                    std_curve['intercept'],
@@ -309,14 +343,14 @@ def process_qpcr_plate(plates, loq_min_reps=(2/3)):
                                                                                    std_curve['loq_Cq'])
 
         unknown_df['plate_id'] = plate_id
-        unknown_df['Target'] = Target
+        unknown_df['Target'] = target
         # save processed unknowns
         qpcr_processed.append(unknown_df)
 
         # save all info about plate x Target:
         # TODO find cleaner way to save and make a dataframe that knows about column names
         plate_attributes = [plate_id,
-                            Target,
+                            target,
                             std_curve['num_points'],
                             std_curve['slope'],
                             std_curve['intercept'],
@@ -325,6 +359,7 @@ def process_qpcr_plate(plates, loq_min_reps=(2/3)):
                             std_curve['loq_Cq'],
                             std_curve['loq_Quantity'],
                             std_curve['Cq_of_lowest_std_quantity'],
+                            used_default_curve,
                             intraassay_var,
                             Cq_of_lowest_sample_quantity,
                             ntc_is_neg,
@@ -344,6 +379,7 @@ def process_qpcr_plate(plates, loq_min_reps=(2/3)):
     'loq_Cq',
     'loq_Quantity',
     'Cq_of_lowest_std_quantity',
+    'used_default_curve',
     'intraassay_var',
     'Cq_of_lowest_sample_quantity',
     'ntc_is_neg',
