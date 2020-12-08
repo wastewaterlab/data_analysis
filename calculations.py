@@ -111,32 +111,43 @@ def normalize_to_18S(qpcr_data, replace_bloq= False):
     return qpcr_m
 
 
-def get_GFP_recovery(qpcr_averaged):
+def calculate_recovery(sample_data_qpcr, spike_name):
     '''
-    calculate the percent recovery efficiency using GFP RNA spike
+    Given the sample_data_qpcr dataframe,
+    calculate the total amount of the spike that was recovered in samples
+    calculate total amount of the spike that was added to samples
+    calculate percent recovery as output spike amount / input spike amount
+
     Params
-    qpcr_averaged: output of process_qpcr_raw(), a pandas df with columns
-        GFP_spike_vol_ul
-        Quantity_mean
-        template_volume
-        GFP_spike_tube
+    sample_data_qpcr: dataframe containing sample inventory and qPCR data
+    including rows for spikes and columns:
+        f'{spike_name}_spike_tube': contains name of the spike aliquot tube
+        f'{spike_name}_spike_vol_ul': contains volume of spike added to sample
+
     Returns
-    qpcr_averaged: the same df as input but with additional column
-        perc_GFP_recovered
+    recovery_df: dataframe with same Sample names with rows containing
+    spike tubes removed. Columns:
+        'Sample': for merging back to the original dataframe
+         f'{spike_name}_perc_recovered': percent recovery of the spike
+         f'{spike_name}_gc_per_ul_input': input concentration of the spike
     '''
-    gfp = qpcr_averaged[qpcr_averaged.Target == 'GFP'].copy()
-    # calculate total recovered GFP gene copies
-    gfp['total_GFP_recovered'] = gfp['GFP_spike_vol_ul'].astype(float) * gfp['Quantity_mean'].astype(float) / gfp['template_volume'].astype(float)
 
-    # calculate concentration GFP gene copies / ul in just the spikes
-    spikes = gfp[gfp.Sample.str.contains('control_spike_GFP')].copy()
-    spikes['GFP_gc_per_ul_input'] = spikes['Quantity_mean'].astype(float) / spikes['template_volume'].astype(float)
-    spikes = spikes[['GFP_gc_per_ul_input', 'GFP_spike_tube']]
+    if spike_name not in ['bCoV', 'GFP']:
+        raise ValueError('the spike name must be bCoV or GFP')
 
-    # combine concentration of spike and total recovered to get perc recovered
-    gfp = gfp.merge(spikes, how = 'left', on = 'GFP_spike_tube')
-    gfp['total_GFP_input'] = gfp['GFP_gc_per_ul_input'].astype(float) * gfp['GFP_spike_vol_ul'].astype(float)
-    gfp['perc_GFP_recovered'] = 100 * gfp['total_GFP_recovered'] / gfp['total_GFP_input']
-    recovery = gfp[['Sample', 'perc_GFP_recovered']]
-    qpcr_averaged = qpcr_averaged.merge(recovery, how = 'left', on = 'Sample')
-    return(qpcr_averaged)
+    df = sample_data_qpcr[sample_data_qpcr.Target == spike_name].copy()
+    # calculate total recovered gene copies
+    df['total_recovered'] = df['elution_vol_ul'].astype(float) * df['Quantity_mean'].astype(float) / df['template_volume'].astype(float)
+
+    # calculate concentration gene copies / ul in just the spikes
+    spikes = df[df.Sample.str.contains(f'control_spike_{spike_name}')].copy()
+    spikes[f'{spike_name}_gc_per_ul_input'] = spikes['Quantity_mean'].astype(float) / spikes['template_volume'].astype(float)
+    spikes = spikes[[f'{spike_name}_gc_per_ul_input', f'{spike_name}_spike_tube']]
+
+    # # combine concentration of spike and total recovered to get perc recovered
+    df = df.merge(spikes, how = 'left', on = f'{spike_name}_spike_tube')
+    df['total_input'] = df[f'{spike_name}_gc_per_ul_input'].astype(float) * df[f'{spike_name}_spike_vol_ul'].astype(float)
+    df[f'{spike_name}_perc_recovered'] = 100 * df['total_recovered'] / df['total_input']
+    recovery_df = df[['Sample', f'{spike_name}_perc_recovered', f'{spike_name}_gc_per_ul_input']]
+    recovery_df = recovery_df[~recovery_df.Sample.str.contains(f'control_spike_{spike_name}')] # drop rows that are the spikes
+    return(recovery_df)
