@@ -4,9 +4,9 @@ from scipy import stats as sci
 from scipy.stats.mstats import gmean
 from scipy.stats import gstd
 
-def calculate_gc_per_l(qpcr_data, replace_bloq= False ):
+def calculate_gc_per_ml(qpcr_data, replace_bloq=False ):
     '''
-    calculates and returns gene copies / L
+    calculates and returns gene copies / mL
 
     Params
     replace_bloq should the function replace any sample that is below the limit of quantification with the loq
@@ -22,7 +22,7 @@ def calculate_gc_per_l(qpcr_data, replace_bloq= False ):
 
     Returns
     qpcr_data: same data, with additional column
-    gc_per_L
+    gc_per_mL
     '''
     if replace_bloq:
         qpcr_data.loc[qpcr_data.bloq==True, "Quantity_mean"]= qpcr_data.lowest_std_quantity
@@ -30,12 +30,10 @@ def calculate_gc_per_l(qpcr_data, replace_bloq= False ):
     # calculate the conc of input to qPCR as gc/ul
     qpcr_data['gc_per_ul_input'] = qpcr_data['Quantity_mean'].astype(float) / qpcr_data['template_volume'].astype(float)
 
-    # multiply input conc (gc / ul) by elution volume (ul) and divide by volume concentrated (mL). Multiply by 1000 to get to gc / L.
-    qpcr_data['gc_per_L'] = 1000 * qpcr_data['gc_per_ul_input'].astype(float) * qpcr_data['elution_vol_ul'].astype(float) / qpcr_data['weight_vol_extracted_ml'].astype(float)
+    # multiply input conc (gc / ul) by elution volume (ul) and divide by volume concentrated (mL).
+    qpcr_data['gc_per_mL'] = qpcr_data['gc_per_ul_input'].astype(float) * qpcr_data['elution_vol_ul'].astype(float) / qpcr_data['weight_vol_extracted_ml'].astype(float)
 
-
-
-    return qpcr_data['gc_per_L']
+    return(qpcr_data['gc_per_mL'])
 
 
 def normalize_to_pmmov(qpcr_data, replace_bloq= False):
