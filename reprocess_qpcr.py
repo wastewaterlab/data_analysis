@@ -427,5 +427,7 @@ def choose_dilution(qpcr_processed):
             keep.append(df[df.Quantity_mean_undiluted == df.Quantity_mean_undiluted.max()])
 
     qpcr_processed_dilutions = pd.concat(keep)
+    qpcr_processed_dilutions = qpcr_processed_dilutions.rename(columns = {'Quantity_mean': 'Quantity_mean_with_dilution',
+                                               'Quantity_mean_undiluted': 'Quantity_mean'})
 
     return(qpcr_processed_dilutions)
