@@ -212,7 +212,9 @@ def get_pass_grubbs_test(plate_df, groupby_list):
     else:
 
         b=list(d.Cq) #needs to be given unindexed list
-        outliers=grubbs.max_test_outliers(b, alpha=0.025)
+        max_outliers=grubbs.max_test_outliers(b, alpha=0.025)
+        min_outliers=grubbs.min_test_outliers(b, alpha=0.025)
+        outliers
         if len(outliers) > 0:
             d.loc[:, 'grubbs_test'] = True
             d.loc[d.Cq.isin(outliers), 'grubbs_test'] = False
@@ -312,8 +314,8 @@ def combine_triplicates(plate_df_in, checks_include):
                                                Cq_init_std=('Cq', 'std'),
                                                Cq_init_min=('Cq', 'min'),
                                                replicate_init_count=('Cq','count'),
-                                               Cq_mean=('Cq', lambda x:  np.nan if all(np.isnan(x)) else sci.gmean(x.dropna(),axis=0)),
-                                               Cq_std=('Cq', lambda x: np.nan if ((len(x.dropna()) <2 )| all(np.isnan(x)) ) else (sci.gstd(x.dropna(),axis=0))),
+                                               Cq_mean=('Cq', 'mean'),
+                                               Cq_std=('Cq', 'std'),
                                                replicate_count=('Cq_copy', 'count'),
                                                is_undetermined_count=('is_undetermined', 'sum')
                                                )
