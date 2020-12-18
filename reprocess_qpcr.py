@@ -15,6 +15,7 @@ from statistics import median
 #grubbs test package
 import outliers
 from outliers import smirnov_grubbs as grubbs
+
 import warnings
 
 # found dixon's test at https://sebastianraschka.com/Articles/2014_dixon_test.html#implementing-a-dixon-q-test-function
@@ -190,10 +191,11 @@ def get_pass_median_test(plate_df, groupby_list):
   plate_df_with_median_test = pd.concat(plate_df_with_median_test)
   return(plate_df_with_median_test)
 
-def get_pass_grubbs_test(plate_df, groupby_list):
+def get_pass_grubbs_test(plate_df, groupby_list, type):
   # make list that will become new df
   plate_df_with_grubbs_test = pd.DataFrame()
 
+if type=="utils_two"
   # iterate thru the dataframe, grouped by Sample
   # this gives us a mini-df with just one sample in each iteration
   for groupby_list, df in plate_df.groupby(groupby_list,  as_index=False):
@@ -212,9 +214,7 @@ def get_pass_grubbs_test(plate_df, groupby_list):
     else:
 
         b=list(d.Cq) #needs to be given unindexed list
-        max_outliers=grubbs.max_test_outliers(b, alpha=0.025)
-        min_outliers=grubbs.min_test_outliers(b, alpha=0.025)
-        outliers
+        outliers=grubbs.max_test_outliers(b, alpha=0.025)
         if len(outliers) > 0:
             d.loc[:, 'grubbs_test'] = True
             d.loc[d.Cq.isin(outliers), 'grubbs_test'] = False
@@ -422,6 +422,7 @@ def process_unknown(plate_df, std_curve_info):
     unknown_df['Quantity_mean'] = np.nan
     unknown_df['q_diff'] = np.nan
     unknown_df['Quantity_mean'] = 10**((unknown_df['Cq_mean'] - intercept)/slope)
+
 
     # if Cq_mean is zero, don't calculate a quantity (turn to NaN)
     unknown_df.loc[unknown_df[unknown_df.Cq_mean == 0].index, 'Quantity_mean'] = np.nan
