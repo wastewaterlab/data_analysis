@@ -15,6 +15,7 @@ from statistics import median
 #grubbs test package
 import outliers
 from outliers import smirnov_grubbs as grubbs
+import scikit_posthocs as sp
 
 import warnings
 
@@ -133,69 +134,48 @@ def get_pass_dixonsq(df_in, groupby_list):
                     df.loc[data[data.Cq_copy == float(outlier)].index, 'pass_dixonsq'] = 0
     return(df)
 
-def median_test(Cqs, max_spread = 0.5):
-  '''
-  for a group of Cqs, test whether each
-  is within max_spread of the median
-
-  params
-  Cqs: pandas series of Cts
-  max_spread: defaults to 0.5 Ct
-
-  result: list of booleans, same length as Cqs
-  '''
-  num_points = len(Cqs[~Cqs.isna()])
-  if num_points > 2:
-    m = median(Cqs[~Cqs.isna()])
-    median_dist = [abs(i-m) <= max_spread for i in Cqs]
-
-  #median of 2 numbers will split between them, half max_spread
-  elif num_points == 2:
-    m = median(Cqs[~Cqs.isna()])
-    median_dist = [abs(i-m) <= (max_spread / 2)  for i in Cqs]
-
-  #no median_test can be done
-  elif num_points < 2:
-    median_dist = [False  for i in Cqs]
-  return(median_dist)
-
-def test_median_test():
-  t1 = pd.Series([36.0, 36.4, 37.0])
-  r1 = [True, True, False]
-
-  t2 = pd.Series([36.0, 37.0, np.nan])
-  t3 = pd.Series([np.nan, np.nan, 35.0])
-  t4 = pd.Series([np.nan, np.nan, np.nan])
-  r2 = [False, False, False]
-
-  assert r1 == median_test(t1)
-  assert r2 == median_test(t2)
-  assert r2 == median_test(t3)
-  assert r2 == median_test(t4)
-test_median_test()
 
 def get_pass_median_test(plate_df, groupby_list):
-  # make list that will become new df
-  plate_df_with_median_test = []
+    #This is actually old grubbs test using outlier utils and 1-sided max
+    # make list that will become new df
+    plate_df_with_oldgrubbs_test = pd.DataFrame()
 
-  # iterate thru the dataframe, grouped by Sample
-  # this gives us a mini-df with just one sample in each iteration
-  for groupby_list, df in plate_df.groupby(groupby_list,  as_index=False):
-    d = df.copy() # avoid set with copy warning
+    # iterate thru the dataframe, grouped by Sample
+    # this gives us a mini-df with just one sample in each iteration
+    for groupby_list, df in plate_df.groupby(groupby_list,  as_index=False):
+      d = df.copy() # avoid set with copy warning
+      # d.Cq=[round(n, 2) for n in d.Cq]
+      # make new column 'grubbs_test' that includes the results of the test
+      if (len(d.Cq.dropna())<3): #cannot evaluate for fewer than 3 values
 
-    # make new column 'median_test' that includes the results of the test
-    d.loc[:, 'median_test'] = median_test(d.Cq)
-    plate_df_with_median_test.append(d)
+          if (len(d.Cq.dropna())==2) & (np.std(d.Cq.dropna()) <0.2): #got this from https://www.gene-quantification.de/dhaene-hellemans-qc-data-2010.pdf
+              d.loc[:, 'median_test'] = True
+              plate_df_with_oldgrubbs_test=plate_df_with_oldgrubbs_test.append(d)
+          else:
+              d.loc[:, 'median_test'] = False
+              plate_df_with_oldgrubbs_test=plate_df_with_oldgrubbs_test.append(d)
 
-  # put the dataframe back together
-  plate_df_with_median_test = pd.concat(plate_df_with_median_test)
-  return(plate_df_with_median_test)
+      else:
 
-def get_pass_grubbs_test(plate_df, groupby_list, type):
+          b=list(d.Cq) #needs to be given unindexed list
+          outliers=grubbs.max_test_outliers(b, alpha=0.05)
+          if len(outliers) > 0:
+              d.loc[:, 'median_test'] = True
+              d.loc[d.Cq.isin(outliers), 'median_test'] = False
+              plate_df_with_oldgrubbs_test=plate_df_with_oldgrubbs_test.append(d)
+          else:
+              d.loc[:, 'median_test'] = True
+              plate_df_with_oldgrubbs_test=plate_df_with_oldgrubbs_test.append(d)
+
+    return(plate_df_with_oldgrubbs_test)
+    # put the dataframe back together
+    # plate_df_with_grubbs_test = pd.concat(plate_df_with_grubbs_test)
+    # return(plate_df_with_grubbs_test)
+
+def get_pass_grubbs_test(plate_df, groupby_list):
   # make list that will become new df
   plate_df_with_grubbs_test = pd.DataFrame()
 
-if type=="utils_two"
   # iterate thru the dataframe, grouped by Sample
   # this gives us a mini-df with just one sample in each iteration
   for groupby_list, df in plate_df.groupby(groupby_list,  as_index=False):
@@ -214,19 +194,20 @@ if type=="utils_two"
     else:
 
         b=list(d.Cq) #needs to be given unindexed list
-        outliers=grubbs.max_test_outliers(b, alpha=0.025)
-        if len(outliers) > 0:
-            d.loc[:, 'grubbs_test'] = True
-            d.loc[d.Cq.isin(outliers), 'grubbs_test'] = False
+        # outliers=grubbs.max_test_outliers(b, alpha=0.025)
+        nonoutliers= sp.outliers_grubbs(b)
+        outlier_len=len(b)-len(nonoutliers)
+        if outlier_len > 0:
+            d.loc[:, 'grubbs_test'] = False
+            d.loc[d.Cq.isin(nonoutliers), 'grubbs_test'] = True
             plate_df_with_grubbs_test=plate_df_with_grubbs_test.append(d)
         else:
             d.loc[:, 'grubbs_test'] = True
             plate_df_with_grubbs_test=plate_df_with_grubbs_test.append(d)
-
   return(plate_df_with_grubbs_test)
   # put the dataframe back together
-  plate_df_with_grubbs_test = pd.concat(plate_df_with_grubbs_test)
-  return(plate_df_with_grubbs_test)
+  # plate_df_with_grubbs_test = pd.concat(plate_df_with_grubbs_test)
+  # return(plate_df_with_grubbs_test)
 
 def compute_linear_info(plate_data):
     '''compute the information for linear regression
@@ -304,18 +285,19 @@ def combine_triplicates(plate_df_in, checks_include):
        plate_df.loc[plate_df.grubbs_test == False, 'Cq_copy'] = np.nan
 
     # summarize to get mean, std, counts with and without outliers removed
-
     plate_df_avg = plate_df.groupby(groupby_list).agg(
+                                               raw_Cq_values=('Cq',list),
                                                template_volume=('template_volume','max'),
-                                               Q_init_mean=('Quantity','max'), #only needed to preserve quantity information for standards later
-                                               Q_init_std=('Quantity', lambda x: np.nan if ( (len(x.dropna()) <2 )| all(np.isnan(x)) ) else (sci.gstd(x.dropna(),axis=0))),
+                                               Q_init_mean=('Quantity','mean'), #only needed to preserve quantity information for standards later
+                                               Q_init_std=('Quantity','std'),
+                                               Q_init_gstd=('Quantity', lambda x: np.nan if ( (len(x.dropna()) <2 )| all(np.isnan(x)) ) else (sci.gstd(x.dropna(),axis=0))),
                                                # Q_QuantStudio_std = ('Quantity', 'std'),
                                                Cq_init_mean=('Cq', 'mean'),
                                                Cq_init_std=('Cq', 'std'),
                                                Cq_init_min=('Cq', 'min'),
                                                replicate_init_count=('Cq','count'),
-                                               Cq_mean=('Cq', 'mean'),
-                                               Cq_std=('Cq', 'std'),
+                                               Cq_mean=('Cq_copy', 'mean'),
+                                               Cq_std=('Cq_copy', 'std'),
                                                replicate_count=('Cq_copy', 'count'),
                                                is_undetermined_count=('is_undetermined', 'sum')
                                                )
@@ -423,6 +405,21 @@ def process_unknown(plate_df, std_curve_info):
     unknown_df['q_diff'] = np.nan
     unknown_df['Quantity_mean'] = 10**((unknown_df['Cq_mean'] - intercept)/slope)
 
+    #initialize columns
+    unknown_df['Quantity_std_combined_after']=np.nan
+    unknown_df['Quantity_mean_combined_after']=np.nan
+    for row in unknown_df.itertuples():
+        ix=row.Index
+        filtered_1= [element for element in row.raw_Cq_values if ~np.isnan(element) ] #initial nas
+        filtered= [10**((element - intercept)/slope) for element in filtered_1]
+        if(len(filtered)>1):
+                filtered= [element for element in filtered if ~np.isnan(element) ] #nas introduced when slope and interceptna
+                if(len(filtered)>1):
+                    if (row.Target != "Xeno"):
+                        unknown_df.loc[ix,"Quantity_mean_combined_after"]=sci.gmean(filtered)
+                        if(all(x >0 for x in filtered)):
+                            unknown_df.loc[ix,"Quantity_std_combined_after"]=sci.gstd(filtered)
+
 
     # if Cq_mean is zero, don't calculate a quantity (turn to NaN)
     unknown_df.loc[unknown_df[unknown_df.Cq_mean == 0].index, 'Quantity_mean'] = np.nan
@@ -494,6 +491,7 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
             elif len(fin.fr_pos)>1:
                 fin=out[(out.fr_pos==min(out.fr_pos))&(out.Quantity==min(out.Quantity))].copy()
                 assay_assessment_df=assay_assessment_df.append(pd.DataFrame({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}), ignore_index=True)
+        print(assay_assessment_df)
         return (assay_assessment_df)
 
 
@@ -515,16 +513,17 @@ def determine_samples_BLoQ(qpcr_p, max_cycles, assay_assessment_df, include_LoD=
         qpcr_p["blod"]= np.nan
         targs=qpcr_p.Target.unique()
         for target in targs:
-            C_value=float(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Cq"])
-            Q_value=float(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Quantity"])
-            if np.isnan(C_value):
-                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"blod"]= np.nan
-            else:
-                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"blod"]= True
-                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean <= C_value),"blod"]= False
-                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"Cq_of_lowest_std_quantity"]= qpcr_p.Cq_of_2ndlowest_std_quantity
-                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"Cq_of_lowest_std_quantity_gsd"]= qpcr_p.Cq_of_2ndlowest_std_quantity_gsd
-                qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"lowest_std_quantity"]= qpcr_p.lowest_std_quantity2nd
+            if (len(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Cq"])>0):
+                C_value=float(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Cq"])
+                Q_value=float(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Quantity"])
+                if np.isnan(C_value):
+                    qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"blod"]= np.nan
+                else:
+                    qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"blod"]= True
+                    qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean <= C_value),"blod"]= False
+                    qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"Cq_of_lowest_std_quantity"]= qpcr_p.Cq_of_2ndlowest_std_quantity
+                    qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"Cq_of_lowest_std_quantity_gsd"]= qpcr_p.Cq_of_2ndlowest_std_quantity_gsd
+                    qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"lowest_std_quantity"]= qpcr_p.lowest_std_quantity2nd
 
     qpcr_p['bloq']=np.nan
     qpcr_p.loc[(np.isnan(qpcr_p.Cq_mean)),'bloq']= True
