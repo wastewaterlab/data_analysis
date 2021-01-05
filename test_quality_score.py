@@ -1,4 +1,4 @@
-from quality_score_new import *
+from quality_score import *
 
 def test_efficiency():
     assert efficiencyQ(.98, [1,1,0.5,0.25]) == [1, '', '']
