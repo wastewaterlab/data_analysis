@@ -1,0 +1,1 @@
+scikit_posthocs~=0.6.6
