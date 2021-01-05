@@ -15,7 +15,7 @@ def get_gstd(replicates):
     replicates_no_nan = [x for x in replicates if ~np.isnan(x)]
     if len(replicates_no_nan) >= 2:
         gstd_value = sci.gstd(replicates_no_nan)
-    return(gstd_value)
+    return gstd_value
 
 
 def get_gmean(replicates):
@@ -23,7 +23,7 @@ def get_gmean(replicates):
     replicates_no_nan = [x for x in replicates if ~np.isnan(x)]
     if len(replicates_no_nan) >= 1:
         gmean_value = sci.gmean(replicates_no_nan)
-    return(gmean_value)
+    return gmean_value
 
 
 def combine_replicates(plate_df, collapse_on=['Sample', 'dilution', 'Task']):
@@ -65,7 +65,7 @@ def combine_replicates(plate_df, collapse_on=['Sample', 'dilution', 'Task']):
         plate_df['replicate_count'] = plate_df.Cq_no_outliers.apply(lambda x: sum(~np.isnan(x)))
         plate_df['nondetect_count'] = plate_df.is_undetermined.apply(sum)
     plate_df = plate_df.sort_values(['Sample', 'dilution'])
-    return(plate_df)
+    return plate_df
 
 
 def compute_linear_info(plate_data):
@@ -87,7 +87,7 @@ def compute_linear_info(plate_data):
     efficiency = (10**(-1/slope)) - 1
 
     # abline_values = [slope * i + intercept for i in x]
-    return(slope, intercept, r2, efficiency)#, abline_values])
+    return slope, intercept, r2, efficiency #, abline_values])
 
 
 def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2):
@@ -193,7 +193,7 @@ def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2
                  'Cq_of_lowest_std_quantity', 'loq_Cq', 'loq_Quantity',
                  'used_default_curve']
     std_curve = pd.DataFrame.from_records([std_curve], columns=std_curve_cols)
-    return(std_curve)
+    return std_curve
 
 
 def process_unknown(plate_df, std_curve_intercept, std_curve_slope, std_curve_loq_Cq):
@@ -236,7 +236,7 @@ def process_unknown(plate_df, std_curve_intercept, std_curve_slope, std_curve_lo
         unknown_df.loc[unknown_df.Cq_mean > std_curve_loq_Cq, 'below_limit_of_quantification'] = True
         unknown_df.loc[unknown_df.Cq_mean <= std_curve_loq_Cq, 'below_limit_of_quantification'] = False
 
-    return(unknown_df, intraassay_var, Cq_of_lowest_sample_quantity)
+    return unknown_df, intraassay_var, Cq_of_lowest_sample_quantity
 
 
 def process_ntc(plate_df, plate_id):
@@ -247,13 +247,13 @@ def process_ntc(plate_df, plate_id):
 
     if len(ntc) == 0:
         warnings.warn(f'Plate {plate_id} is missing NTC')
-        return(None, np.nan)
+        return None, np.nan
 
     if all(ntc.is_undetermined.values[0]): # is_undetermined field is lists, need to access the list itself to ask if all values are True
         ntc_is_neg = True
     else:
             ntc_Cq = ntc.Cq_init_mean.values[0]
-    return(ntc_is_neg, ntc_Cq)
+    return ntc_is_neg, ntc_Cq
 
 
 def process_qpcr_plate(plates, loq_min_reps=(2/3)):
@@ -305,7 +305,7 @@ def process_qpcr_plate(plates, loq_min_reps=(2/3)):
 
     plate_target_info = pd.concat(plate_target_info)
 
-    return(qpcr_processed, plate_target_info)
+    return qpcr_processed, plate_target_info
 
 
 def choose_dilution(qpcr_processed):
@@ -356,4 +356,4 @@ def choose_dilution(qpcr_processed):
     qpcr_processed_dilutions = qpcr_processed_dilutions.rename(columns = {'Quantity_mean': 'Quantity_mean_with_dilution',
                                                'Quantity_mean_undiluted': 'Quantity_mean'})
 
-    return(qpcr_processed_dilutions)
+    return qpcr_processed_dilutions
