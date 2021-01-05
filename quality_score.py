@@ -21,12 +21,12 @@ def efficiencyQ(param, points_list):
         flag = f'check {param_name}'
         return([score, flag, point_deduction])
 
-    if (param >=0.8) & (param <=1.1): #good
+    if 0.8 <= param <= 1.1:  # good
         score = weight*pts_goodQ
-    elif (param >=0.7) & (param <=1.2): #ok
+    elif 0.7 <= param <= 1.2:  # ok
         score = weight*pts_okQ
         point_deduction = f'{param_name} ok'
-    elif (param >=0.6) & (param <=1.3): #poor
+    elif 0.6 <= param <= 1.3:  # poor
         score = weight*pts_poorQ
         point_deduction = f'{param_name} poor'
     elif (param <0.6) | (param >1.3): #very poor
