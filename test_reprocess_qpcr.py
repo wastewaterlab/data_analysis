@@ -1,6 +1,7 @@
+from reprocess_qpcr import *
 import numpy as np
 import pandas as pd
-from reprocess_qpcr import *
+import pytest
 
 
 def test_get_gmean():
@@ -13,7 +14,7 @@ def test_get_gmean():
     assert round(a, 1) == round(b, 1)
 
     a = get_gmean([100, np.nan, np.nan])
-    assert round(a) == 100.0
+    assert a == pytest.approx(100.0)
 
     a = get_gmean([np.nan, np.nan, np.nan])
     assert np.isnan(a) == True
