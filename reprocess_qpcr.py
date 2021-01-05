@@ -470,6 +470,7 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
         #iterate through targets, groupby quantity, and determine the fraction of the replicates that were detectable
         targs=dfm.Target.unique()
         for target in targs:
+            print(target)
             df_t=dfm[dfm.Target==target].copy()
             out=df_t.groupby(["Quantity"]).agg(
                                     Cq_mean=('Cq', lambda x:  np.nan if all(np.isnan(x)) else sci.gmean(x.dropna(),axis=0)),
@@ -479,18 +480,20 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
 
             #only take the portion of the dataframe that is greater than the cutoff
             out=out[out.fr_pos > cutoff ].copy()
+            fin=np.nan
+            print(out)
             #something is there hopefully but if not
             if len(out.fr_pos)<1:
                 assay_assessment_df=assay_assessment_df.append(pd.DataFrame({'Target':target, "LoD_Cq": np.nan, "LoD_Quantity":np.nan}), ignore_index=True)
-
-            #usual case for N1/ bCov
-            fin=out[out.fr_pos==min(out.fr_pos)].copy()
-            if len(fin.fr_pos) ==1:
-                assay_assessment_df=assay_assessment_df.append(pd.DataFrame({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}), ignore_index=True)
-            #usual case for PMMoV/18S
-            elif len(fin.fr_pos)>1:
-                fin=out[(out.fr_pos==min(out.fr_pos))&(out.Quantity==min(out.Quantity))].copy()
-                assay_assessment_df=assay_assessment_df.append(pd.DataFrame({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}), ignore_index=True)
+            elif len(out.fr_pos) ==1:
+                assay_assessment_df=assay_assessment_df.append(pd.DataFrame({'Target':target, "LoD_Cq": out.Cq_mean, "LoD_Quantity":out.Quantity}), ignore_index=True)
+            elif len(out.fr_pos)>1:
+                if out.loc[out.Quantity==min(out.Quantity),"fr_pos"].item()==1:
+                    fin=out.loc[out.Quantity==min(out.Quantity),:].copy()
+                    assay_assessment_df=assay_assessment_df.append(pd.DataFrame({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}), ignore_index=True)
+                else:
+                    fin=out[(out.fr_pos==min(out.fr_pos))&(out.Quantity==min(out.Quantity))].copy()
+                    assay_assessment_df=assay_assessment_df.append(pd.DataFrame({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}), ignore_index=True)
         print(assay_assessment_df)
         return (assay_assessment_df)
 
