@@ -62,7 +62,7 @@ def combine_replicates(plate_df, collapse_on=['Sample', 'dilution', 'Task']):
 
         plate_df['Cq_mean'] = plate_df.Cq_no_outliers.apply(np.nanmean)
         plate_df['Cq_std'] = plate_df.Cq_no_outliers.apply(np.nanstd)
-        plate_df['replicate_count'] = plate_df.Cq_no_outliers.apply(len)
+        plate_df['replicate_count'] = plate_df.Cq_no_outliers.apply(lambda x: sum(~np.isnan(x)))
         plate_df['nondetect_count'] = plate_df.is_undetermined.apply(sum)
     plate_df = plate_df.sort_values(['Sample', 'dilution'])
     return(plate_df)
@@ -148,6 +148,21 @@ def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2
         standard_df = standard_df.sort_values('Q_init_mean')
         Cq_of_lowest_std_quantity = standard_df.Cq_mean.values[0]
 
+        ## determine LoQ
+        # TODO revisit the definitions of Limits of Quantification vs Detection
+        # determine the fraction of the replicates that were detectable
+        standard_df['fraction_positive'] = np.nan
+        standard_df['fraction_positive'] = standard_df.replicate_count / standard_df.replicate_init_count
+
+        #only take the portion of the dataframe that is >= the cutoff
+        standard_df = standard_df[standard_df.fraction_positive >= loq_min_reps].copy()
+
+        # if there are standards that meet the cutoff
+        # find the lowest quantity and report it and its Cq_mean as the LoD values
+        if len(standard_df) > 0:
+            loq_Quantity = standard_df.Q_init_mean.min()
+            loq_Cq = standard_df.Cq_mean[standard_df.Q_init_mean.idxmin()]
+
     # if curve is poor or missing, replace with defaults
     if target == 'N1':
         if (np.isnan(slope)) or \
@@ -169,22 +184,6 @@ def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2
            slope = std_curve_PMMoV_default['slope']
            intercept = std_curve_PMMoV_default['intercept']
            used_default_curve = True
-
-    ## determine LoQ
-    # TODO revisit the definitions of Limits of Quantification vs Detection
-    # determine the fraction of the replicates that were detectable
-    standard_df['fraction_positive'] = np.nan
-    standard_df['fraction_positive'] = standard_df.replicate_count / standard_df.replicate_init_count
-
-    #only take the portion of the dataframe that is >= the cutoff
-    standard_df = standard_df[standard_df.fraction_positive >= loq_min_reps].copy()
-
-    # if there are standards that meet the cutoff
-    # find the lowest quantity and report it and its Cq_mean as the LoD values
-    if len(standard_df) > 0:
-        standard_df = standard_df.sort_values('Q_init_mean')
-        loq_Cq = standard_df.Cq_mean.values[0]
-        loq_Quantity = standard_df.Q_init_mean.values[0]
 
     # save info as a dataframe to return
     std_curve = [num_points, slope, intercept, r2, efficiency,
@@ -250,12 +249,9 @@ def process_ntc(plate_df, plate_id):
         warnings.warn(f'Plate {plate_id} is missing NTC')
         return(None, np.nan)
 
-    if all(ntc.is_undetermined.values[0]): # is_undetermined is a list, need to access the list itself to ask if all values are True
+    if all(ntc.is_undetermined.values[0]): # is_undetermined field is lists, need to access the list itself to ask if all values are True
         ntc_is_neg = True
     else:
-        if np.isnan(ntc.Cq_init_mean.values[0]): # this case should never happen- if Cq_init_mean is NaN, all values are undetermined
-            ntc_is_neg = None
-        else:
             ntc_Cq = ntc.Cq_init_mean.values[0]
     return(ntc_is_neg, ntc_Cq)
 
@@ -328,7 +324,7 @@ def choose_dilution(qpcr_processed):
     # multiply quantity times dilution to get undiluted_quantity
     qpcr_processed['Quantity_mean_undiluted'] = qpcr_processed['Quantity_mean'] * qpcr_processed['dilution']
 
-    keep = []
+    keep_df = []
     for [Sample, Target], df in qpcr_processed.groupby(['Sample', 'Target']):
 
         # check for duplicates, warn and keep just the first one - data should be clean and this shouldn't happen.
@@ -338,17 +334,25 @@ def choose_dilution(qpcr_processed):
             df = df[df.duplicated('dilution', keep='first')]
 
         # if none of the dilutions were above limit of quantification
-        # keep the 1x dilution
         if len(df[df.below_limit_of_quantification == False]) == 0:
-            keep.append(df[df.dilution == 1])
+            # keep the 1x dilution
+            keep = df[df.dilution == 1]
+        # if one of the dilutions was above the limit of quantification
         elif len(df[df.below_limit_of_quantification == False]) == 1:
             # check which one was above limit of quantification and keep that one
-            keep.append(df[df.below_limit_of_quantification == False])
+            keep = df[df.below_limit_of_quantification == False]
+        # if multiple were above limit of detection
         else:
-            # if multiple were above limit of detection, then choose max Quantity_mean_undiluted
-            keep.append(df[df.Quantity_mean_undiluted == df.Quantity_mean_undiluted.max()])
+            # choose max Quantity_mean_undiluted
+            # if there are multiple dilutions that have the same value for
+            # Quantity_mean_undiluted, take first; nearly impossible for real data
+            #maxQ = df[df.Quantity_mean_undiluted == df.Quantity_mean_undiluted.max()]
+            #maxQ = maxQ[maxQ.duplicated('Quantity_mean_undiluted', keep='first')]
+            keep = df.loc[[df.Quantity_mean_undiluted.idxmax()]]
 
-    qpcr_processed_dilutions = pd.concat(keep)
+        keep_df.append(keep)
+
+    qpcr_processed_dilutions = pd.concat(keep_df)
     qpcr_processed_dilutions = qpcr_processed_dilutions.rename(columns = {'Quantity_mean': 'Quantity_mean_with_dilution',
                                                'Quantity_mean_undiluted': 'Quantity_mean'})
 
