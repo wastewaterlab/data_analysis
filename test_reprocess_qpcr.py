@@ -7,7 +7,7 @@ import pytest
 def test_get_gmean():
     a = get_gmean([100, 1000, 10000])
     b = (100*1000*10000)**(1/3)
-    assert round(a, 1) == round(b, 1)
+    np.testing.assert_approx_equal(a, b, significant=1)
 
     a = get_gmean([100, np.nan, 10000])
     b = (100*10000)**(1/2)
