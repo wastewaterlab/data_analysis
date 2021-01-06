@@ -148,7 +148,7 @@ def get_pass_median_test(plate_df, groupby_list):
       # make new column 'grubbs_test' that includes the results of the test
       if (len(d.Cq.dropna())<3): #cannot evaluate for fewer than 3 values
 
-          if (len(d.Cq.dropna())==2) & (np.std(d.Cq.dropna()) <0.2): #got this from https://www.gene-quantification.de/dhaene-hellemans-qc-data-2010.pdf
+          if (len(d.Cq.dropna())==2) & (np.std(d.Cq.dropna()) <0.5): #got this from https://www.gene-quantification.de/dhaene-hellemans-qc-data-2010.pdf
               d.loc[:, 'median_test'] = True
               plate_df_with_oldgrubbs_test=plate_df_with_oldgrubbs_test.append(d)
           else:
@@ -230,7 +230,7 @@ def compute_linear_info(plate_data):
     # abline_values = [slope * i + intercept for i in x]
     return(slope, intercept, r2, efficiency)#, abline_values])
 
-def combine_triplicates(plate_df_in, checks_include):
+def combine_triplicates(plate_df_in, checks_include, cq_LoD):
     '''
     Flag outliers via Dixon's Q, homemade "median_test", ans/or grubbs test
     Calculate the Cq means, Cq stds, counts before & after removing outliers
@@ -265,6 +265,7 @@ def combine_triplicates(plate_df_in, checks_include):
 
     # make copy of Cq column and later turn this to np.nan for outliers
     plate_df['Cq_copy'] = plate_df['Cq'].copy()
+    plate_df.loc[np.isnan(plate_df.Cq), "Cq_copy"]= cq_LoD
 
     # Test triplicates with Dixon's Q
     #use_dixonsq = False
@@ -285,6 +286,7 @@ def combine_triplicates(plate_df_in, checks_include):
        plate_df.loc[plate_df.grubbs_test == False, 'Cq_copy'] = np.nan
 
     # summarize to get mean, std, counts with and without outliers removed
+
     plate_df_avg = plate_df.groupby(groupby_list).agg(
                                                raw_Cq_values=('Cq',list),
                                                template_volume=('template_volume','max'),
@@ -306,7 +308,7 @@ def combine_triplicates(plate_df_in, checks_include):
 
     return(plate_df, plate_df_avg)
 
-def process_standard(plate_df):
+def process_standard(plate_df, master_curve=False):
     '''
     from single plate with single target, calculate standard curve
 
@@ -340,26 +342,27 @@ def process_standard(plate_df):
     if (all(standard_df.Cq_mean == "") | len(standard_df.Cq_mean) <2):
         slope, intercept, r2, efficiency,Cq_of_lowest_std_quantity,Cq_of_2ndlowest_std_quantity,Cq_of_lowest_std_quantity_gsd,Cq_of_2ndlowest_std_quantity_gsd,lowest_std_quantity,lowest_std_quantity2nd = np.nan,np.nan,np.nan, np.nan, np.nan, np.nan,np.nan, np.nan,np.nan, np.nan
     else:
-        #find the Cq of the lowest and second lowest (for LoQ) standard quantity
-        Cq_of_lowest_std_quantity = max(standard_df.Cq_mean)
-        sort_a=standard_df.sort_values(by='Cq_mean',ascending=True).copy().reset_index()
-        Cq_of_2ndlowest_std_quantity = sort_a.Cq_mean[1]
+        if ~master_curve:
+            #find the Cq of the lowest and second lowest (for LoQ) standard quantity
+            Cq_of_lowest_std_quantity = max(standard_df.Cq_mean)
+            sort_a=standard_df.sort_values(by='Cq_mean',ascending=True).copy().reset_index()
+            Cq_of_2ndlowest_std_quantity = sort_a.Cq_mean[1]
 
-        #find the geometric standard deviation of the Cq of the lowest and second lowest (for LoQ) standard quantity
-        sort_a=standard_df.sort_values(by='Cq_mean',ascending=True).copy().reset_index()
-        Cq_of_lowest_std_quantity_gsd = sort_a.Cq_std[0]
-        Cq_of_2ndlowest_std_quantity_gsd = sort_a.Cq_std[1]
+            #find the geometric standard deviation of the Cq of the lowest and second lowest (for LoQ) standard quantity
+            sort_a=standard_df.sort_values(by='Cq_mean',ascending=True).copy().reset_index()
+            Cq_of_lowest_std_quantity_gsd = sort_a.Cq_std[0]
+            Cq_of_2ndlowest_std_quantity_gsd = sort_a.Cq_std[1]
 
-        # the  lowest and second lowest (for LoQ) standard quantity
-        lowest_std_quantity = np.nan
-        sort_b=standard_df.sort_values(by='Q_init_mean',ascending=True).copy().reset_index()
-                # the lowest and second lowest (for LoQ) standard quantity
-        lowest_std_quantity2nd = sort_b.Q_init_mean.values[1]
-        slope, intercept, r2, efficiency = (np.nan, np.nan, np.nan, np.nan)
+            # the  lowest and second lowest (for LoQ) standard quantity
+            lowest_std_quantity = np.nan
+            sort_b=standard_df.sort_values(by='Q_init_mean',ascending=True).copy().reset_index()
+                    # the lowest and second lowest (for LoQ) standard quantity
+            lowest_std_quantity2nd = sort_b.Q_init_mean.values[1]
+            slope, intercept, r2, efficiency = (np.nan, np.nan, np.nan, np.nan)
 
-        if num_points > 2:
-            lowest_std_quantity = sort_b.Q_init_mean.values[0]
-            slope, intercept, r2, efficiency = compute_linear_info(std_curve_df)
+            if num_points > 2:
+                lowest_std_quantity = sort_b.Q_init_mean.values[0]
+                slope, intercept, r2, efficiency = compute_linear_info(std_curve_df)
 
     return(num_points, Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, lowest_std_quantity2nd,Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd, slope, intercept, r2, efficiency)
 
@@ -456,12 +459,12 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
             a dataframe with Target and the limit of detection
         '''
         dfm= raw_outliers_flagged_df
-        if checks_include in ['all', 'grubbs_only']:
-            dfm=dfm[dfm.grubbs_test==True].copy()
-        if checks_include in ['all', 'median_only']:
-            dfm=dfm[dfm.median_test==True].copy()
-        if checks_include in ['all', 'dixonsq_only']:
-            dfm=dfm[dfm.pass_dixonsq==True].copy()
+        # if checks_include in ['all', 'grubbs_only']:
+        #     # dfm=dfm[dfm.grubbs_test==True].copy()
+        # if checks_include in ['all', 'median_only']:
+        #     # dfm=dfm[dfm.median_test==True].copy()
+        # if checks_include in ['all', 'dixonsq_only']:
+        #     # dfm=dfm[dfm.pass_dixonsq==True].copy()
 
         dfm=dfm[dfm.Task=='Standard'] #only standards
         dfm=dfm[dfm.Quantity!=0] #no NTCs
@@ -473,15 +476,15 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
             print(target)
             df_t=dfm[dfm.Target==target].copy()
             out=df_t.groupby(["Quantity"]).agg(
-                                    Cq_mean=('Cq', lambda x:  np.nan if all(np.isnan(x)) else sci.gmean(x.dropna(),axis=0)),
-                                    positives=('Cq','count'),
+                                    Cq_mean=('Cq', 'mean'),
+                                    negatives=('is_undetermined','sum'),
                                     total=('Sample', 'count')).reset_index()
-            out['fr_pos']=out.positives/out.total
+            out['fr_pos']=(out.total-out.negatives)/out.total
 
             #only take the portion of the dataframe that is greater than the cutoff
+            print(out)
             out=out[out.fr_pos > cutoff ].copy()
             fin=np.nan
-            print(out)
             #something is there hopefully but if not
             if len(out.fr_pos)<1:
                 assay_assessment_df=assay_assessment_df.append(pd.DataFrame({'Target':target, "LoD_Cq": np.nan, "LoD_Quantity":np.nan}), ignore_index=True)
@@ -494,7 +497,6 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
                 else:
                     fin=out[(out.fr_pos==min(out.fr_pos))&(out.Quantity==min(out.Quantity))].copy()
                     assay_assessment_df=assay_assessment_df.append(pd.DataFrame({'Target':target, "LoD_Cq": fin.Cq_mean, "LoD_Quantity":fin.Quantity}), ignore_index=True)
-        print(assay_assessment_df)
         return (assay_assessment_df)
 
 
@@ -527,14 +529,11 @@ def determine_samples_BLoQ(qpcr_p, max_cycles, assay_assessment_df, include_LoD=
                     qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"Cq_of_lowest_std_quantity"]= qpcr_p.Cq_of_2ndlowest_std_quantity
                     qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"Cq_of_lowest_std_quantity_gsd"]= qpcr_p.Cq_of_2ndlowest_std_quantity_gsd
                     qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"lowest_std_quantity"]= qpcr_p.lowest_std_quantity2nd
-
-    qpcr_p['bloq']=np.nan
-    qpcr_p.loc[(np.isnan(qpcr_p.Cq_mean)),'bloq']= True
-    qpcr_p.loc[(qpcr_p.Cq_mean >= max_cycles),'bloq']= True
-    qpcr_p.loc[(qpcr_p.Cq_mean > qpcr_p.Cq_of_lowest_std_quantity),'bloq']= True
-    qpcr_p.loc[(qpcr_p.Cq_mean <= qpcr_p.Cq_of_lowest_std_quantity)&(qpcr_p.Cq_mean < max_cycles),'bloq']= False
-
-
+        qpcr_p['bloq']=np.nan
+        qpcr_p.loc[(np.isnan(qpcr_p.Cq_mean)),'bloq']= True
+        qpcr_p.loc[(qpcr_p.Cq_mean >= max_cycles),'bloq']= True
+        qpcr_p.loc[(qpcr_p.Cq_mean > qpcr_p.Cq_of_lowest_std_quantity),'bloq']= True
+        qpcr_p.loc[(qpcr_p.Cq_mean <= qpcr_p.Cq_of_lowest_std_quantity)&(qpcr_p.Cq_mean < max_cycles),'bloq']= False
 
     return(qpcr_p)
 
@@ -602,7 +601,7 @@ def process_dilutions(qpcr_p):
 
     return(qpcr_p,dilution_expts_df)
 
-def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
+def process_qpcr_raw(qpcr_raw, checks_include,cq_LoD, include_LoD=False,cutoff=0.9):
     '''wrapper to process whole sheet at once by plate_id and Target
     params
     qpcr_raw: df from read_qpcr_data()
@@ -620,7 +619,7 @@ def process_qpcr_raw(qpcr_raw, checks_include,include_LoD=False,cutoff=0.9):
     for [plate_id, target], df in qpcr_raw.groupby(["plate_id", "Target"]):
 
         ntc_result = process_ntc(df)
-        outliers_flagged, no_outliers_df = combine_triplicates(df, checks_include)
+        outliers_flagged, no_outliers_df = combine_triplicates(df, checks_include, cq_LoD)
 
         # define outputs and fill with default values
         num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity,lowest_std_quantity2nd, Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd,slope, intercept, r2, efficiency = np.nan, np.nan,np.nan, np.nan,np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
