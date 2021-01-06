@@ -19,29 +19,29 @@ def efficiencyQ(param: float, points_list) -> RETURNED_SCORING_INFO:
     return quality_score'''
 
     weight, pts_goodQ, pts_okQ, pts_poorQ = points_list
-    si = make_default_scoring_info()
+    score, flag, point_deduction, underestimated = make_default_scoring_info()
     name = 'efficiency'
 
     if param is np.nan:
-        si.flag = f'check {name}'
-        return si
+        flag = f'check {name}'
+        return score, flag, point_deduction, underestimated
 
     if 0.8 <= param <= 1.1:  # good
-        si.score = weight*pts_goodQ
+        score = weight*pts_goodQ
     elif 0.7 <= param <= 1.2:  # ok
-        si.score = weight*pts_okQ
-        si.point_deduction = f'{name} ok'
-        si.underestimated = True
+        score = weight*pts_okQ
+        point_deduction = f'{name} ok'
+        underestimated = True
     elif 0.6 <= param <= 1.3:  # poor
-        si.score = weight*pts_poorQ
-        si.point_deduction = f'{name} poor'
-        si.underestimated = True
+        score = weight*pts_poorQ
+        point_deduction = f'{name} poor'
+        underestimated = True
     elif (param <0.6) | (param >1.3): #very poor
-        si.flag = 'set to 0'
-        si.point_deduction = f'{name} very poor'
-        si.underestimated = True
+        flag = 'set to 0'
+        point_deduction = f'{name} very poor'
+        underestimated = True
 
-    return si
+    return score, flag, point_deduction, underestimated
 
 
 def r2Q(param: float, points_list) -> RETURNED_SCORING_INFO:
@@ -49,23 +49,23 @@ def r2Q(param: float, points_list) -> RETURNED_SCORING_INFO:
     return quality_score'''
 
     weight, pts_goodQ, pts_okQ, pts_poorQ = points_list
-    si = make_default_scoring_info()
+    score, flag, point_deduction, underestimated = make_default_scoring_info()
     name = 'r2'
 
     if param is np.nan:
-        si.flag = f'check {name}'
-        return si
+        flag = f'check {name}'
+        return score, flag, point_deduction, underestimated
 
     if (param >=0.98): #good
-        si.score = weight*pts_goodQ
+        score = weight*pts_goodQ
     elif (param >=0.9): #ok
-        si.score = weight*pts_okQ
-        si.point_deduction = f'{name} ok'
+        score = weight*pts_okQ
+        point_deduction = f'{name} ok'
     elif (param < 0.9): #poor
-        si.score = weight*pts_poorQ
-        si.point_deduction = f'{name} poor'
+        score = weight*pts_poorQ
+        point_deduction = f'{name} poor'
 
-    return si
+    return score, flag, point_deduction, underestimated
 
 def num_std_pointsQ(param, points_list) -> RETURNED_SCORING_INFO:
     '''given num_points (number of points in the standard curve)
@@ -73,23 +73,23 @@ def num_std_pointsQ(param, points_list) -> RETURNED_SCORING_INFO:
     return quality_score'''
 
     weight, pts_goodQ, pts_okQ, pts_poorQ = points_list
-    si = make_default_scoring_info()
+    score, flag, point_deduction, underestimated = make_default_scoring_info()
     name = 'points in std curve'
 
     if (param is np.nan) or (param == 0):
-        si.flag = f'check {name}'
-        return si
+        flag = f'check {name}'
+        return score, flag, point_deduction, underestimated
 
     if (param >=5): #good
-        si.score = weight*pts_goodQ
+        score = weight*pts_goodQ
     elif (param >=3): #ok
-        si.score = weight*pts_okQ
-        si.point_deduction = f'{name} ok'
+        score = weight*pts_okQ
+        point_deduction = f'{name} ok'
     elif (param < 3): #poor
-        si.flag = 'set to 0'
-        si.point_deduction = f'{name} poor'
+        flag = 'set to 0'
+        point_deduction = f'{name} poor'
 
-    return si
+    return score, flag, point_deduction, underestimated
 
 def num_tech_repsQ(param, nondetect_count, points_list) -> RETURNED_SCORING_INFO:
     '''
@@ -100,36 +100,36 @@ def num_tech_repsQ(param, nondetect_count, points_list) -> RETURNED_SCORING_INFO
     '''
 
     weight, pts_goodQ, pts_okQ, pts_poorQ = points_list
-    si = make_default_scoring_info()
+    score, flag, point_deduction, underestimated = make_default_scoring_info()
     name = 'num tech reps'
 
     if param is np.nan:
-        si.flag = f'check {name}'
-        return si
+        flag = f'check {name}'
+        return score, flag, point_deduction, underestimated
 
     if (param >= 3): #good
-        si.score = weight*pts_goodQ
+        score = weight*pts_goodQ
     elif (param == 2): #ok
-        si.score = weight*pts_okQ
-        si.point_deduction = f'{name} = 2'
+        score = weight*pts_okQ
+        point_deduction = f'{name} = 2'
     elif (param == 1): #poor
-        si.score = weight*pts_poorQ
-        si.point_deduction = f'{name} = 1'
+        score = weight*pts_poorQ
+        point_deduction = f'{name} = 1'
     # check if it was a true non-detect; TODO think more about this
     elif (param == 0 ):
         if (nondetect_count >= 3):
-            si.score = weight*pts_goodQ
+            score = weight*pts_goodQ
         elif (nondetect_count == 2):
-            si.score = weight*pts_okQ
-            si.point_deduction = 'no reps passed outlier test and number of technical replicates was 2, not 3'
+            score = weight*pts_okQ
+            point_deduction = 'no reps passed outlier test and number of technical replicates was 2, not 3'
         elif (nondetect_count == 1):
-            si.score = weight*pts_poorQ
-            si.point_deduction = 'no reps passed outlier test and number of technical replicates was 1, not 3'
+            score = weight*pts_poorQ
+            point_deduction = 'no reps passed outlier test and number of technical replicates was 1, not 3'
         elif (nondetect_count == 0):
-            si.flag = 'set to 0'
-            si.point_deduction = '0 replicates'
+            flag = 'set to 0'
+            point_deduction = '0 replicates'
 
-    return si
+    return score, flag, point_deduction, underestimated
 
 def no_template_controlQ(ntc_is_neg, ntc_Cq, Cq_of_lowest_std_quantity, points_list) -> RETURNED_SCORING_INFO:
     '''given ntc_is_neg, ntc_Cq (no-template control outcomes)
@@ -137,52 +137,52 @@ def no_template_controlQ(ntc_is_neg, ntc_Cq, Cq_of_lowest_std_quantity, points_l
     return quality_score'''
 
     weight, pts_goodQ, pts_okQ, pts_poorQ = points_list
-    si = make_default_scoring_info()
+    score, flag, point_deduction, underestimated = make_default_scoring_info()
     name = 'no-template qPCR control'
 
     if ntc_is_neg is np.nan:
-        si.flag = f'check {name}'
-        return si
+        flag = f'check {name}'
+        return score, flag, point_deduction, underestimated
 
     if ntc_is_neg: #good
-        si.score = weight*pts_goodQ
-        return si
+        score = weight*pts_goodQ
+        return score, flag, point_deduction, underestimated
 
     if Cq_of_lowest_std_quantity is np.nan:
-        si.flag = f'check Cq_of_lowest_std_quantity'
-        return si
+        flag = f'check Cq_of_lowest_std_quantity'
+        return score, flag, point_deduction, underestimated
 
     elif float(ntc_Cq) > (Cq_of_lowest_std_quantity + 1):
         # the ntc amplified but was least 1 Ct higher than the lowest conconcentration point on the standard curve
-        si.score = weight*pts_okQ
-        si.point_deduction = f'{name} had low-level amplification'
+        score = weight*pts_okQ
+        point_deduction = f'{name} had low-level amplification'
 
     else: #poor
-        si.score = weight*pts_poorQ
-        si.point_deduction = f'{name} amplified'
+        score = weight*pts_poorQ
+        point_deduction = f'{name} amplified'
 
-    return si
+    return score, flag, point_deduction, underestimated
 
 def pcr_inhibitionQ(param, points_list):
     '''given is_inhibited and list of weights and points
     return quality_score'''
 
     weight, pts_goodQ, pts_okQ, pts_poorQ = points_list
-    si = make_default_scoring_info()
+    score, flag, point_deduction, underestimated = make_default_scoring_info()
     name = 'PCR inhibition'
 
     if( param == 'unknown') | (param is np.nan) | (param is None): #should si.score be na or zero in this case?
-        si.score = weight*pts_goodQ
-        si.flag = 'test for inhibition has not been performed'
-        return si
+        score = weight*pts_goodQ
+        flag = 'test for inhibition has not been performed'
+        return score, flag, point_deduction, underestimated
 
     if (param is False) or (param == 'No'): #good
-        si.score = weight*pts_goodQ
+        score = weight*pts_goodQ
     else: #poor
-        si.score = weight*pts_poorQ
-        si.point_deduction = f'sample has {name}'
+        score = weight*pts_poorQ
+        point_deduction = f'sample has {name}'
 
-    return si
+    return score, flag, point_deduction, underestimated
 
 def sample_storageQ(date_extract, date_sampling, points_list):
     '''given date_extract, date_sampling and
@@ -190,7 +190,7 @@ def sample_storageQ(date_extract, date_sampling, points_list):
     return quality_score'''
 
     weight, pts_goodQ, pts_okQ, pts_poorQ = points_list
-    si = make_default_scoring_info()
+    score, flag, point_deduction, underestimated = make_default_scoring_info()
     name = 'sample_storage'
 
     # check if sample was frozen before extraction
@@ -199,59 +199,59 @@ def sample_storageQ(date_extract, date_sampling, points_list):
     # check if dates are missing from data
     if (date_extract is np.nan) or (date_extract == 0) or (pd.isnull(date_extract)):
         # should actually clean the data so this doesn't need to be here
-        si.flag = 'check date_extract'
-        return si
+        flag = 'check date_extract'
+        return score, flag, point_deduction, underestimated
 
     if (date_sampling is np.nan) or (date_sampling == 0) or (pd.isnull(date_sampling)):
-        si.flag = 'check date_sampling'
-        return si
+        flag = 'check date_sampling'
+        return score, flag, point_deduction, underestimated
 
     # check sample hold time
     hold_time = date_extract - date_sampling
 
     if hold_time < np.timedelta64(0, 'D'):
-        si.flag = 'date_extract before date_sampling'
+        flag = 'date_extract before date_sampling'
     elif hold_time <= np.timedelta64(3, 'D'):
-        si.score = weight*pts_goodQ
+        score = weight*pts_goodQ
     elif hold_time <= np.timedelta64(5, 'D'):
-        si.score = weight*pts_okQ
-        si.point_deduction = 'hold time 3-5 days'
+        score = weight*pts_okQ
+        point_deduction = 'hold time 3-5 days'
     else:
-        si.score = weight*pts_poorQ
-        si.point_deduction = 'hold time > 5 days'
+        score = weight*pts_poorQ
+        point_deduction = 'hold time > 5 days'
 
-    return si
+    return score, flag, point_deduction, underestimated
 
 def extraction_neg_controlQ(extraction_control_is_neg, extraction_control_Cq, Cq_of_lowest_std_quantity, points_list):
     '''given extraction control info and Cq_of_lowest_std_quantity and list of weights and points
     return quality_score'''
 
     weight, pts_goodQ, pts_okQ, pts_poorQ = points_list
-    si = make_default_scoring_info()
+    score, flag, point_deduction, underestimated = make_default_scoring_info()
     name = 'extraction negative control'
 
     if extraction_control_is_neg is None:
-        si.flag = f'check {name}'
-        return si
+        flag = f'check {name}'
+        return score, flag, point_deduction, underestimated
 
     if extraction_control_is_neg: #good
-        si.score = weight*pts_goodQ
-        return si
+        score = weight*pts_goodQ
+        return score, flag, point_deduction, underestimated
 
     if Cq_of_lowest_std_quantity is np.nan:
-        si.flag = f'check Cq_of_lowest_std_quantity'
-        return si
+        flag = f'check Cq_of_lowest_std_quantity'
+        return score, flag, point_deduction, underestimated
 
     elif float(extraction_control_Cq) > (Cq_of_lowest_std_quantity + 1):
         # the ntc amplified but was least 1 Ct higher than the lowest conconcentration point on the standard curve
-        si.score = weight*pts_okQ
-        si.point_deduction = f'{name} had low-level amplification'
+        score = weight*pts_okQ
+        point_deduction = f'{name} had low-level amplification'
 
     else: #poor
-        si.score = weight*pts_poorQ
-        si.point_deduction = f'{name} amplified'
+        score = weight*pts_poorQ
+        point_deduction = f'{name} amplified'
 
-    return si
+    return score, flag, point_deduction, underestimated
 
 def get_scoring_matrix(score_dict:Optional[Dict[str,List[float]]]=None) -> Tuple[DataFrame, float]:
     '''
@@ -345,24 +345,24 @@ def quality_score(df, scoring_dict=None):
                     sample_storage,
                     pcr_inhibition,
                     extraction_neg_control]
-        score_df = pd.DataFrame.from_records(score_df, columns=['score', 'si.flag', 'si.point_deduction'])
+        score_df = pd.DataFrame.from_records(score_df, columns=['score', 'flag', 'point_deduction', 'underestimated'])
 
         # calculate final score, combine all flags and all point deductions
         score = 0
         flags = np.nan
         point_deductions = np.nan
-        if 'set to 0' not in score_df.si.flag:
+        if 'set to 0' not in score_df.flag:
             score = score_df.score.sum()
-        if len(score_df.si.flag.dropna()) > 0:
-            flags = '; '.join(score_df.si.flag.dropna())
-        if len(score_df.si.point_deduction.dropna()) > 0:
-            point_deductions = '; '.join(score_df.si.point_deduction.dropna())
+        if len(score_df.flag.dropna()) > 0:
+            flags = '; '.join(score_df.flag.dropna())
+        if len(score_df.point_deduction.dropna()) > 0:
+            point_deductions = '; '.join(score_df.point_deduction.dropna())
         results = [row.Sample, row.Target, row.plate_id, score, flags, point_deductions]
 
         # save final score for the row
         final_scores_df.append(results)
 
-    final_scores_df = pd.DataFrame.from_records(final_scores_df, columns=['Sample', 'Target', 'plate_id', 'score', 'si.flag', 'si.point_deduction'])
+    final_scores_df = pd.DataFrame.from_records(final_scores_df, columns=['Sample', 'Target', 'plate_id', 'score', 'flag', 'point_deduction'])
     final_scores_df['quality_score'] = (final_scores_df.score / max_score)*100
 
     return(final_scores_df)
