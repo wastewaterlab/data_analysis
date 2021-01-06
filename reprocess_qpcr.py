@@ -121,7 +121,7 @@ def get_pass_dixonsq(df_in, groupby_list):
 
     for _, data in df.groupby(groupby_list):
         # slice out triplicate values
-        tri_vals = data['Cq_copy']
+        tri_vals = data['Cq_fin']
 
         # assigning the ones that don't pass dixonsq to be 0
         # if there are less than 3 values, automatically keeping them
@@ -131,7 +131,7 @@ def get_pass_dixonsq(df_in, groupby_list):
                 if None in dt_vals:
                     dt_vals.remove(None)
                 for outlier in dt_vals:
-                    df.loc[data[data.Cq_copy == float(outlier)].index, 'pass_dixonsq'] = 0
+                    df.loc[data[data.Cq_fin == float(outlier)].index, 'pass_dixonsq'] = 0
     return(df)
 
 
@@ -250,6 +250,9 @@ def combine_triplicates(plate_df_in, checks_include, master):
         median_test (True or False)
         Cq_mean (calculated mean of Cq after excluding outliers)
         Q_QuantStudio_std (calculated standard deviation based on QuantStudio output) for intrassay coefficient of variation
+
+    Note: Cq_raw preserves the raw values, Cq_fin is after subbing and outlier removal, and plain Cq_subbed is after subbing (so that it goes through grubbs)
+
     '''
 
     if (checks_include not in ['all', 'dixonsq_only', 'median_only','grubbs_only', None]):
@@ -266,41 +269,45 @@ def combine_triplicates(plate_df_in, checks_include, master):
                     'Target','Task', 'inhibition_testing','is_dilution',"dilution"]
 
     # make copy of Cq column and later turn this to np.nan for outliers
-    plate_df['Cq_copy'] = plate_df['Cq'].copy()
+    plate_df['Cq_raw'] = plate_df['Cq'].copy()
     if target[0] != "Xeno":
-        plate_df.loc[ (np.isnan(plate_df.Cq)), "Cq_copy"]= master.loc[master.Target==target[0], "LoD_Cq"].item()
+        plate_df.loc[ (np.isnan(plate_df.Cq)), "Cq"]= master.loc[master.Target==target[0], "LoD_Cq"].item()
 
+    plate_df['Cq_subbed'] = plate_df['Cq'].copy()
+    plate_df['Cq_fin'] = plate_df['Cq'].copy()
     #dixon's Q
     if checks_include in ['all', 'dixonsq_only']:
         plate_df = get_pass_dixonsq(plate_df, ['Sample'])
-        plate_df.loc[plate_df.pass_dixonsq==0, 'Cq_copy'] = np.nan
+        plate_df.loc[plate_df.pass_dixonsq==0, 'Cq_fin'] = np.nan
 
     #median (oldgrubbs)
     if checks_include in ['all', 'median_only']:
        plate_df = get_pass_median_test(plate_df, ['Sample'])
-       plate_df.loc[plate_df.median_test == False, 'Cq_copy'] = np.nan
+       plate_df.loc[plate_df.median_test == False, 'Cq_fin'] = np.nan
 
     # grubbs with scikit
     if checks_include in ['all', 'grubbs_only']:
        plate_df = get_pass_grubbs_test(plate_df, ['Sample'])
-       plate_df.loc[plate_df.grubbs_test == False, 'Cq_copy'] = np.nan
+       plate_df.loc[plate_df.grubbs_test== False, 'Cq_fin'] = np.nan
 
     # summarize to get mean, std, counts with and without outliers removed
-
     plate_df_avg = plate_df.groupby(groupby_list).agg(
-                                               raw_Cq_values=('Cq',list),
+                                               raw_Cq_values=('Cq_raw',list),
+                                               sub_Cq_values=('Cq_subbed',list),
+                                               outlier_Cq_values=('Cq_fin',list),
+                                               # grubbs_check=('grubbs_test', list),
                                                template_volume=('template_volume','max'),
                                                Q_init_mean=('Quantity','mean'), #only needed to preserve quantity information for standards later
                                                Q_init_std=('Quantity','std'),
                                                Q_init_gstd=('Quantity', lambda x: np.nan if ( (len(x.dropna()) <2 )| all(np.isnan(x)) ) else (sci.gstd(x.dropna(),axis=0))),
                                                # Q_QuantStudio_std = ('Quantity', 'std'),
-                                               Cq_init_mean=('Cq', 'mean'),
-                                               Cq_init_std=('Cq', 'std'),
-                                               Cq_init_min=('Cq', 'min'),
+                                               Cq_init_mean=('Cq_raw', 'mean'),
+                                               Cq_init_std=('Cq_raw', 'std'),
+                                               Cq_init_min=('Cq_raw', 'min'),
                                                replicate_init_count=('Cq','count'),
-                                               Cq_mean=('Cq_copy', 'mean'),
-                                               Cq_std=('Cq_copy', 'std'),
-                                               replicate_count=('Cq_copy', 'count'),
+                                               Cq_mean=('Cq_fin', 'mean'),
+                                               Cq_std=('Cq_fin', 'std'),
+                                               replicate_count=('Cq_fin', 'count'),
                                                is_undetermined_count=('is_undetermined', 'sum')
                                                )
     # note: count in agg will exclude nan
@@ -424,12 +431,18 @@ def process_unknown(plate_df, std_curve_info, use_master_curve, master):
                             unknown_df.loc[ix,"Quantity_mean_combined_after"]=sci.gmean(filtered)
                             if(all(x >0 for x in filtered)):
                                 unknown_df.loc[ix,"Quantity_std_combined_after"]=sci.gstd(filtered)
-    else:
+    if use_master_curve:
         targs=unknown_df.Target.unique()
         for targ in targs:
-            m_b=master.loc[master.Target==targ, "intercept"].item()
-            m_m=master.loc[master.Target==targ, "slope"].item()
-            unknown_df['Quantity_mean'] = 10**((unknown_df['Cq_mean'] - m_b)/m_m)
+            if targ != "Xeno":
+                unknown_df["blod_master_curve"]=False
+                m_b=master.loc[master.Target==targ, "b"].item()
+                m_m=master.loc[master.Target==targ, "m"].item()
+                lowest=master.loc[master.Target==targ, "lowest_quantity"].item()
+                lod=master.loc[master.Target==targ, "LoD_quantity"].item()
+                unknown_df.loc[unknown_df.Target==targ, 'Quantity_mean'] = 10**((unknown_df.loc[unknown_df.Target==targ, 'Cq_mean'] - m_b)/m_m)
+                unknown_df.loc[unknown_df.Quantity_mean< lowest, "blod_master_curve"] = True
+                unknown_df.loc[unknown_df.Quantity_mean< lowest, 'Quantity_mean'] = lod
 
     # if Cq_mean is zero, don't calculate a quantity (turn to NaN)
     unknown_df.loc[unknown_df[unknown_df.Cq_mean == 0].index, 'Quantity_mean'] = np.nan
@@ -568,7 +581,7 @@ def process_dilutions(qpcr_p):
     remove=list()
 
     if(len(qpcr_p.loc[(qpcr_p.is_dilution=='Y')]) > 0):
-        qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(np.isnan(qpcr_p.Quantity_mean)), "Quantity_mean"]=0
+        # qpcr_p.loc[(qpcr_p.is_dilution=='Y')&(np.isnan(qpcr_p.Quantity_mean)), "Quantity_mean"]=0
         qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Quantity_mean"]= qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "Quantity_mean"] * qpcr_p.loc[(qpcr_p.is_dilution=='Y'), "dilution"]
         dilution_expts_df=qpcr_p.loc[(qpcr_p.is_dilution=='Y'), ].copy()
         check=dilution_expts_df.groupby(["Sample", "Target"])["dilution"].count().reset_index()
@@ -608,7 +621,7 @@ def process_dilutions(qpcr_p):
 
     return(qpcr_p,dilution_expts_df)
 
-def process_qpcr_raw(qpcr_raw, checks_include,master, include_LoD=False,cutoff=0.9, use_master_curve=False):
+def process_qpcr_raw(qpcr_raw, checks_include,master, use_master_curve, cutoff=0.9):
     '''wrapper to process whole sheet at once by plate_id and Target
     params
     qpcr_raw: df from read_qpcr_data()
