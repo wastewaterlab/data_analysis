@@ -1,1 +1,3 @@
+#Track package requirements (syntax: https://pip.pypa.io/en/stable/user_guide/)
+#useful for use with virtual environments (https://docs.python.org/3/library/venv.html)
 scikit_posthocs~=0.6.6

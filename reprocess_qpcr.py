@@ -163,24 +163,17 @@ def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2
             loq_Quantity = standard_df.Q_init_mean.min()
             loq_Cq = standard_df.Cq_mean[standard_df.Q_init_mean.idxmin()]
 
+    def does_slope_have_property(slope):
+        return np.isnan(slope) or not -5.0 <= slope <= -2.5 or np.isnan(intercept) or not 30 <= intercept <= 50
+
     # if curve is poor or missing, replace with defaults
     if target == 'N1':
-        if (np.isnan(slope)) or \
-           (slope > -2.5) or \
-           (slope < -5.0) or \
-           (np.isnan(intercept)) or \
-           (intercept > 50) or \
-           (intercept < 30):
+        if does_slope_have_property(slope):
            slope = std_curve_N1_default['slope']
            intercept = std_curve_N1_default['intercept']
            used_default_curve = True
     elif target == 'PMMoV':
-        if (np.isnan(slope)) or \
-           (slope > -2.5) or \
-           (slope < -5.0) or \
-           (np.isnan(intercept)) or \
-           (intercept > 50) or \
-           (intercept < 30):
+        if does_slope_have_property(slope):
            slope = std_curve_PMMoV_default['slope']
            intercept = std_curve_PMMoV_default['intercept']
            used_default_curve = True
