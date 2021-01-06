@@ -1,19 +1,30 @@
+from reprocess_qpcr import *
 import numpy as np
 import pandas as pd
-from reprocess_qpcr import *
+import pytest
+
+
+def assert_data_frames_similar(df1, df2, rtol:float=1e-2):
+    assert all(df1.columns==df2.columns)
+    assert df1.shape==df2.shape, "Shapes differed"
+    for colname in df1.columns:
+        if df1[colname].dtype in {np.float32, np.float64}:
+            assert np.allclose(df1[colname], df2[colname], rtol=rtol), f"Column {colname} differed"
+        else:
+            assert all(df1[colname]==df2[colname]), f"Column {colname} differed"
 
 
 def test_get_gmean():
     a = get_gmean([100, 1000, 10000])
     b = (100*1000*10000)**(1/3)
-    assert round(a, 1) == round(b, 1)
+    np.testing.assert_approx_equal(a, b, significant=1)
 
     a = get_gmean([100, np.nan, 10000])
     b = (100*10000)**(1/2)
     assert round(a, 1) == round(b, 1)
 
     a = get_gmean([100, np.nan, np.nan])
-    assert round(a) == 100.0
+    assert a == pytest.approx(100.0)
 
     a = get_gmean([np.nan, np.nan, np.nan])
     assert np.isnan(a) == True
@@ -45,23 +56,29 @@ def test_combine_replicates():
                         })
     df = combine_replicates(plate_df, collapse_on=['Sample', 'dilution', 'Task'])
 
-    assert df.Sample.values[0] == 'test1'
-    assert df.dilution.values[0] == 1
-    assert df.Task.values[0] == 'Unknown'
-    assert df.Cq.values[0] == [32.25, 32.26, 30]
-    assert df.Quantity.values[0] == [100, 100, 1000]
-    assert df.is_undetermined.values[0] == [False, False, False]
-    assert df.Cq_no_outliers.values[0] == [32.25, 32.26]
-    assert round(df.Cq_init_mean.values[0], 2) == round(np.mean([32.25, 32.26, 30]), 2)
-    assert round(df.Cq_init_std.values[0], 2) == round(np.std([32.25, 32.26, 30]), 2)
-    assert df.Cq_init_min.values[0] == 30.0
-    assert df.replicate_init_count.values[0] == 3
-    assert df.Q_init_mean.values[0] == sci.gmean([100, 100, 1000])
-    assert df.Q_init_std.values[0] == sci.gstd([100, 100, 1000])
-    assert round(df.Cq_mean.values[0], 3) == 32.255
-    assert round(df.Cq_std.values[0], 3) == 0.005
-    assert df.replicate_count.values[0] == 2
-    assert df.nondetect_count.values[0] == 0
+
+
+    result_frame1 = pd.DataFrame({
+        "Sample": ['test1'],
+        "dilution": [1],
+        "Task": ['Unknown'],
+        "Cq": [[32.25, 32.26, 30]],
+        "Quantity": [[100, 100, 1000]],
+        "is_undetermined": [[False, False, False]],
+        "Cq_no_outliers": [[32.25, 32.26]],
+        "Cq_init_mean": [np.mean([32.25, 32.26, 30])],
+        "Cq_init_std": [np.std([32.25, 32.26, 30])],
+        "Cq_init_min": [30.0],
+        "replicate_init_count": [3],
+        "Q_init_mean": [sci.gmean([100, 100, 1000])],
+        "Q_init_std": [sci.gstd([100, 100, 1000])],
+        "Cq_mean": [np.mean([32.25, 32.26])], #[32.255],
+        "Cq_std": [np.std([32.25, 32.26])], #[0.005],
+        "replicate_count": [2],
+        "nondetect_count": [0],
+    })
+
+    assert_data_frames_similar(df, result_frame1)
 
     # test2, single sample in triplicate, none amplified
     plate_df = pd.DataFrame({'Sample': ['test2', 'test2', 'test2'],
@@ -74,17 +91,7 @@ def test_combine_replicates():
                         })
     df = combine_replicates(plate_df, collapse_on=['Sample', 'dilution', 'Task'])
 
-    assert all(np.isnan(df.Cq_no_outliers.values[0])) == True
-    assert np.isnan(df.Cq_init_mean.values[0]) == True
-    assert np.isnan(df.Cq_init_std.values[0]) == True
-    assert np.isnan(df.Cq_init_min.values[0]) == True
-    assert df.replicate_init_count.values[0] == 3
-    assert np.isnan(df.Q_init_mean.values[0]) == True
-    assert np.isnan(df.Q_init_std.values[0]) == True
-    assert np.isnan(df.Cq_mean.values[0]) == True
-    assert np.isnan(df.Cq_std.values[0]) == True
-    assert df.replicate_count.values[0] == 0
-    assert df.nondetect_count.values[0] == 3
+
 
 
 def test_compute_linear_info():
