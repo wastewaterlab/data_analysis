@@ -131,7 +131,7 @@ def num_tech_repsQ(param, nondetect_count, points_list) -> RETURNED_SCORING_INFO
 
     return score, flag, point_deduction, underestimated
 
-def no_template_controlQ(ntc_is_neg, ntc_Cq, Cq_of_lowest_std_quantity, points_list) -> RETURNED_SCORING_INFO:
+def no_template_controlQ(ntc_is_neg, ntc_Cq, loq_Cq, points_list) -> RETURNED_SCORING_INFO:
     '''given ntc_is_neg, ntc_Cq (no-template control outcomes)
     and list of weights and points
     return quality_score'''
@@ -148,11 +148,11 @@ def no_template_controlQ(ntc_is_neg, ntc_Cq, Cq_of_lowest_std_quantity, points_l
         score = weight*pts_goodQ
         return score, flag, point_deduction, underestimated
 
-    if Cq_of_lowest_std_quantity is np.nan:
-        flag = f'check Cq_of_lowest_std_quantity'
+    if loq_Cq is np.nan:
+        flag = f'check loq_Cq'
         return score, flag, point_deduction, underestimated
 
-    elif float(ntc_Cq) > (Cq_of_lowest_std_quantity + 1):
+    elif float(ntc_Cq) > (loq_Cq + 1):
         # the ntc amplified but was least 1 Ct higher than the lowest conconcentration point on the standard curve
         score = weight*pts_okQ
         point_deduction = f'{name} had low-level amplification'
@@ -222,8 +222,8 @@ def sample_storageQ(date_extract, date_sampling, points_list):
 
     return score, flag, point_deduction, underestimated
 
-def extraction_neg_controlQ(extraction_control_is_neg, extraction_control_Cq, Cq_of_lowest_std_quantity, points_list):
-    '''given extraction control info and Cq_of_lowest_std_quantity and list of weights and points
+def extraction_neg_controlQ(extraction_control_is_neg, extraction_control_Cq, loq_Cq, points_list):
+    '''given extraction control info and loq_Cq and list of weights and points
     return quality_score'''
 
     weight, pts_goodQ, pts_okQ, pts_poorQ = points_list
@@ -238,11 +238,11 @@ def extraction_neg_controlQ(extraction_control_is_neg, extraction_control_Cq, Cq
         score = weight*pts_goodQ
         return score, flag, point_deduction, underestimated
 
-    if Cq_of_lowest_std_quantity is np.nan:
-        flag = f'check Cq_of_lowest_std_quantity'
+    if loq_Cq is np.nan:
+        flag = f'check loq_Cq'
         return score, flag, point_deduction, underestimated
 
-    elif float(extraction_control_Cq) > (Cq_of_lowest_std_quantity + 1):
+    elif float(extraction_control_Cq) > (loq_Cq + 1):
         # the ntc amplified but was least 1 Ct higher than the lowest conconcentration point on the standard curve
         score = weight*pts_okQ
         point_deduction = f'{name} had low-level amplification'
@@ -307,7 +307,7 @@ def quality_score(df, scoring_dict=None):
         nondetect_count
         ntc_is_neg
         ntc_Cq
-        Cq_of_lowest_std_quantity
+        loq_Cq
         is_inhibited
         date_extract
         date_sampling
@@ -332,10 +332,10 @@ def quality_score(df, scoring_dict=None):
         r2 = tuple(r2Q(row.r2, points.r2.tolist()))
         num_std_points = tuple(num_std_pointsQ(row.num_points, points.num_std_points))
         num_tech_reps = tuple(num_tech_repsQ(row.replicate_count, row.nondetect_count, points.num_tech_reps))
-        no_template_control = tuple(no_template_controlQ(row.ntc_is_neg, row.ntc_Cq, pd.to_numeric(row.Cq_of_lowest_std_quantity), points.no_template_control))
+        no_template_control = tuple(no_template_controlQ(row.ntc_is_neg, row.ntc_Cq, pd.to_numeric(row.loq_Cq), points.no_template_control))
         pcr_inhibition = tuple(pcr_inhibitionQ(row.is_inhibited, points.pcr_inhibition))
         sample_storage = tuple(sample_storageQ(row.date_extract, row.date_sampling, points.sample_storage))
-        extraction_neg_control = tuple(extraction_neg_controlQ(row.extraction_control_is_neg, row.extraction_control_Cq, row.Cq_of_lowest_std_quantity, points.extraction_neg_control))
+        extraction_neg_control = tuple(extraction_neg_controlQ(row.extraction_control_is_neg, row.extraction_control_Cq, row.loq_Cq, points.extraction_neg_control))
 
         # combine all scores for this row into single dataframe
         score_df = [efficiency, r2,

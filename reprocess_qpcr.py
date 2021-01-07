@@ -90,7 +90,7 @@ def compute_linear_info(plate_data):
     return slope, intercept, r2, efficiency #, abline_values])
 
 
-def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2):
+def process_standard(plate_df, target, duplicate_max_std=0.5):
     '''
     from single plate with single target, calculate standard curve info
 
@@ -105,7 +105,6 @@ def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2
     Returns
         dataframe with columns:
             num_points: number of points used in new std curve
-            Cq_of_lowest_std_quantity: the Cq value of the lowest pt used in the new std curve
             slope: slope of std curve equation
             intercept: intercept of std curve equation
             r2: r2 of linear regression to make std curve
@@ -123,7 +122,6 @@ def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2
     intercept = np.nan
     r2 = np.nan
     efficiency = np.nan
-    Cq_of_lowest_std_quantity = np.nan
     loq_Cq = np.nan
     loq_Quantity = np.nan
     used_default_curve = False
@@ -145,23 +143,9 @@ def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2
         standard_df['log_Quantity'] = np.log10(standard_df['Q_init_mean'])
         slope, intercept, r2, efficiency = compute_linear_info(standard_df)
 
-        standard_df = standard_df.sort_values('Q_init_mean')
-        Cq_of_lowest_std_quantity = standard_df.Cq_mean.values[0]
-
-        ## determine LoQ
-        # TODO revisit the definitions of Limits of Quantification vs Detection
-        # determine the fraction of the replicates that were detectable
-        standard_df['fraction_positive'] = np.nan
-        standard_df['fraction_positive'] = standard_df.replicate_count / standard_df.replicate_init_count
-
-        #only take the portion of the dataframe that is >= the cutoff
-        standard_df = standard_df[standard_df.fraction_positive >= loq_min_reps].copy()
-
-        # if there are standards that meet the cutoff
-        # find the lowest quantity and report it and its Cq_mean as the LoD values
-        if len(standard_df) > 0:
-            loq_Quantity = standard_df.Q_init_mean.min()
-            loq_Cq = standard_df.Cq_mean[standard_df.Q_init_mean.idxmin()]
+        # find the lowest quantity and report it and its Cq_mean as the LoQ
+        loq_Quantity = standard_df.Q_init_mean.min()
+        loq_Cq = standard_df.Cq_mean[standard_df.Q_init_mean.idxmin()]
 
     def does_slope_have_property(slope):
         return np.isnan(slope) or not -5.0 <= slope <= -2.5 or np.isnan(intercept) or not 30 <= intercept <= 50
@@ -180,11 +164,11 @@ def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2
 
     # save info as a dataframe to return
     std_curve = [num_points, slope, intercept, r2, efficiency,
-                 Cq_of_lowest_std_quantity, loq_Cq, loq_Quantity,
+                 loq_Cq, loq_Quantity,
                  used_default_curve]
     std_curve_cols = ['num_points', 'slope', 'intercept', 'r2', 'efficiency',
-                 'Cq_of_lowest_std_quantity', 'loq_Cq', 'loq_Quantity',
-                 'used_default_curve']
+                      'loq_Cq', 'loq_Quantity',
+                      'used_default_curve']
     std_curve = pd.DataFrame.from_records([std_curve], columns=std_curve_cols)
     return std_curve
 
@@ -249,7 +233,7 @@ def process_ntc(plate_df, plate_id):
     return ntc_is_neg, ntc_Cq
 
 
-def process_qpcr_plate(plates, loq_min_reps=(2/3)):
+def process_qpcr_plate(plates, duplicate_max_std=0.5):
     '''wrapper to process data from a qPCR plate(s) grouped by unique plate_id and Target combo
     Params
         plates: df from read_qpcr_data() containing raw qPCR data.
@@ -270,7 +254,7 @@ def process_qpcr_plate(plates, loq_min_reps=(2/3)):
         plate_attributes = []
         Target_full = df.Target_full.unique().tolist()
         plate_df = combine_replicates(df)
-        std_curve = process_standard(plate_df, target, loq_min_reps)
+        std_curve = process_standard(plate_df, target, duplicate_max_std)
         ntc_is_neg, ntc_Cq = process_ntc(plate_df, plate_id)
         unknown_df, intraassay_var, Cq_of_lowest_sample_quantity = process_unknown(plate_df,
                                                                                    std_curve.intercept.values[0],
