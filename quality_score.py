@@ -163,26 +163,6 @@ def no_template_controlQ(ntc_is_neg, ntc_Cq, loq_Cq, points_list) -> RETURNED_SC
 
     return score, flag, point_deduction, underestimated
 
-def pcr_inhibitionQ(param, points_list):
-    '''given is_inhibited and list of weights and points
-    return quality_score'''
-
-    weight, pts_goodQ, pts_okQ, pts_poorQ = points_list
-    score, flag, point_deduction, underestimated = make_default_scoring_info()
-    name = 'PCR inhibition'
-
-    if( param == 'unknown') | (param is np.nan) | (param is None): #should si.score be na or zero in this case?
-        score = weight*pts_goodQ
-        flag = 'test for inhibition has not been performed'
-        return score, flag, point_deduction, underestimated
-
-    if (param is False) or (param == 'No'): #good
-        score = weight*pts_goodQ
-    else: #poor
-        score = weight*pts_poorQ
-        point_deduction = f'sample has {name}'
-
-    return score, flag, point_deduction, underestimated
 
 def sample_storageQ(date_extract, date_sampling, points_list):
     '''given date_extract, date_sampling and
@@ -257,7 +237,7 @@ def get_scoring_matrix(score_dict:Optional[Dict[str,List[float]]]=None) -> Tuple
     '''
     define the scoring matrix
     input must be either None or a dictionary
-    dictionary keys must include: 'efficiency', 'r2', 'num_std_points', 'used_cong_std', 'no_template_control', 'num_tech_reps', 'pcr_inhibition', 'sample_storage', 'extraction_neg_control'
+    dictionary keys must include: 'efficiency', 'r2', 'num_std_points', 'used_cong_std', 'no_template_control', 'num_tech_reps', 'sample_storage', 'extraction_neg_control'
     dictionary values must be a list: [weight, pts_goodQ, pts_okQ, pts_poorQ]
     '''
     if score_dict is None:
@@ -267,11 +247,10 @@ def get_scoring_matrix(score_dict:Optional[Dict[str,List[float]]]=None) -> Tuple
              #"used_cong_std":[0.04,1,np.nan, 0],
              "no_template_control":[0.1,1,0.8,0],
              "num_tech_reps":[0.2,1,0.8,0],
-             "pcr_inhibition":[0.1,1,np.nan,0],
              "sample_storage":[0.09,1,0.8,0],
              "extraction_neg_control":[0.1,1,0.8,0]}
     else:
-        check_keys = {'efficiency', 'r2', 'num_std_points', 'used_cong_std', 'no_template_control', 'num_tech_reps', 'pcr_inhibition', 'sample_storage', 'extraction_neg_control'}
+        check_keys = {'efficiency', 'r2', 'num_std_points', 'used_cong_std', 'no_template_control', 'num_tech_reps', 'sample_storage', 'extraction_neg_control'}
         if not all(key in score_dict.keys() for key in check_keys):
             raise ValueError('missing keys in score_dict')
 
@@ -333,7 +312,6 @@ def quality_score(df, scoring_dict=None):
         num_std_points = tuple(num_std_pointsQ(row.num_points, points.num_std_points))
         num_tech_reps = tuple(num_tech_repsQ(row.replicate_count, row.nondetect_count, points.num_tech_reps))
         no_template_control = tuple(no_template_controlQ(row.ntc_is_neg, row.ntc_Cq, pd.to_numeric(row.loq_Cq), points.no_template_control))
-        pcr_inhibition = tuple(pcr_inhibitionQ(row.is_inhibited, points.pcr_inhibition))
         sample_storage = tuple(sample_storageQ(row.date_extract, row.date_sampling, points.sample_storage))
         extraction_neg_control = tuple(extraction_neg_controlQ(row.extraction_control_is_neg, row.extraction_control_Cq, row.loq_Cq, points.extraction_neg_control))
 
@@ -343,7 +321,6 @@ def quality_score(df, scoring_dict=None):
                     num_tech_reps,
                     no_template_control,
                     sample_storage,
-                    pcr_inhibition,
                     extraction_neg_control]
         score_df = pd.DataFrame.from_records(score_df, columns=['score', 'flag', 'point_deduction', 'underestimated'])
 
