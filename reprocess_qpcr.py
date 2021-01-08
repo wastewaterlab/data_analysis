@@ -312,8 +312,8 @@ def choose_dilution(qpcr_processed):
 
         # if none of the dilutions were above limit of quantification
         if len(df[df.below_limit_of_quantification == False]) == 0:
-            # keep the 1x dilution
-            keep = df[df.dilution == 1]
+            # keep the lowest dilution
+            keep = df.loc[[df.dilution.idxmin()]]
         # if one of the dilutions was above the limit of quantification
         elif len(df[df.below_limit_of_quantification == False]) == 1:
             # check which one was above limit of quantification and keep that one
