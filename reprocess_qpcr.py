@@ -17,6 +17,8 @@ import outliers
 from outliers import smirnov_grubbs as grubbs
 import scikit_posthocs as sp
 
+
+np.seterr(all='raise')
 import warnings
 
 # found dixon's test at https://sebastianraschka.com/Articles/2014_dixon_test.html#implementing-a-dixon-q-test-function
@@ -196,15 +198,19 @@ def get_pass_grubbs_test(plate_df, groupby_list):
 
         b=list(d.Cq) #needs to be given unindexed list
         # outliers=grubbs.max_test_outliers(b, alpha=0.025)
-        nonoutliers= sp.outliers_grubbs(b)
-        outlier_len=len(b)-len(nonoutliers)
-        if outlier_len > 0:
-            d.loc[:, 'grubbs_test'] = False
-            d.loc[d.Cq.isin(nonoutliers), 'grubbs_test'] = True
-            plate_df_with_grubbs_test=plate_df_with_grubbs_test.append(d)
-        else:
+        if all([element == b[0] for element in b]): #grubbs doesn't like when all are the same
             d.loc[:, 'grubbs_test'] = True
             plate_df_with_grubbs_test=plate_df_with_grubbs_test.append(d)
+        else:
+            nonoutliers= sp.outliers_grubbs(b)
+            outlier_len=len(b)-len(nonoutliers)
+            if outlier_len > 0:
+                d.loc[:, 'grubbs_test'] = False
+                d.loc[d.Cq.isin(nonoutliers), 'grubbs_test'] = True
+                plate_df_with_grubbs_test=plate_df_with_grubbs_test.append(d)
+            else:
+                d.loc[:, 'grubbs_test'] = True
+                plate_df_with_grubbs_test=plate_df_with_grubbs_test.append(d)
   return(plate_df_with_grubbs_test)
   # put the dataframe back together
   # plate_df_with_grubbs_test = pd.concat(plate_df_with_grubbs_test)
