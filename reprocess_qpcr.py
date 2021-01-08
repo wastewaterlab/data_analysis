@@ -17,9 +17,9 @@ import outliers
 from outliers import smirnov_grubbs as grubbs
 import scikit_posthocs as sp
 
-
-np.seterr(all='raise')
 import warnings
+# np.seterr(all='raise')
+
 
 # found dixon's test at https://sebastianraschka.com/Articles/2014_dixon_test.html#implementing-a-dixon-q-test-function
 # no need to re-invent the wheel
