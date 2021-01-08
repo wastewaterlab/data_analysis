@@ -148,7 +148,7 @@ def process_standard(plate_df, target, duplicate_max_std=0.5):
         loq_Cq = standard_df.Cq_mean[standard_df.Q_init_mean.idxmin()]
 
     def does_slope_have_property(slope):
-        return np.isnan(slope) or not -5.0 <= slope <= -2.5 or np.isnan(intercept) or not 30 <= intercept <= 50
+        return np.isnan(slope) or not -4.0 <= slope <= -3.0 or np.isnan(intercept) or not 30 <= intercept <= 50
 
     # if curve is poor or missing, replace with defaults
     if target == 'N1':
