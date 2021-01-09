@@ -174,7 +174,7 @@ def get_pass_median_test(plate_df, groupby_list):
     # plate_df_with_grubbs_test = pd.concat(plate_df_with_grubbs_test)
     # return(plate_df_with_grubbs_test)
 
-def get_pass_grubbs_test(plate_df, groupby_list):
+def get_pass_grubbs_test(plate_df, groupby_list, col="Cq"):
   # make list that will become new df
   plate_df_with_grubbs_test = pd.DataFrame()
 
@@ -184,9 +184,9 @@ def get_pass_grubbs_test(plate_df, groupby_list):
     d = df.copy() # avoid set with copy warning
     # d.Cq=[round(n, 2) for n in d.Cq]
     # make new column 'grubbs_test' that includes the results of the test
-    if (len(d.Cq.dropna())<3): #cannot evaluate for fewer than 3 values
+    if (len(d[col].dropna())<3): #cannot evaluate for fewer than 3 values
 
-        if (len(d.Cq.dropna())==2): #no outlier removal if just 2 pts
+        if (len(d[col].dropna())==2): #no outlier removal if just 2 pts
         # if (len(d.Cq.dropna())==2) & (np.std(d.Cq.dropna()) <0.2): #got this from https://www.gene-quantif
             d.loc[:, 'grubbs_test'] = True
             plate_df_with_grubbs_test=plate_df_with_grubbs_test.append(d)
@@ -196,7 +196,7 @@ def get_pass_grubbs_test(plate_df, groupby_list):
 
     else:
 
-        b=list(d.Cq) #needs to be given unindexed list
+        b=list(d[col]) #needs to be given unindexed list
         # outliers=grubbs.max_test_outliers(b, alpha=0.025)
         if all([element == b[0] for element in b]): #grubbs doesn't like when all are the same
             d.loc[:, 'grubbs_test'] = True
@@ -206,7 +206,7 @@ def get_pass_grubbs_test(plate_df, groupby_list):
             outlier_len=len(b)-len(nonoutliers)
             if outlier_len > 0:
                 d.loc[:, 'grubbs_test'] = False
-                d.loc[d.Cq.isin(nonoutliers), 'grubbs_test'] = True
+                d.loc[d[col].isin(nonoutliers), 'grubbs_test'] = True
                 plate_df_with_grubbs_test=plate_df_with_grubbs_test.append(d)
             else:
                 d.loc[:, 'grubbs_test'] = True
