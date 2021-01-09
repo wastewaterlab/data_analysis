@@ -4,7 +4,7 @@ from scipy import stats as sci
 from scipy.stats.mstats import gmean
 from scipy.stats import gstd
 
-def calculate_gc_per_l(qpcr_data, replace_bloq= False ):
+def calculate_gc_per_l(qpcr_data ):
     '''
     calculates and returns gene copies / L
 
@@ -24,15 +24,17 @@ def calculate_gc_per_l(qpcr_data, replace_bloq= False ):
     qpcr_data: same data, with additional column
     gc_per_L
     '''
-    if replace_bloq:
-        qpcr_data.loc[qpcr_data.bloq==True, "Quantity_mean"]= qpcr_data.lowest_std_quantity
+    # if replace_bloq:
+    #     qpcr_data.loc[qpcr_data.bloq==True, "Quantity_mean"]= qpcr_data.lowest_std_quantity
+
 
     # calculate the conc of input to qPCR as gc/ul
     qpcr_data['gc_per_ul_input'] = qpcr_data['Quantity_mean'].astype(float) / qpcr_data['template_volume'].astype(float)
 
     # multiply input conc (gc / ul) by elution volume (ul) and divide by volume concentrated (mL). Multiply by 1000 to get to gc / L.
-    qpcr_data['gc_per_L'] = 1000 * qpcr_data['gc_per_ul_input'].astype(float) * qpcr_data['elution_vol_ul'].astype(float) / qpcr_data['weight_vol_extracted_ml'].astype(float)
-
+    qpcr_data['gc_per_L']= np.nan
+    qpcr_data.loc[qpcr_data.blod_master_curve== True, 'gc_per_L'] = 1000 * qpcr_data['gc_per_ul_input'].astype(float) * qpcr_data['elution_vol_ul'].astype(float) / 50
+    qpcr_data.loc[qpcr_data.blod_master_curve!= True, 'gc_per_L'] = 1000 * qpcr_data['gc_per_ul_input'].astype(float) * qpcr_data['elution_vol_ul'].astype(float) / qpcr_data['weight_vol_extracted_ml'].astype(float)
 
 
     return qpcr_data['gc_per_L']
