@@ -277,7 +277,7 @@ def combine_triplicates(plate_df_in, checks_include, master):
     # make copy of Cq column and later turn this to np.nan for outliers
     plate_df['Cq_raw'] = plate_df['Cq'].copy()
     if target[0] != "Xeno":
-        plate_df.loc[ (np.isnan(plate_df.Cq)), "Cq"]= master.loc[master.Target==target[0], "LoD_Cq"].item()
+        plate_df.loc[ (np.isnan(plate_df.Cq))| (plate_df.Cq>40), "Cq"]= master.loc[master.Target==target[0], "LoD_Cq"].item()
 
     plate_df['Cq_subbed'] = plate_df['Cq'].copy()
     plate_df['Cq_fin'] = plate_df['Cq'].copy()
