@@ -159,15 +159,21 @@ def get_pass_median_test(plate_df, groupby_list):
 
       else:
 
-          b=list(d.Cq) #needs to be given unindexed list
-          outliers=grubbs.max_test_outliers(b, alpha=0.05)
-          if len(outliers) > 0:
-              d.loc[:, 'median_test'] = True
-              d.loc[d.Cq.isin(outliers), 'median_test'] = False
-              plate_df_with_oldgrubbs_test=plate_df_with_oldgrubbs_test.append(d)
-          else:
-              d.loc[:, 'median_test'] = True
-              plate_df_with_oldgrubbs_test=plate_df_with_oldgrubbs_test.append(d)
+        b=list(d.Cq) #needs to be given unindexed list
+        # outliers=grubbs.max_test_outliers(b, alpha=0.025)
+        if all([element == b[0] for element in b]): #grubbs doesn't like when all are the same
+            d.loc[:, 'median_test'] = True
+            plate_df_with_oldgrubbs_test=plate_df_with_oldgrubbs_test.append(d)
+        else:
+            nonoutliers= grubbs.test(b, alpha=0.05)
+            outlier_len=len(b)-len(nonoutliers)
+            if outlier_len > 0:
+                d.loc[:, 'median_test'] = False
+                d.loc[d[col].isin(nonoutliers), 'median_test'] = True
+                 plate_df_with_oldgrubbs_test=plate_df_with_oldgrubbs_test.append(d)
+            else:
+                d.loc[:, 'median_test'] = True
+                plate_df_with_oldgrubbs_test=plate_df_with_oldgrubbs_test.append(d)
 
     return(plate_df_with_oldgrubbs_test)
     # put the dataframe back together
@@ -235,7 +241,7 @@ def compute_linear_info(plate_data):
     efficiency = (10**(-1/slope)) - 1
 
     # abline_values = [slope * i + intercept for i in x]
-    return(slope, intercept, r2, efficiency)#, abline_values])
+    return(slope, intercept, r2, efficiency, use_master_curve )#, abline_values])
 
 def combine_triplicates(plate_df_in, checks_include, master):
     '''
@@ -276,7 +282,7 @@ def combine_triplicates(plate_df_in, checks_include, master):
 
     # make copy of Cq column and later turn this to np.nan for outliers
     plate_df['Cq_raw'] = plate_df['Cq'].copy()
-    if target[0] != "Xeno":
+    if ((use_master_curve) & (target[0] != "Xeno")):
         plate_df.loc[ (np.isnan(plate_df.Cq))| (plate_df.Cq>40), "Cq"]= master.loc[master.Target==target[0], "LoD_Cq"].item()
 
     plate_df['Cq_subbed'] = plate_df['Cq'].copy()
