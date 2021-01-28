@@ -665,7 +665,7 @@ def process_qpcr_raw(qpcr_raw, checks_include,master, use_master_curve, cutoff=0
 
     # compile into dataframes
     raw_outliers_flagged_df = pd.concat(raw_outliers_flagged_df)
-    assay_assessment_df=determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include)
+    assay_assessment_df=determine_samples_BLoD(raw_outliers_flagged_df, checks_include)
     std_curve_df = pd.DataFrame.from_records(std_curve_df,
                                              columns = ['plate_id',
                                                         'Target',
