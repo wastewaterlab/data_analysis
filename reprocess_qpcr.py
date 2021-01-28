@@ -650,7 +650,7 @@ def process_qpcr_raw(qpcr_raw, checks_include,master, use_master_curve, cutoff=0
     for [plate_id, target], df in qpcr_raw.groupby(["plate_id", "Target"]):
 
         ntc_result = process_ntc(df)
-        outliers_flagged, no_outliers_df = combine_triplicates(df, checks_include, master)
+        outliers_flagged, no_outliers_df = combine_triplicates(df, checks_include, master, use_master_curve)
 
         # define outputs and fill with default values
         num_points,  Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity,lowest_std_quantity,lowest_std_quantity2nd, Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd,slope, intercept, r2, efficiency = np.nan, np.nan,np.nan, np.nan,np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
