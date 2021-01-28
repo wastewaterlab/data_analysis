@@ -240,9 +240,9 @@ def compute_linear_info(plate_data):
     efficiency = (10**(-1/slope)) - 1
 
     # abline_values = [slope * i + intercept for i in x]
-    return(slope, intercept, r2, efficiency, use_master_curve )#, abline_values])
+    return(slope, intercept, r2, efficiency )#, abline_values])
 
-def combine_triplicates(plate_df_in, checks_include, master):
+def combine_triplicates(plate_df_in, checks_include, master, use_master_curve):
     '''
     Flag outliers via Dixon's Q, homemade "median_test", ans/or grubbs test
     Calculate the Cq means, Cq stds, counts before & after removing outliers
