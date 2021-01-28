@@ -454,6 +454,9 @@ def process_unknown(plate_df, std_curve_info, use_master_curve, master):
                 unknown_df.loc[unknown_df.Target==targ, 'Quantity_mean'] = 10**((unknown_df.loc[unknown_df.Target==targ, 'Cq_mean'] - m_b)/m_m)
                 unknown_df.loc[unknown_df.Quantity_mean< lowest, "blod_master_curve"] = True
                 unknown_df.loc[unknown_df.Quantity_mean< lowest, 'Quantity_mean'] = lod
+    else:
+        unknown_df["blod_master_curve"]=False
+
 
     # if Cq_mean is zero, don't calculate a quantity (turn to NaN)
     unknown_df.loc[unknown_df[unknown_df.Cq_mean == 0].index, 'Quantity_mean'] = np.nan
