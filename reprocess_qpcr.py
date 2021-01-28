@@ -531,7 +531,7 @@ def determine_samples_BLoD(raw_outliers_flagged_df, checks_include):
         return (assay_assessment_df)
 
 
-def determine_samples_BLoQ(qpcr_p, assay_assessment_df, include_LoD=False):
+def determine_samples_BLoQ(qpcr_p):
     '''
     from processed unknown qpcr data this will return qpcr_processed with a boolean column indicating samples bloq.
     samples that have Cq_mean that is nan are classified as bloq (including true negatives and  samples removed during processing)
@@ -692,7 +692,7 @@ def process_qpcr_raw(qpcr_raw, checks_include,master, use_master_curve, cutoff=0
     std_curve_df=std_curve_df.merge(qpcr_m, how='left') # add Cq_of_lowest_sample_quantity and intraassay variation
 
     if ~use_master_curve:
-        qpcr_processed= determine_samples_BLoQ(qpcr_processed, assay_assessment_df)
+        qpcr_processed= determine_samples_BLoQ(qpcr_processed)
     std_curve_df=std_curve_df.drop("Cq_of_2ndlowest_std_quantity", axis=1)
     std_curve_df=std_curve_df.drop("Cq_of_2ndlowest_std_quantity_gsd", axis=1)
     std_curve_df=std_curve_df.drop("lowest_std_quantity2nd", axis=1)
