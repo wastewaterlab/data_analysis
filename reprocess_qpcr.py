@@ -149,7 +149,6 @@ def get_pass_median_test(plate_df, groupby_list):
       # d.Cq=[round(n, 2) for n in d.Cq]
       # make new column 'grubbs_test' that includes the results of the test
       if (len(d.Cq.dropna())<3): #cannot evaluate for fewer than 3 values
-
           if (len(d.Cq.dropna())==2) & (np.std(d.Cq.dropna()) <0.5): #got this from https://www.gene-quantification.de/dhaene-hellemans-qc-data-2010.pdf
               d.loc[:, 'median_test'] = True
               plate_df_with_oldgrubbs_test=plate_df_with_oldgrubbs_test.append(d)
@@ -170,7 +169,7 @@ def get_pass_median_test(plate_df, groupby_list):
             if outlier_len > 0:
                 d.loc[:, 'median_test'] = False
                 d.loc[d[col].isin(nonoutliers), 'median_test'] = True
-                 plate_df_with_oldgrubbs_test=plate_df_with_oldgrubbs_test.append(d)
+                plate_df_with_oldgrubbs_test=plate_df_with_oldgrubbs_test.append(d)
             else:
                 d.loc[:, 'median_test'] = True
                 plate_df_with_oldgrubbs_test=plate_df_with_oldgrubbs_test.append(d)
