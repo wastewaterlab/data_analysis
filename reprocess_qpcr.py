@@ -560,11 +560,11 @@ def determine_samples_BLoQ(qpcr_p, assay_assessment_df, include_LoD=False):
     #                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"Cq_of_lowest_std_quantity"]= qpcr_p.Cq_of_2ndlowest_std_quantity
     #                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"Cq_of_lowest_std_quantity_gsd"]= qpcr_p.Cq_of_2ndlowest_std_quantity_gsd
     #                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"lowest_std_quantity"]= qpcr_p.lowest_std_quantity2nd
-        qpcr_p['bloq']=np.nan
-        qpcr_p.loc[(np.isnan(qpcr_p.Cq_mean)),'bloq']= True
-        qpcr_p.loc[(qpcr_p.Cq_mean >= 40),'bloq']= True
-        qpcr_p.loc[(qpcr_p.Cq_mean > qpcr_p.Cq_of_lowest_std_quantity),'bloq']= True
-        qpcr_p.loc[(qpcr_p.Cq_mean <= qpcr_p.Cq_of_lowest_std_quantity)&(qpcr_p.Cq_mean < 40),'bloq']= False
+    qpcr_p['bloq']=np.nan
+    qpcr_p.loc[(np.isnan(qpcr_p.Cq_mean)),'bloq']= True
+    qpcr_p.loc[(qpcr_p.Cq_mean >= 40),'bloq']= True
+    qpcr_p.loc[(qpcr_p.Cq_mean > qpcr_p.Cq_of_lowest_std_quantity),'bloq']= True
+    qpcr_p.loc[(qpcr_p.Cq_mean <= qpcr_p.Cq_of_lowest_std_quantity)&(qpcr_p.Cq_mean < 40),'bloq']= False
     return(qpcr_p)
 
 def process_dilutions(qpcr_p):
