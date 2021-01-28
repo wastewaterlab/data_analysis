@@ -284,9 +284,6 @@ def combine_triplicates(plate_df_in, checks_include, master, use_master_curve):
     if ((use_master_curve) & (target[0] != "Xeno")):
         plate_df.loc[ (np.isnan(plate_df.Cq))| (plate_df.Cq>40), "Cq"]= master.loc[master.Target==target[0], "LoD_Cq"].item()
 
-    else:
-        plate_df.loc[plate_df.Cq>40]=np.nan
-
     plate_df['Cq_subbed'] = plate_df['Cq'].copy()
     plate_df['Cq_fin'] = plate_df['Cq'].copy()
     #dixon's Q
@@ -478,7 +475,7 @@ def process_ntc(plate_df):
 
 
 
-def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
+def determine_samples_BLoD(raw_outliers_flagged_df, checks_include):
         '''
         For each target in raw qpcr data, this function defines the limit of quantification as the fraction of qpcr replicates at a quantity that are detectable
         It works depending on which test was selected, so if grubbs was selected, it only evaluates for replicates that pass grubbs
@@ -517,7 +514,7 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
 
             #only take the portion of the dataframe that is greater than the cutoff
             print(out)
-            out=out[out.fr_pos > cutoff ].copy()
+            out=out[out.fr_pos > 0.8 ].copy()
             fin=np.nan
             #something is there hopefully but if not
             if len(out.fr_pos)<1:
@@ -534,42 +531,41 @@ def determine_samples_BLoD(raw_outliers_flagged_df, cutoff, checks_include):
         return (assay_assessment_df)
 
 
-# def determine_samples_BLoQ(qpcr_p, max_cycles, assay_assessment_df, include_LoD=False):
-#     '''
-#     from processed unknown qpcr data and the max cycles allowed (usually 40) this will return qpcr_processed with a boolean column indicating samples bloq.
-#     samples that have Cq_mean that is nan are classified as bloq (including true negatives and  samples removed during processing)
-#     If include LoD is true, assay_assessment_df comes from determines_samples_BLO
-#
-#     Params:
-#         Cq_mean the combined triplicates of the sample
-#         Cq_of_lowest_sample_quantity the max cq of the samples on the plate
-#
-#     Returns
-#         same data with column bloq a boolean column indicating if the sample is below the limit of quantification
-#     '''
-#
-#     if include_LoD:
-#         qpcr_p["blod"]= np.nan
-#         targs=qpcr_p.Target.unique()
-#         for target in targs:
-#             if (len(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Cq"])>0):
-#                 C_value=float(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Cq"])
-#                 Q_value=float(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Quantity"])
-#                 if np.isnan(C_value):
-#                     qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"blod"]= np.nan
-#                 else:
-#                     qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"blod"]= True
-#                     qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean <= C_value),"blod"]= False
-#                     qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"Cq_of_lowest_std_quantity"]= qpcr_p.Cq_of_2ndlowest_std_quantity
-#                     qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"Cq_of_lowest_std_quantity_gsd"]= qpcr_p.Cq_of_2ndlowest_std_quantity_gsd
-#                     qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"lowest_std_quantity"]= qpcr_p.lowest_std_quantity2nd
-#         qpcr_p['bloq']=np.nan
-#         qpcr_p.loc[(np.isnan(qpcr_p.Cq_mean)),'bloq']= True
-#         qpcr_p.loc[(qpcr_p.Cq_mean >= max_cycles),'bloq']= True
-#         qpcr_p.loc[(qpcr_p.Cq_mean > qpcr_p.Cq_of_lowest_std_quantity),'bloq']= True
-#         qpcr_p.loc[(qpcr_p.Cq_mean <= qpcr_p.Cq_of_lowest_std_quantity)&(qpcr_p.Cq_mean < max_cycles),'bloq']= False
+def determine_samples_BLoQ(qpcr_p, assay_assessment_df, include_LoD=False):
+    '''
+    from processed unknown qpcr data this will return qpcr_processed with a boolean column indicating samples bloq.
+    samples that have Cq_mean that is nan are classified as bloq (including true negatives and  samples removed during processing)
+    If include LoD is true, assay_assessment_df comes from determines_samples_BLO
 
-    # return(qpcr_p)
+    Params:
+        Cq_mean the combined triplicates of the sample
+        Cq_of_lowest_sample_quantity the max cq of the samples on the plate
+
+    Returns
+        same data with column bloq a boolean column indicating if the sample is below the limit of quantification
+    '''
+
+    # if include_LoD:
+    #     qpcr_p["blod"]= np.nan
+    #     targs=qpcr_p.Target.unique()
+    #     for target in targs:
+    #         if (len(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Cq"])>0):
+    #             C_value=float(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Cq"])
+    #             Q_value=float(assay_assessment_df.loc[(assay_assessment_df.Target==target),"LoD_Quantity"])
+    #             if np.isnan(C_value):
+    #                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"blod"]= np.nan
+    #             else:
+    #                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean > C_value),"blod"]= True
+    #                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.Cq_mean <= C_value),"blod"]= False
+    #                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"Cq_of_lowest_std_quantity"]= qpcr_p.Cq_of_2ndlowest_std_quantity
+    #                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"Cq_of_lowest_std_quantity_gsd"]= qpcr_p.Cq_of_2ndlowest_std_quantity_gsd
+    #                 qpcr_p.loc[(qpcr_p.Target==target)&(qpcr_p.blod==True),"lowest_std_quantity"]= qpcr_p.lowest_std_quantity2nd
+        qpcr_p['bloq']=np.nan
+        qpcr_p.loc[(np.isnan(qpcr_p.Cq_mean)),'bloq']= True
+        qpcr_p.loc[(qpcr_p.Cq_mean >= 40),'bloq']= True
+        qpcr_p.loc[(qpcr_p.Cq_mean > qpcr_p.Cq_of_lowest_std_quantity),'bloq']= True
+        qpcr_p.loc[(qpcr_p.Cq_mean <= qpcr_p.Cq_of_lowest_std_quantity)&(qpcr_p.Cq_mean < 40),'bloq']= False
+    return(qpcr_p)
 
 def process_dilutions(qpcr_p):
     '''
@@ -695,7 +691,8 @@ def process_qpcr_raw(qpcr_raw, checks_include,master, use_master_curve, cutoff=0
     qpcr_m=qpcr_processed[["plate_id","Target","Cq_of_lowest_sample_quantity",'intraassay_var']].copy().drop_duplicates(keep='first')
     std_curve_df=std_curve_df.merge(qpcr_m, how='left') # add Cq_of_lowest_sample_quantity and intraassay variation
 
-    # qpcr_processed= determine_samples_BLoQ(qpcr_processed, 40, assay_assessment_df, cutoff)
+    if ~use_master_curve:
+        qpcr_processed= determine_samples_BLoQ(qpcr_processed, assay_assessment_df)
     std_curve_df=std_curve_df.drop("Cq_of_2ndlowest_std_quantity", axis=1)
     std_curve_df=std_curve_df.drop("Cq_of_2ndlowest_std_quantity_gsd", axis=1)
     std_curve_df=std_curve_df.drop("lowest_std_quantity2nd", axis=1)
