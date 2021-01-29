@@ -294,3 +294,94 @@ def test_process_ntc():
         assert str(w[0].message) == 'Plate 1000 is missing NTC'
         assert ntc_is_neg == None
         assert np.isnan(ntc_Cq) == True
+
+
+def test_choose_dilution():
+    ## test basic example
+    df1 = pd.DataFrame({'Sample': ['A', 'A'],
+                        'Target': ['N1', 'N1'],
+                        'dilution': [1, 5],
+                        'Quantity_mean': [19, 4],
+                        'below_limit_of_quantification': [False, False],
+                        'plate_id': [1, 1]
+                      })
+
+    df2 = pd.DataFrame({'Sample': ['A'],
+                        'Target': ['N1'],
+                        'dilution': [5],
+                        'Quantity_mean_with_dilution': [4],
+                        'below_limit_of_quantification': [False],
+                        'plate_id': [1],
+                        'Quantity_mean': [20]
+                      })
+
+    df_out = choose_dilution(df1)
+    # to assert equal, need to reset index, which creates column called 'index' that must be dropped
+    assert_data_frames_similar(df_out.reset_index().drop(columns='index'), df2)
+
+    ## test deduplication
+    df1 = pd.DataFrame({'Sample': ['A', 'A'],
+                        'Target': ['N1', 'N1'],
+                        'dilution': [1, 1],
+                        'Quantity_mean': [10, 12],
+                        'below_limit_of_quantification': [False, False],
+                        'plate_id': [1, 2]
+                      })
+
+    df2 = pd.DataFrame({'Sample': ['A'],
+                        'Target': ['N1'],
+                        'dilution': [1],
+                        'Quantity_mean_with_dilution': [10],
+                        'below_limit_of_quantification': [False],
+                        'plate_id': [1],
+                        'Quantity_mean': [10]
+                      })
+
+    with warnings.catch_warnings(record=True) as w:
+        df_out = choose_dilution(df1)
+        assert str(w[0].message) == 'Sample A x N1 has multiple entries with the same dilution factor in plates [1 2]'
+        assert_data_frames_similar(df_out, df2)
+
+    ## test one dilution below LoQ
+    df1 = pd.DataFrame({'Sample': ['A', 'A'],
+                        'Target': ['N1', 'N1'],
+                        'dilution': [1, 5],
+                        'Quantity_mean': [19, 4],
+                        'below_limit_of_quantification': [False, True],
+                        'plate_id': [1, 1]
+                      })
+
+    df2 = pd.DataFrame({'Sample': ['A'],
+                        'Target': ['N1'],
+                        'dilution': [1],
+                        'Quantity_mean_with_dilution': [19],
+                        'below_limit_of_quantification': [False],
+                        'plate_id': [1],
+                        'Quantity_mean': [19]
+                      })
+
+    df_out = choose_dilution(df1)
+    # to assert equal, need to reset index, which creates column called 'index' that must be dropped
+    assert_data_frames_similar(df_out.reset_index().drop(columns='index'), df2)
+
+    ## test both dilutions below LoQ
+    df1 = pd.DataFrame({'Sample': ['A', 'A'],
+                        'Target': ['N1', 'N1'],
+                        'dilution': [1, 5],
+                        'Quantity_mean': [19, 4],
+                        'below_limit_of_quantification': [True, True],
+                        'plate_id': [1, 1]
+                      })
+
+    df2 = pd.DataFrame({'Sample': ['A'],
+                        'Target': ['N1'],
+                        'dilution': [1],
+                        'Quantity_mean_with_dilution': [19],
+                        'below_limit_of_quantification': [True],
+                        'plate_id': [1],
+                        'Quantity_mean': [19]
+                      })
+
+    df_out = choose_dilution(df1)
+    # to assert equal, need to reset index, which creates column called 'index' that must be dropped
+    assert_data_frames_similar(df_out.reset_index().drop(columns='index'), df2)

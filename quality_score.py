@@ -136,7 +136,8 @@ def num_tech_repsQ(param, nondetect_count, points_list) -> ScoringInfo:
 
     return si
 
-def no_template_controlQ(ntc_is_neg, ntc_Cq, Cq_of_lowest_std_quantity, points_list) -> ScoringInfo:
+
+def no_template_controlQ(ntc_is_neg, ntc_Cq, loq_Cq, points_list) -> ScoringInfo:
     '''given ntc_is_neg, ntc_Cq (no-template control outcomes)
     and list of weights and points
     return quality_score'''
@@ -153,11 +154,11 @@ def no_template_controlQ(ntc_is_neg, ntc_Cq, Cq_of_lowest_std_quantity, points_l
         si.score = weight*pts_goodQ
         return si
 
-    if Cq_of_lowest_std_quantity is np.nan:
-        flag = f'check Cq_of_lowest_std_quantity'
+    if loq_Cq is np.nan:
+        flag = f'check loq_Cq'
         return si
 
-    elif float(ntc_Cq) > (Cq_of_lowest_std_quantity + 1):
+    elif float(ntc_Cq) > (loq_Cq + 1):
         # the ntc amplified but was least 1 Ct higher than the lowest conconcentration point on the standard curve
         si.score = weight*pts_okQ
         si.point_deduction = f'{name} had low-level amplification'
@@ -168,26 +169,6 @@ def no_template_controlQ(ntc_is_neg, ntc_Cq, Cq_of_lowest_std_quantity, points_l
 
     return si
 
-def pcr_inhibitionQ(param, points_list):
-    '''given is_inhibited and list of weights and points
-    return quality_score'''
-
-    weight, pts_goodQ, pts_okQ, pts_poorQ = points_list
-    si = ScoringInfo()
-    name = 'PCR inhibition'
-
-    if( param == 'unknown') | (param is np.nan) | (param is None): #should si.score be na or zero in this case?
-        si.score = weight*pts_goodQ
-        flag = 'test for inhibition has not been performed'
-        return si
-
-    if (param is False) or (param == 'No'): #good
-        si.score = weight*pts_goodQ
-    else: #poor
-        si.score = weight*pts_poorQ
-        si.point_deduction = f'sample has {name}'
-
-    return si
 
 def sample_storageQ(date_extract, date_sampling, points_list):
     '''given date_extract, date_sampling and
@@ -227,8 +208,8 @@ def sample_storageQ(date_extract, date_sampling, points_list):
 
     return si
 
-def extraction_neg_controlQ(extraction_control_is_neg, extraction_control_Cq, Cq_of_lowest_std_quantity, points_list):
-    '''given extraction control info and Cq_of_lowest_std_quantity and list of weights and points
+def extraction_neg_controlQ(extraction_control_is_neg, extraction_control_Cq, loq_Cq, points_list):
+    '''given extraction control info and loq_Cq and list of weights and points
     return quality_score'''
 
     weight, pts_goodQ, pts_okQ, pts_poorQ = points_list
@@ -243,11 +224,11 @@ def extraction_neg_controlQ(extraction_control_is_neg, extraction_control_Cq, Cq
         si.score = weight*pts_goodQ
         return si
 
-    if Cq_of_lowest_std_quantity is np.nan:
-        flag = f'check Cq_of_lowest_std_quantity'
+    if loq_Cq is np.nan:
+        flag = f'check loq_Cq'
         return si
 
-    elif float(extraction_control_Cq) > (Cq_of_lowest_std_quantity + 1):
+    elif float(extraction_control_Cq) > (loq_Cq + 1):
         # the ntc amplified but was least 1 Ct higher than the lowest conconcentration point on the standard curve
         si.score = weight*pts_okQ
         si.point_deduction = f'{name} had low-level amplification'
@@ -262,7 +243,7 @@ def get_scoring_matrix(score_dict:Optional[Dict[str,List[float]]]=None) -> Tuple
     '''
     define the scoring matrix
     input must be either None or a dictionary
-    dictionary keys must include: 'efficiency', 'r2', 'num_std_points', 'used_cong_std', 'no_template_control', 'num_tech_reps', 'pcr_inhibition', 'sample_storage', 'extraction_neg_control'
+    dictionary keys must include: 'efficiency', 'r2', 'num_std_points', 'used_cong_std', 'no_template_control', 'num_tech_reps', 'sample_storage', 'extraction_neg_control'
     dictionary values must be a list: [weight, pts_goodQ, pts_okQ, pts_poorQ]
     '''
     if score_dict is None:
@@ -272,11 +253,10 @@ def get_scoring_matrix(score_dict:Optional[Dict[str,List[float]]]=None) -> Tuple
              #"used_cong_std":[0.04,1,np.nan, 0],
              "no_template_control":[0.1,1,0.8,0],
              "num_tech_reps":[0.2,1,0.8,0],
-             "pcr_inhibition":[0.1,1,np.nan,0],
              "sample_storage":[0.09,1,0.8,0],
              "extraction_neg_control":[0.1,1,0.8,0]}
     else:
-        check_keys = {'efficiency', 'r2', 'num_std_points', 'used_cong_std', 'no_template_control', 'num_tech_reps', 'pcr_inhibition', 'sample_storage', 'extraction_neg_control'}
+        check_keys = {'efficiency', 'r2', 'num_std_points', 'used_cong_std', 'no_template_control', 'num_tech_reps', 'sample_storage', 'extraction_neg_control'}
         if not all(key in score_dict.keys() for key in check_keys):
             raise ValueError('missing keys in score_dict')
 
@@ -312,7 +292,7 @@ def quality_score(df, scoring_dict=None):
         nondetect_count
         ntc_is_neg
         ntc_Cq
-        Cq_of_lowest_std_quantity
+        loq_Cq
         is_inhibited
         date_extract
         date_sampling
@@ -338,7 +318,6 @@ def quality_score(df, scoring_dict=None):
         num_std_points = num_std_pointsQ(row.num_points, points.num_std_points).to_tuple()
         num_tech_reps = num_tech_repsQ(row.replicate_count, row.nondetect_count, points.num_tech_reps).to_tuple()
         no_template_control = no_template_controlQ(row.ntc_is_neg, row.ntc_Cq, pd.to_numeric(row.Cq_of_lowest_std_quantity), points.no_template_control).to_tuple()
-        pcr_inhibition = pcr_inhibitionQ(row.is_inhibited, points.pcr_inhibition).to_tuple()
         sample_storage = sample_storageQ(row.date_extract, row.date_sampling, points.sample_storage).to_tuple()
         extraction_neg_control = extraction_neg_controlQ(row.extraction_control_is_neg, row.extraction_control_Cq, row.Cq_of_lowest_std_quantity, points.extraction_neg_control).to_tuple()
 
@@ -348,7 +327,6 @@ def quality_score(df, scoring_dict=None):
                     num_tech_reps,
                     no_template_control,
                     sample_storage,
-                    pcr_inhibition,
                     extraction_neg_control]
         score_df = pd.DataFrame.from_records(score_df, columns=['score', 'flag', 'point_deduction', 'underestimated'])
 

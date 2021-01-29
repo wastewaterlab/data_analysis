@@ -1,16 +1,21 @@
-import math
 import numpy as np
 import pandas as pd
-from pandas.api.types import CategoricalDtype
-import pdb
 from scikit_posthocs import outliers_grubbs
 from scipy import stats as sci
 from sklearn.metrics import r2_score
-import sys
 import warnings
 
 
 def get_gstd(replicates):
+    '''
+    compute geometric standard deviation, ignoring NaNs
+
+    Params
+    replicates: list of replicate floats (Quantities from qPCR)
+
+    Returns
+    gstd_value: geometric standard deviation (float)
+    '''
     gstd_value = np.nan
     replicates_no_nan = [x for x in replicates if ~np.isnan(x)]
     if len(replicates_no_nan) >= 2:
@@ -19,6 +24,15 @@ def get_gstd(replicates):
 
 
 def get_gmean(replicates):
+    '''
+    compute geometric mean, ignoring NaNs
+
+    Params
+    replicates: list of replicate floats (Quantities from qPCR)
+
+    Returns
+    gmean_value: geometric mean (float)
+    '''
     gmean_value = np.nan
     replicates_no_nan = [x for x in replicates if ~np.isnan(x)]
     if len(replicates_no_nan) >= 1:
@@ -86,18 +100,12 @@ def compute_linear_info(plate_data):
     slope, intercept = model
     efficiency = (10**(-1/slope)) - 1
 
-    # abline_values = [slope * i + intercept for i in x]
-    return slope, intercept, r2, efficiency #, abline_values])
+    return slope, intercept, r2, efficiency
 
 
-def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2):
+def process_standard(plate_df, target, duplicate_max_std=0.5):
     '''
     from single plate with single target, calculate standard curve info
-
-    Defines the limit of quantification as the lowest pt on the std curve
-    where the fraction of detected replicates meets the cutoff
-    Note: Evaluates only the replicates that pass grubb's test
-    TODO decide if this is a fair way to evaluate LoD- Grubb's test seems too stringent on standards in particular
 
     Params:
         plate_df: output from combine_replicates(); df containing Cq_mean
@@ -105,13 +113,13 @@ def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2
     Returns
         dataframe with columns:
             num_points: number of points used in new std curve
-            Cq_of_lowest_std_quantity: the Cq value of the lowest pt used in the new std curve
             slope: slope of std curve equation
             intercept: intercept of std curve equation
             r2: r2 of linear regression to make std curve
             efficiency: qPCR efficiency (based on slope, see eq in compute_linear_info)
             loq_Cq: the Cq for the limit of quantification
             loq_Quantity: the quantity for the limit of quantification
+            used_default_curve: whether the default curve was used (boolean)
     '''
     # defaults
     std_curve_N1_default = {'slope': -3.446051, 'intercept': 37.827506} # from plate 1093
@@ -123,7 +131,6 @@ def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2
     intercept = np.nan
     r2 = np.nan
     efficiency = np.nan
-    Cq_of_lowest_std_quantity = np.nan
     loq_Cq = np.nan
     loq_Quantity = np.nan
     used_default_curve = False
@@ -132,7 +139,7 @@ def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2
 
     # rules for including a point on the standard curve:
     # must have amplified for at least 2 of 3 technical replicates
-    # if a point amplified for only 2 of 3 replicates, check that they have std < 0.2 or else remove
+    # if a point amplified for only 2 of 3 replicates, must have std < duplicate_max_std
     df_2reps = standard_df[(standard_df.nondetect_count == 1) & (standard_df.Cq_init_std < duplicate_max_std)]
     df_3reps = standard_df[standard_df.nondetect_count == 0]
     standard_df = pd.concat([df_2reps, df_3reps])
@@ -145,28 +152,15 @@ def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2
         standard_df['log_Quantity'] = np.log10(standard_df['Q_init_mean'])
         slope, intercept, r2, efficiency = compute_linear_info(standard_df)
 
-        standard_df = standard_df.sort_values('Q_init_mean')
-        Cq_of_lowest_std_quantity = standard_df.Cq_mean.values[0]
-
-        ## determine LoQ
-        # TODO revisit the definitions of Limits of Quantification vs Detection
-        # determine the fraction of the replicates that were detectable
-        standard_df['fraction_positive'] = np.nan
-        standard_df['fraction_positive'] = standard_df.replicate_count / standard_df.replicate_init_count
-
-        #only take the portion of the dataframe that is >= the cutoff
-        standard_df = standard_df[standard_df.fraction_positive >= loq_min_reps].copy()
-
-        # if there are standards that meet the cutoff
-        # find the lowest quantity and report it and its Cq_mean as the LoD values
-        if len(standard_df) > 0:
-            loq_Quantity = standard_df.Q_init_mean.min()
-            loq_Cq = standard_df.Cq_mean[standard_df.Q_init_mean.idxmin()]
+        # find the lowest quantity and report it and its Cq_mean as the LoQ
+        loq_Quantity = standard_df.Q_init_mean.min()
+        loq_Cq = standard_df.Cq_mean[standard_df.Q_init_mean.idxmin()]
 
     def does_slope_have_property(slope):
-        return np.isnan(slope) or not -5.0 <= slope <= -2.5 or np.isnan(intercept) or not 30 <= intercept <= 50
+        '''checks if std curve is missing or poor'''
+        return np.isnan(slope) or not -4.0 <= slope <= -3.0 or np.isnan(intercept) or not 30 <= intercept <= 50
 
-    # if curve is poor or missing, replace with defaults
+    # if std curve is missing or poor, replace with defaults
     if target == 'N1':
         if does_slope_have_property(slope):
            slope = std_curve_N1_default['slope']
@@ -180,11 +174,11 @@ def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2
 
     # save info as a dataframe to return
     std_curve = [num_points, slope, intercept, r2, efficiency,
-                 Cq_of_lowest_std_quantity, loq_Cq, loq_Quantity,
+                 loq_Cq, loq_Quantity,
                  used_default_curve]
     std_curve_cols = ['num_points', 'slope', 'intercept', 'r2', 'efficiency',
-                 'Cq_of_lowest_std_quantity', 'loq_Cq', 'loq_Quantity',
-                 'used_default_curve']
+                      'loq_Cq', 'loq_Quantity',
+                      'used_default_curve']
     std_curve = pd.DataFrame.from_records([std_curve], columns=std_curve_cols)
     return std_curve
 
@@ -192,6 +186,7 @@ def process_standard(plate_df, target, loq_min_reps=(2/3), duplicate_max_std=0.2
 def process_unknown(plate_df, std_curve_intercept, std_curve_slope, std_curve_loq_Cq):
     '''
     Calculates quantity based on Cq_mean and standard curve
+
     Params
         plate_df: output from combine_replicates(); df containing Cq_mean
             must be single plate with single target
@@ -245,12 +240,13 @@ def process_ntc(plate_df, plate_id):
     if all(ntc.is_undetermined.values[0]): # is_undetermined field is lists, need to access the list itself to ask if all values are True
         ntc_is_neg = True
     else:
-            ntc_Cq = ntc.Cq_init_mean.values[0]
+        ntc_Cq = ntc.Cq_init_mean.values[0]
     return ntc_is_neg, ntc_Cq
 
 
-def process_qpcr_plate(plates, loq_min_reps=(2/3)):
+def process_qpcr_plate(plates, duplicate_max_std=0.5):
     '''wrapper to process data from a qPCR plate(s) grouped by unique plate_id and Target combo
+
     Params
         plates: df from read_qpcr_data() containing raw qPCR data.
             NOTE: must have dilution column
@@ -270,7 +266,7 @@ def process_qpcr_plate(plates, loq_min_reps=(2/3)):
         plate_attributes = []
         Target_full = df.Target_full.unique().tolist()
         plate_df = combine_replicates(df)
-        std_curve = process_standard(plate_df, target, loq_min_reps)
+        std_curve = process_standard(plate_df, target, duplicate_max_std)
         ntc_is_neg, ntc_Cq = process_ntc(plate_df, plate_id)
         unknown_df, intraassay_var, Cq_of_lowest_sample_quantity = process_unknown(plate_df,
                                                                                    std_curve.intercept.values[0],
@@ -303,15 +299,22 @@ def process_qpcr_plate(plates, loq_min_reps=(2/3)):
 
 def choose_dilution(qpcr_processed):
     '''
-    multiply quantity by the dilution factor and choose the least inhibited dilution
-    also try to choose a dilution for which the raw Cq_mean was above the limit of quantification
-    NOTE: requires non-duplicated data. If duplicates exist at the level of ['Sample', 'Target', 'dilution'], will warn and then deduplicate.
+    RT-qPCR is run at 1x (undiluted) and 5x dilutions for each sample and each assay
+    This function multiplies the quantity by the dilution factor and
+    finds the least inhibited dilution to report for each sample and assay
+    It also tries to choose a dilution for which the raw Cq_mean was above the
+    limit of quantification
+    NOTE: requires non-duplicated data (each sample run once per assay on a single plate)
+    If duplicates exist at the level of ['Sample', 'Target', 'dilution']
+    (i.e. the sample was rerun on more than one plate), will warn and then deduplicate.
 
     Params
-    qpcr_processed: dataframe of processed qPCR data with replicates collapsed but multiple dilutions possible for each sample x target
+    qpcr_processed: dataframe of processed qPCR data with replicates collapsed
+    but multiple dilutions possible for each sample x target
 
     Returns
-    qpcr_processed_dilutions: dataframe of processed qPCR data with only the best dilution
+    qpcr_processed_dilutions: dataframe of processed qPCR data with only the
+    best dilution
     '''
 
     # multiply quantity times dilution to get undiluted_quantity
@@ -322,30 +325,30 @@ def choose_dilution(qpcr_processed):
 
         # check for duplicates, warn and keep just the first one - data should be clean and this shouldn't happen.
         if len(df.dilution.unique()) != len(df.dilution):
-            plate_ids = df.plate_id.to_list()
+            plate_ids = df.plate_id.unique()
             warnings.warn(f'Sample {Sample} x {Target} has multiple entries with the same dilution factor in plates {plate_ids}')
-            df = df[df.duplicated('dilution', keep='first')]
+            df = df.drop_duplicates('dilution', keep='first')
 
-        # if none of the dilutions were above limit of quantification
-        if len(df[df.below_limit_of_quantification == False]) == 0:
-            # keep the 1x dilution
-            keep = df[df.dilution == 1]
+        # if all dilutions were below the limit of quantification
+        if df.below_limit_of_quantification.all():
+            # keep the lowest dilution
+            keep = df.loc[[df.dilution.idxmin()]]
         # if one of the dilutions was above the limit of quantification
         elif len(df[df.below_limit_of_quantification == False]) == 1:
-            # check which one was above limit of quantification and keep that one
+            # keep the one that was above limit of quantification
             keep = df[df.below_limit_of_quantification == False]
         # if multiple were above limit of detection
         else:
             # choose max Quantity_mean_undiluted
             # if there are multiple dilutions that have the same value for
-            # Quantity_mean_undiluted, take first; nearly impossible for real data
-            #maxQ = df[df.Quantity_mean_undiluted == df.Quantity_mean_undiluted.max()]
-            #maxQ = maxQ[maxQ.duplicated('Quantity_mean_undiluted', keep='first')]
+            # Quantity_mean_undiluted, takes first; nearly impossible for real data
             keep = df.loc[[df.Quantity_mean_undiluted.idxmax()]]
 
         keep_df.append(keep)
 
     qpcr_processed_dilutions = pd.concat(keep_df)
+    # rename such that we now use the effective Quantity (accounting for
+    # dilution) as Quantity_mean going forward
     qpcr_processed_dilutions = qpcr_processed_dilutions.rename(columns = {'Quantity_mean': 'Quantity_mean_with_dilution',
                                                'Quantity_mean_undiluted': 'Quantity_mean'})
 
