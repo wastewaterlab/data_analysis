@@ -405,7 +405,7 @@ def process_unknown(plate_df, std_curve_info, use_master_curve, master):
     [num_points, Cq_of_lowest_std_quantity, Cq_of_2ndlowest_std_quantity, lowest_std_quantity, lowest_std_quantity2nd,Cq_of_lowest_std_quantity_gsd, Cq_of_2ndlowest_std_quantity_gsd, slope, intercept, r2, efficiency] = std_curve_info
     unknown_df = plate_df[plate_df.Task != 'Standard'].copy()
     unknown_df['Cq_of_lowest_sample_quantity'] = np.nan
-    unknown_df['percent_CV']=(unknown_df['Q_init_std']-1)*100#the geometric std - 1 is the coefficient of variation using quant studio quantities to capture all the variation in the plate
+    unknown_df['percent_CV']=(unknown_df['Q_init_gstd']-1)*100#the geometric std - 1 is the coefficient of variation using quant studio quantities to capture all the variation in the plate
     if all(np.isnan(unknown_df['percent_CV'])):
         unknown_df['intraassay_var'] = np.nan #avoid error
     else:
