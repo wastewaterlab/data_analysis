@@ -281,10 +281,10 @@ def combine_triplicates(plate_df_in, checks_include, master, use_master_curve):
 
     # make copy of Cq column and later turn this to np.nan for outliers
     plate_df['Cq_raw'] = plate_df['Cq'].copy()
+    plate_df["master_curve_bloq_qpcr_reps"]=False
     if ((use_master_curve) & (target[0] != "Xeno")):
-        plate_df["master_curve_blod_qpcr_reps"]=False
         plate_df.loc[ (np.isnan(plate_df.Cq))| (plate_df.Cq>40), "Cq"]= master.loc[master.Target==target[0], "LoD_Cq"].item()
-        plate_df.loc[ (np.isnan(plate_df.Cq))| (plate_df.Cq>40), "master_curve_blod_qpcr_reps"]= True
+        plate_df.loc[ (np.isnan(plate_df.Cq))| (plate_df.Cq>40), "master_curve_bloq_qpcr_reps"]= True
 
     plate_df['Cq_subbed'] = plate_df['Cq'].copy()
     plate_df['Cq_fin'] = plate_df['Cq'].copy()
@@ -322,7 +322,7 @@ def combine_triplicates(plate_df_in, checks_include, master, use_master_curve):
                                                Cq_std=('Cq_fin', 'std'),
                                                replicate_count=('Cq_fin', 'count'),
                                                is_undetermined_count=('is_undetermined', 'sum'),
-                                               is_blod_count=('master_curve_blod_qpcr_reps', 'sum')
+                                               is_blod_count=('master_curve_bloq_qpcr_reps', 'sum')
                                                )
     # note: count in agg will exclude nan
     plate_df_avg = plate_df_avg.reset_index()
