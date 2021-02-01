@@ -322,7 +322,7 @@ def combine_triplicates(plate_df_in, checks_include, master, use_master_curve):
                                                Cq_std=('Cq_fin', 'std'),
                                                replicate_count=('Cq_fin', 'count'),
                                                is_undetermined_count=('is_undetermined', 'sum'),
-                                               is_blod_count=('master_curve_bloq_qpcr_reps', 'sum')
+                                               is_bloq_count=('master_curve_bloq_qpcr_reps', 'sum')
                                                )
     # note: count in agg will exclude nan
     plate_df_avg = plate_df_avg.reset_index()
