@@ -283,8 +283,8 @@ def combine_triplicates(plate_df_in, checks_include, master, use_master_curve):
     plate_df['Cq_raw'] = plate_df['Cq'].copy()
     plate_df["master_curve_bloq_qpcr_reps"]=False
     if ((use_master_curve) & (target[0] != "Xeno")):
-        plate_df.loc[ (np.isnan(plate_df.Cq))| (plate_df.Cq>40), "Cq"]= master.loc[master.Target==target[0], "LoD_Cq"].item()
         plate_df.loc[ (np.isnan(plate_df.Cq))| (plate_df.Cq>40), "master_curve_bloq_qpcr_reps"]= True
+        plate_df.loc[ (np.isnan(plate_df.Cq))| (plate_df.Cq>40), "Cq"]= master.loc[master.Target==target[0], "LoD_Cq"].item()
 
     plate_df['Cq_subbed'] = plate_df['Cq'].copy()
     plate_df['Cq_fin'] = plate_df['Cq'].copy()
