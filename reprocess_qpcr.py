@@ -327,10 +327,14 @@ def choose_dilution(qpcr_processed):
         if len(df.dilution.unique()) != len(df.dilution):
             plate_ids = df.plate_id.unique()
             warnings.warn(f'Sample {Sample} x {Target} has multiple entries with the same dilution factor in plates {plate_ids}')
-            df = df.drop_duplicates('dilution', keep='first')
+            df = df.drop_duplicates('dilution', keep='first').copy()
 
-        # if all dilutions were below the limit of quantification
-        if df.below_limit_of_quantification.all():
+        # when Pandas converts this column to boolean, it turns None to False, True to True, False to False. This is fine.
+        # without doing this conversion, Pandas interprets None as True, which is not fine.
+        df.below_limit_of_quantification = df.below_limit_of_quantification.astype('bool')
+
+        # if all dilutions were below the limit of quantification or were unquantified
+        if df.below_limit_of_quantification.all() or df.Quantity_mean_undiluted.isna().all():
             # keep the lowest dilution
             keep = df.loc[[df.dilution.idxmin()]]
         # if one of the dilutions was above the limit of quantification

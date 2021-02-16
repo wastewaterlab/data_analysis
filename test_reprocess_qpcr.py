@@ -115,7 +115,6 @@ def test_process_standard():
                                 'replicate_init_count': [3, 3, 3]})
     std_curve_df = process_standard(standard_df,
                                     'N1',
-                                    loq_min_reps=(2/3),
                                     duplicate_max_std=0.2)
 
     assert std_curve_df.num_points.values[0] == 3
@@ -124,7 +123,6 @@ def test_process_standard():
     assert round(std_curve_df.intercept.values[0], 2) == 37.66
     assert round(std_curve_df.r2.values[0], 2) == 1.00
     assert round(std_curve_df.efficiency.values[0], 2) == 0.97
-    assert round(std_curve_df.Cq_of_lowest_std_quantity.values[0], 2) == 27.46
     assert round(std_curve_df.loq_Cq.values[0], 2) == 27.46
     assert round(std_curve_df.loq_Quantity.values[0], 2) == 1000
 
@@ -141,7 +139,6 @@ def test_process_standard():
                            })
     std_curve_df = process_standard(standard_df,
                                     'N1',
-                                    loq_min_reps=(2/3),
                                     duplicate_max_std=0.2)
 
     assert std_curve_df.num_points.values[0] == 3
@@ -150,7 +147,6 @@ def test_process_standard():
     assert round(std_curve_df.intercept.values[0], 2) == 37.66
     assert round(std_curve_df.r2.values[0], 2) == 1.00
     assert round(std_curve_df.efficiency.values[0], 2) == 0.97
-    assert round(std_curve_df.Cq_of_lowest_std_quantity.values[0], 2) == 27.46
     assert round(std_curve_df.loq_Cq.values[0], 2) == 27.46
     assert round(std_curve_df.loq_Quantity.values[0], 2) == 1000
 
@@ -166,7 +162,6 @@ def test_process_standard():
                                })
     std_curve_df = process_standard(standard_df,
                                 'N1',
-                                loq_min_reps=(2/3),
                                 duplicate_max_std=0.2)
     assert std_curve_df.num_points.values[0] == 2
     assert std_curve_df.used_default_curve.values[0] == True
@@ -174,7 +169,6 @@ def test_process_standard():
     assert round(std_curve_df.intercept.values[0], 2) == 37.83
     assert np.isnan(std_curve_df.r2.values[0]) == True
     assert np.isnan(std_curve_df.efficiency.values[0]) == True
-    assert np.isnan(std_curve_df.Cq_of_lowest_std_quantity.values[0]) == True
     assert np.isnan(std_curve_df.loq_Cq.values[0]) == True
     assert np.isnan(std_curve_df.loq_Quantity.values[0]) == True
 
@@ -182,7 +176,6 @@ def test_process_standard():
     # which has a different default curve
     std_curve_df = process_standard(standard_df,
                                 'PMMoV',
-                                loq_min_reps=(2/3),
                                 duplicate_max_std=0.2)
     assert std_curve_df.num_points.values[0] == 2
     assert std_curve_df.used_default_curve.values[0] == True
@@ -202,7 +195,6 @@ def test_process_standard():
                            })
     std_curve_df = process_standard(standard_df2,
                                     'N1',
-                                    loq_min_reps=(2/3),
                                     duplicate_max_std=0.2)
     assert std_curve_df.num_points.values[0] == 2
     assert std_curve_df.used_default_curve.values[0] == True
@@ -210,7 +202,6 @@ def test_process_standard():
     assert round(std_curve_df.intercept.values[0], 2) == 37.83
     assert np.isnan(std_curve_df.r2.values[0]) == True
     assert np.isnan(std_curve_df.efficiency.values[0]) == True
-    assert np.isnan(std_curve_df.Cq_of_lowest_std_quantity.values[0]) == True
     assert np.isnan(std_curve_df.loq_Cq.values[0]) == True
     assert np.isnan(std_curve_df.loq_Quantity.values[0]) == True
 
@@ -382,6 +373,24 @@ def test_choose_dilution():
                         'Quantity_mean': [19]
                       })
 
+    df_out = choose_dilution(df1)
+    # to assert equal, need to reset index, which creates column called 'index' that must be dropped
+    assert_data_frames_similar(df_out.reset_index().drop(columns='index'), df2)
+
+    ## test when below_limit_of_quantification is None (should treat this as False)
+    df1 = pd.DataFrame({'Sample':['a', 'a'],
+                        'Target':['N1', 'N1'],
+                        'plate_id':[1000,1000],
+                        'Quantity_mean':[np.nan, 5],
+                        'dilution':[1,5],
+                        'below_limit_of_quantification':[None, False]})
+    df2 = pd.DataFrame({'Sample':['a'],
+                        'Target':['N1'],
+                        'plate_id':[1000],
+                        'Quantity_mean_with_dilution':[5.0],
+                        'dilution':[5],
+                        'below_limit_of_quantification':[False],
+                        'Quantity_mean':[25.0],})
     df_out = choose_dilution(df1)
     # to assert equal, need to reset index, which creates column called 'index' that must be dropped
     assert_data_frames_similar(df_out.reset_index().drop(columns='index'), df2)
