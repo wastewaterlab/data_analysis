@@ -317,9 +317,9 @@ def quality_score(df, scoring_dict=None):
         r2 = r2Q(row.r2, points.r2.tolist()).to_tuple()
         num_std_points = num_std_pointsQ(row.num_points, points.num_std_points).to_tuple()
         num_tech_reps = num_tech_repsQ(row.replicate_count, row.nondetect_count, points.num_tech_reps).to_tuple()
-        no_template_control = no_template_controlQ(row.ntc_is_neg, row.ntc_Cq, pd.to_numeric(row.Cq_of_lowest_std_quantity), points.no_template_control).to_tuple()
+        no_template_control = no_template_controlQ(row.ntc_is_neg, row.ntc_Cq, pd.to_numeric(row.loq_Cq), points.no_template_control).to_tuple()
         sample_storage = sample_storageQ(row.date_extract, row.date_sampling, points.sample_storage).to_tuple()
-        extraction_neg_control = extraction_neg_controlQ(row.extraction_control_is_neg, row.extraction_control_Cq, row.Cq_of_lowest_std_quantity, points.extraction_neg_control).to_tuple()
+        extraction_neg_control = extraction_neg_controlQ(row.extraction_control_is_neg, row.extraction_control_Cq, row.loq_Cq, points.extraction_neg_control).to_tuple()
 
         # combine all scores for this row into single dataframe
         score_df = [efficiency, r2,
@@ -331,11 +331,11 @@ def quality_score(df, scoring_dict=None):
         score_df = pd.DataFrame.from_records(score_df, columns=['score', 'flag', 'point_deduction', 'underestimated'])
 
         # calculate final score, combine all flags and all point deductions
-        si.score = 0
+        score = 0
         flags = np.nan
         point_deductions = np.nan
         if 'set to 0' not in score_df.flag:
-            si.score = score_df.score.sum()
+            score = score_df.score.sum()
         if len(score_df.flag.dropna()) > 0:
             flags = '; '.join(score_df.flag.dropna())
         if len(score_df.point_deduction.dropna()) > 0:
