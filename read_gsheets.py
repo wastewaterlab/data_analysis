@@ -19,7 +19,7 @@ def read_table(gc, url, tab):
         df.columns = df.iloc[0] #make first row the header
         df = df.iloc[1:]
         df=df.replace('NA',np.nan)
-    return(df)
+    return df
 
 
 def read_sample_data(gc, url, samples, sites, salted_tube_weight=23.485):
@@ -73,7 +73,7 @@ def read_sample_data(gc, url, samples, sites, salted_tube_weight=23.485):
         l=len(samps)
         warnings.warn(f'{l} samples are double listed in sample tracking spreadsheet. Check the following samples: {samps}')
 
-    return(rna_data)
+    return rna_data
 
 
 def extract_dilution(qpcr_data):
@@ -90,7 +90,7 @@ def extract_dilution(qpcr_data):
     qpcr_data = qpcr_data.rename(columns = {'Sample_new' : 'Sample', 'Sample' : 'sample_full'})
     qpcr_data.dilution = pd.to_numeric(qpcr_data.dilution)
 
-    return(qpcr_data)
+    return qpcr_data
 
 def read_qpcr_data(gc, url, qpcr):
   ''' Read in raw qPCR data page from the qPCR spreadsheet
@@ -115,4 +115,4 @@ def read_qpcr_data(gc, url, qpcr):
   qpcr_data['Target_full'] = qpcr_data['Target']
   qpcr_data['Target'] = qpcr_data['Target'].apply(lambda x: x.split()[0])
 
-  return(qpcr_data)
+  return qpcr_data
