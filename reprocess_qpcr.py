@@ -124,6 +124,7 @@ def process_standard(plate_df, target, duplicate_max_std=0.5):
     # defaults
     std_curve_N1_default = {'slope': -3.446051, 'intercept': 37.827506} # from plate 1093
     std_curve_PMMoV_default = {'slope': -3.548825, 'intercept': 42.188174} # from plate 1092
+    std_curve_bCoV_default = {'slope': -3.414, 'intercept': 39.894} # from plate 1353
 
     # define outputs
     num_points = np.nan
@@ -170,6 +171,12 @@ def process_standard(plate_df, target, duplicate_max_std=0.5):
         if does_slope_have_property(slope):
            slope = std_curve_PMMoV_default['slope']
            intercept = std_curve_PMMoV_default['intercept']
+           used_default_curve = True
+
+    elif target == 'bCoV':
+        if does_slope_have_property(slope):
+           slope = std_curve_bCoV_default['slope']
+           intercept = std_curve_bCoV_default['intercept']
            used_default_curve = True
 
     # save info as a dataframe to return
