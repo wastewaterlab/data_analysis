@@ -92,14 +92,15 @@ def extract_dilution(qpcr_data):
 
     return qpcr_data
 
-def read_qpcr_data(gc, url, qpcr):
+def read_qpcr_data(gc, url, qpcr, show_all_values=False):
   ''' Read in raw qPCR data page from the qPCR spreadsheet
   '''
   qpcr_data = read_table(gc, url, qpcr)
   qpcr_data = extract_dilution(qpcr_data)
 
   # filter to remove secondary values for a sample run more than once
-  qpcr_data = qpcr_data[qpcr_data.is_primary_value != 'N']
+  if show_all_values is False:
+      qpcr_data = qpcr_data[qpcr_data.is_primary_value != 'N']
 
   # create column to preserve info about true undetermined values
   # set column equal to boolean outcome of asking if Cq is Undetermined
