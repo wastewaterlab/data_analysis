@@ -138,6 +138,26 @@ def process_standard(plate_df, target, duplicate_max_std=0.5):
 
     standard_df = plate_df[plate_df.Task == 'Standard'].copy()
 
+    # combine replicates by Quantity
+    standard_df = standard_df[['Sample', 'dilution', 'Task', 'Cq', 'Quantity', 'is_undetermined']]
+    standard_df = standard_df.groupby('Quantity').agg(lambda x: x.tolist())
+    standard_df = standard_df.reset_index()
+
+    # create summary columns describing all replicates
+    standard_df['Cq_no_outliers'] = standard_df.Cq.apply(lambda x: outliers_grubbs(x, alpha=0.05).tolist())
+
+    # np.nanmean etc. will warn if all reps are nan, but still return nan so it's fine
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        # data required to filter points from curve:
+        standard_df['Cq_init_std'] = standard_df.Cq.apply(np.nanstd)
+        standard_df['replicate_count'] = standard_df.Cq_no_outliers.apply(lambda x: sum(~np.isnan(x)))
+        standard_df['nondetect_count'] = standard_df.is_undetermined.apply(sum)
+
+        # data required for compute_linear_info
+        standard_df['Cq_mean'] = standard_df.Cq_no_outliers.apply(np.nanmean)
+        standard_df['log_Quantity'] = np.log10(standard_df['Quantity'])
+
     # rules for including a point on the standard curve:
     # must have amplified for at least 2 of 3 technical replicates
     # if a point amplified for only 2 of 3 replicates, must have std < duplicate_max_std
@@ -150,12 +170,11 @@ def process_standard(plate_df, target, duplicate_max_std=0.5):
     num_points = len(standard_df)
 
     if num_points > 2:
-        standard_df['log_Quantity'] = np.log10(standard_df['Q_init_mean'])
         slope, intercept, r2, efficiency = compute_linear_info(standard_df)
 
         # find the lowest quantity and report it and its Cq_mean as the LoQ
-        loq_Quantity = standard_df.Q_init_mean.min()
-        loq_Cq = standard_df.Cq_mean[standard_df.Q_init_mean.idxmin()]
+        loq_Quantity = standard_df.Quantity.min()
+        loq_Cq = standard_df.Cq_mean[standard_df.Quantity.idxmin()]
 
     def does_slope_have_property(slope):
         '''checks if std curve is missing or poor'''
@@ -164,20 +183,20 @@ def process_standard(plate_df, target, duplicate_max_std=0.5):
     # if std curve is missing or poor, replace with defaults
     if target == 'N1':
         if does_slope_have_property(slope):
-           slope = std_curve_N1_default['slope']
-           intercept = std_curve_N1_default['intercept']
-           used_default_curve = True
+            slope = std_curve_N1_default['slope']
+            intercept = std_curve_N1_default['intercept']
+            used_default_curve = True
     elif target == 'PMMoV':
         if does_slope_have_property(slope):
-           slope = std_curve_PMMoV_default['slope']
-           intercept = std_curve_PMMoV_default['intercept']
-           used_default_curve = True
+            slope = std_curve_PMMoV_default['slope']
+            intercept = std_curve_PMMoV_default['intercept']
+            used_default_curve = True
 
     elif target == 'bCoV':
         if does_slope_have_property(slope):
-           slope = std_curve_bCoV_default['slope']
-           intercept = std_curve_bCoV_default['intercept']
-           used_default_curve = True
+            slope = std_curve_bCoV_default['slope']
+            intercept = std_curve_bCoV_default['intercept']
+            used_default_curve = True
 
     # save info as a dataframe to return
     std_curve = [num_points, slope, intercept, r2, efficiency,
@@ -273,7 +292,7 @@ def process_qpcr_plate(plates, duplicate_max_std=0.5):
         plate_attributes = []
         Target_full = df.Target_full.unique().tolist()
         plate_df = combine_replicates(df)
-        std_curve = process_standard(plate_df, target, duplicate_max_std)
+        std_curve = process_standard(df, target, duplicate_max_std)
         ntc_is_neg, ntc_Cq = process_ntc(plate_df, plate_id)
         unknown_df, intraassay_var, Cq_of_lowest_sample_quantity = process_unknown(plate_df,
                                                                                    std_curve.intercept.values[0],
