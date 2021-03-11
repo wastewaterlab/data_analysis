@@ -209,48 +209,80 @@ def process_standard(plate_df, target, duplicate_max_std=0.5):
     return std_curve
 
 
-def process_unknown(plate_df, std_curve_intercept, std_curve_slope, std_curve_loq_Cq):
+def process_unknown(plate_df, intercept, slope, lod=4):
     '''
-    Calculates quantity based on Cq_mean and standard curve
+    Tests for outliers in technical triplicate qPCR reactions
+    Converts Cqs to quantities using standard curve intercept and slope
+    Substitutes half the LoD for non-detects in technical triplicates
+    Calculates geometric mean of substituted quantities for technical triplicates
+    Calculates geometric standard dev of non-substituted quantities for technical replicates
+    Summarizes non-detects, total replicates reported, and the intraassay variation among triplicates on the plate
 
     Params
-        plate_df: output from combine_replicates(); df containing Cq_mean
+        plate_df: dataframe of raw qPCR data with technical replicates named identically
             must be single plate with single target
-        std_curve_intercept: output from process_standard()
-        std_curve_slope: output from process_standard()
+        intercept: output from process_standard()
+        slope: output from process_standard()
+        lod: experimentally determined limit of detection for qPCR assay
     Returns
         unknown_df: the unknown subset of plate_df, with column Quantity_mean
-        Cq_of_lowest_sample_quantity: the Cq value of the lowest pt used on the plate
         intraassay_var intraassay variation (arithmetic mean of the coefficient of variation for all replicates on a plate)
     '''
 
+    def Cq_to_quantity(Cq, slope, intercept):
+        '''convert Cq to quantity using standard curve'''
+        quantity = 10**((Cq - intercept)/slope)
+        return quantity
+
+    half_lod = lod / 2
+
+    # filter plate for just unknowns, stop if plate has no unknowns
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
+    if len(unknown_df) == 0:
+        return unknown_df, 0
 
     # define outputs
-    unknown_df['Quantity_mean'] = np.nan
     intraassay_var = np.nan
-    Cq_of_lowest_sample_quantity = np.nan
-    unknown_df['below_limit_of_quantification'] = None
+    unknown_df['below_limit_of_detection'] = None
 
-    # use standard curve to calculate the quantities for each sample from Cq_mean
-    unknown_df['Quantity_mean'] = 10**((unknown_df['Cq_mean'] - std_curve_intercept)/std_curve_slope)
+    # flatten to columns of lists from long form at this point because outliers_grubbs works on a list
+    # and doesn't report the indices for points that get dropped
+    unknown_df = unknown_df[['Sample', 'dilution', 'Task', 'Cq', 'Quantity', 'is_undetermined']]
+    unknown_df = unknown_df.groupby(['Sample', 'dilution']).agg(lambda x: x.tolist())
+    unknown_df = unknown_df.reset_index()
 
-    # calculate the coefficient of variation using QuantStudio original quantities to capture variation on the plate
-    if not unknown_df.Q_init_std.isna().all():
-        percent_cv = (unknown_df['Q_init_std']-1)*100
-        intraassay_var = np.nanmean(percent_cv)
+    # drop outliers from lists, return new column of lists of Cqs without outliers
+    unknown_df['Cq_no_outliers'] = unknown_df.Cq.apply(lambda x: outliers_grubbs(x, alpha=0.05).tolist())
 
-    # Set the Cq of the lowest std quantity for different situations
-    if (len(unknown_df.Task) > 0) and not (unknown_df.Cq_mean.isna().all()):
-        # plate contains unknowns and at least some have Cq_mean
-        Cq_of_lowest_sample_quantity = np.nanmax(unknown_df.Cq_mean)
+    # convert each Cq to quantity, return new column of lists of quantities
+    unknown_df['Quantity_no_outliers'] = unknown_df.Cq_no_outliers.apply(lambda x: [Cq_to_quantity(Cq, slope, intercept) for Cq in x])
+
+    #substitute half_lod quantity for NaN (nondetect technical replicates) in lists of quantitites
+    unknown_df['Quantity_lod_sub'] = unknown_df.Quantity_no_outliers.apply(lambda x: [half_lod if np.isnan(quant) else quant for quant in x])
+
+    # calculate geometric mean of quantities (after substitution)
+    unknown_df['Quantity_mean'] = unknown_df.Quantity_lod_sub.apply(sci.gmean)
+
+    # calculate geometric std of quantities for getting intraassay_var below
+    # (without substitution so we can get at true variation, not biased by substitution)
+    unknown_df['Quantity_std_nosub'] = unknown_df.Quantity_no_outliers.apply(get_gstd)
+
+    # count replicates used to calculate reported quantities
+    unknown_df['replicate_count'] = unknown_df.Cq_no_outliers.apply(lambda x: sum(~np.isnan(x)))
+
+    # count nondetects using the is_undetermined column created by read_gsheets.read_qpcr_data()
+    unknown_df['nondetect_count'] = unknown_df.is_undetermined.apply(sum)
 
     # determine if samples are below the limit of quantification
-    if std_curve_loq_Cq is not np.nan:
-        unknown_df.loc[unknown_df.Cq_mean > std_curve_loq_Cq, 'below_limit_of_quantification'] = True
-        unknown_df.loc[unknown_df.Cq_mean <= std_curve_loq_Cq, 'below_limit_of_quantification'] = False
+    unknown_df.loc[unknown_df.Quantity_mean > lod, 'below_limit_of_detection'] = False
+    unknown_df.loc[unknown_df.Quantity_mean <= lod, 'below_limit_of_detection'] = True
 
-    return unknown_df, intraassay_var, Cq_of_lowest_sample_quantity
+    # calculate the coefficient of variation using QuantStudio original quantities to capture variation on the plate
+    if not unknown_df.Quantity_std_nosub.isna().all():
+        percent_cv = (unknown_df['Quantity_std_nosub']-1)*100
+        intraassay_var = np.nanmean(percent_cv)
+
+    return unknown_df, intraassay_var
 
 
 def process_ntc(plate_df, plate_id):
@@ -263,14 +295,14 @@ def process_ntc(plate_df, plate_id):
         warnings.warn(f'Plate {plate_id} is missing NTC')
         return None, np.nan
 
-    if all(ntc.is_undetermined.values[0]): # is_undetermined field is lists, need to access the list itself to ask if all values are True
+    if all(ntc.is_undetermined):
         ntc_is_neg = True
     else:
-        ntc_Cq = ntc.Cq_init_mean.values[0]
+        ntc_Cq = ntc.Cq.mean()
     return ntc_is_neg, ntc_Cq
 
 
-def process_qpcr_plate(plates, duplicate_max_std=0.5):
+def process_qpcr_plate(plates, duplicate_max_std=0.5, lod=4):
     '''wrapper to process data from a qPCR plate(s) grouped by unique plate_id and Target combo
 
     Params
@@ -291,13 +323,12 @@ def process_qpcr_plate(plates, duplicate_max_std=0.5):
     # process plate
         plate_attributes = []
         Target_full = df.Target_full.unique().tolist()
-        plate_df = combine_replicates(df)
         std_curve = process_standard(df, target, duplicate_max_std)
-        ntc_is_neg, ntc_Cq = process_ntc(plate_df, plate_id)
-        unknown_df, intraassay_var, Cq_of_lowest_sample_quantity = process_unknown(plate_df,
-                                                                                   std_curve.intercept.values[0],
-                                                                                   std_curve.slope.values[0],
-                                                                                   std_curve.loq_Cq.values[0])
+        ntc_is_neg, ntc_Cq = process_ntc(df, plate_id)
+        unknown_df, intraassay_var = process_unknown(df,
+                                                   std_curve.intercept.values[0],
+                                                   std_curve.slope.values[0],
+                                                   lod)
 
         unknown_df['plate_id'] = plate_id
         unknown_df['Target'] = target
@@ -309,7 +340,6 @@ def process_qpcr_plate(plates, duplicate_max_std=0.5):
         plate_attributes['plate_id'] = plate_id
         plate_attributes['Target'] = target
         plate_attributes['intraassay_var'] = intraassay_var
-        plate_attributes['Cq_of_lowest_sample_quantity'] = Cq_of_lowest_sample_quantity
         plate_attributes['ntc_is_neg'] = ntc_is_neg
         plate_attributes['ntc_Cq'] = ntc_Cq
         plate_attributes['Target_full'] = [Target_full] # can be more than one, so need to save as list
@@ -357,16 +387,16 @@ def choose_dilution(qpcr_processed):
 
         # when Pandas converts this column to boolean, it turns None to False, True to True, False to False. This is fine.
         # without doing this conversion, Pandas interprets None as True, which is not fine.
-        df.below_limit_of_quantification = df.below_limit_of_quantification.astype('bool')
+        df.below_limit_of_detection = df.below_limit_of_detection.astype('bool')
 
-        # if all dilutions were below the limit of quantification or were unquantified
-        if df.below_limit_of_quantification.all() or df.Quantity_mean_undiluted.isna().all():
+        # if all dilutions were below the limit of detection or were unquantified
+        if df.below_limit_of_detection.all() or df.Quantity_mean_undiluted.isna().all():
             # keep the lowest dilution
             keep = df.loc[[df.dilution.idxmin()]]
-        # if one of the dilutions was above the limit of quantification
-        elif len(df[df.below_limit_of_quantification == False]) == 1:
+        # if one of the dilutions was above the limit of detection
+        elif len(df[df.below_limit_of_detection == False]) == 1:
             # keep the one that was above limit of quantification
-            keep = df[df.below_limit_of_quantification == False]
+            keep = df[df.below_limit_of_detection == False]
         # if multiple were above limit of detection
         else:
             # choose max Quantity_mean_undiluted
