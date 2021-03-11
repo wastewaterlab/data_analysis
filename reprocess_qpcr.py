@@ -40,48 +40,6 @@ def get_gmean(replicates):
     return gmean_value
 
 
-def combine_replicates(plate_df, collapse_on=['Sample', 'dilution', 'Task']):
-    '''
-    collapse replicates with identical attributes as determined by collapse_on list
-    calculate summary columns
-
-    Params
-    plate_df: preprocessed plate dataframe from read_qpcr_data()
-    collapse_on: list of attributes that define technical replicates
-
-    Returns
-    plate_df: collapsed plate with summary columns for the combined technical replicates
-    '''
-    if len(plate_df.Target.unique()) > 1:
-        raise ValueError('''More than one target in this dataframe''')
-
-    # collapse replicates
-    plate_df = plate_df[['Sample', 'dilution', 'Task', 'Cq', 'Quantity', 'is_undetermined']]
-    plate_df = plate_df.groupby(collapse_on).agg(lambda x: x.tolist())
-    plate_df = plate_df.reset_index()
-
-    # create summary columns describing all replicates
-    plate_df['Cq_no_outliers'] = plate_df.Cq.apply(lambda x: outliers_grubbs(x, alpha=0.05).tolist())
-
-    # np.nanmean etc. will warn if all reps are nan, but still return nan so it's fine
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        plate_df['Cq_init_mean'] = plate_df.Cq.apply(np.nanmean)
-        plate_df['Cq_init_std'] = plate_df.Cq.apply(np.nanstd)
-        plate_df['Cq_init_min'] = plate_df.Cq.apply(np.nanmin)
-        plate_df['replicate_init_count'] = plate_df.Cq.apply(len)
-
-        plate_df['Q_init_mean'] = plate_df.Quantity.apply(get_gmean)
-        plate_df['Q_init_std'] = plate_df.Quantity.apply(get_gstd)
-
-        plate_df['Cq_mean'] = plate_df.Cq_no_outliers.apply(np.nanmean)
-        plate_df['Cq_std'] = plate_df.Cq_no_outliers.apply(np.nanstd)
-        plate_df['replicate_count'] = plate_df.Cq_no_outliers.apply(lambda x: sum(~np.isnan(x)))
-        plate_df['nondetect_count'] = plate_df.is_undetermined.apply(sum)
-    plate_df = plate_df.sort_values(['Sample', 'dilution'])
-    return plate_df
-
-
 def compute_linear_info(plate_data):
     '''compute the information for linear regression
 
