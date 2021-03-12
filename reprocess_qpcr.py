@@ -97,7 +97,7 @@ def process_standard(plate_df, target, duplicate_max_std=0.5):
     standard_df = plate_df[plate_df.Task == 'Standard'].copy()
 
     # combine replicates by Quantity
-    standard_df = standard_df[['Sample', 'dilution', 'Task', 'Cq', 'Quantity', 'is_undetermined']]
+    standard_df = standard_df[['Sample', 'dilution', 'Cq', 'Quantity', 'is_undetermined']]
     standard_df = standard_df.groupby('Quantity').agg(lambda x: x.tolist())
     standard_df = standard_df.reset_index()
 
@@ -196,16 +196,17 @@ def process_unknown(plate_df, intercept, slope, lod=4):
 
     # filter plate for just unknowns, stop if plate has no unknowns
     unknown_df = plate_df[plate_df.Task == 'Unknown'].copy()
+    unknown_df = unknown_df.drop(columns=['Task'])
     if len(unknown_df) == 0:
         return unknown_df, 0
 
     # define outputs
     intraassay_var = np.nan
-    unknown_df['below_limit_of_detection'] = None
+    unknown_df['below_limit_of_detection'] = True
 
     # flatten to columns of lists from long form at this point because outliers_grubbs works on a list
     # and doesn't report the indices for points that get dropped
-    unknown_df = unknown_df[['Sample', 'dilution', 'Task', 'Cq', 'Quantity', 'is_undetermined']]
+    unknown_df = unknown_df[['Sample', 'dilution', 'Cq', 'Quantity', 'is_undetermined']]
     unknown_df = unknown_df.groupby(['Sample', 'dilution']).agg(lambda x: x.tolist())
     unknown_df = unknown_df.reset_index()
 
@@ -315,9 +316,8 @@ def choose_dilution(qpcr_processed):
     '''
     RT-qPCR is run at 1x (undiluted) and 5x dilutions for each sample and each assay
     This function multiplies the quantity by the dilution factor and
-    finds the least inhibited dilution to report for each sample and assay
-    It also tries to choose a dilution for which the raw Cq_mean was above the
-    limit of quantification
+    finds the least inhibited, most reliably quantified dilution to report for each sample and assay
+
     NOTE: requires non-duplicated data (each sample run once per assay on a single plate)
     If duplicates exist at the level of ['Sample', 'Target', 'dilution']
     (i.e. the sample was rerun on more than one plate), will warn and then deduplicate.
@@ -343,14 +343,15 @@ def choose_dilution(qpcr_processed):
             warnings.warn(f'Sample {Sample} x {Target} has multiple entries with the same dilution factor in plates {plate_ids}')
             df = df.drop_duplicates('dilution', keep='first').copy()
 
-        # when Pandas converts this column to boolean, it turns None to False, True to True, False to False. This is fine.
-        # without doing this conversion, Pandas interprets None as True, which is not fine.
-        df.below_limit_of_detection = df.below_limit_of_detection.astype('bool')
-
         # if all dilutions were below the limit of detection or were unquantified
         if df.below_limit_of_detection.all() or df.Quantity_mean_undiluted.isna().all():
-            # keep the lowest dilution
-            keep = df.loc[[df.dilution.idxmin()]]
+            # if they both have the same number of nondetects
+            if len(df.nondetect_count.unique()) == 1:
+                # keep the lowest dilution because this is most likely to be accurately quantified
+                keep = df.loc[[df.dilution.idxmin()]]
+            # else keep the one with the fewest nondetects
+            else:
+                keep = df.loc[[df.nondetect_count.idxmin()]]
         # if one of the dilutions was above the limit of detection
         elif len(df[df.below_limit_of_detection == False]) == 1:
             # keep the one that was above limit of quantification
