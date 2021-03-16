@@ -80,8 +80,8 @@ def process_standard(plate_df, target, duplicate_max_std=0.5):
             used_default_curve: whether the default curve was used (boolean)
     '''
     # defaults
-    std_curve_N1_default = {'slope': -3.446051, 'intercept': 37.827506} # from plate 1093
-    std_curve_PMMoV_default = {'slope': -3.548825, 'intercept': 42.188174} # from plate 1092
+    std_curve_N1_default = {'slope': -3.37355, 'intercept': 38.53540} # from conglomerate
+    std_curve_PMMoV_default = {'slope': -3.308341, 'intercept': 40.450490} # from conglomerate
     std_curve_bCoV_default = {'slope': -3.414, 'intercept': 39.894} # from plate 1353
 
     # define outputs
