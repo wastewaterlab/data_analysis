@@ -328,13 +328,14 @@ def choose_dilution(qpcr_processed):
 
     Returns
     qpcr_processed_dilutions: dataframe of processed qPCR data with only the
-    best dilution
+    best dilution and new column is_inhibited [True, False, None]
     '''
 
     # multiply quantity times dilution to get undiluted_quantity
     qpcr_processed['Quantity_mean_undiluted'] = qpcr_processed['Quantity_mean'] * qpcr_processed['dilution']
 
     keep_df = []
+    is_inhibited = None
     for [Sample, Target], df in qpcr_processed.groupby(['Sample', 'Target']):
 
         # check for duplicates, warn and keep just the first one - data should be clean and this shouldn't happen.
@@ -348,21 +349,29 @@ def choose_dilution(qpcr_processed):
             # if they both have the same number of nondetects
             if len(df.nondetect_count.unique()) == 1:
                 # keep the lowest dilution because this is most likely to be accurately quantified
-                keep = df.loc[[df.dilution.idxmin()]]
+                keep = df.loc[[df.dilution.idxmin()]].copy()
+
             # else keep the one with the fewest nondetects
             else:
-                keep = df.loc[[df.nondetect_count.idxmin()]]
+                keep = df.loc[[df.nondetect_count.idxmin()]].copy()
         # if one of the dilutions was above the limit of detection
         elif len(df[df.below_limit_of_detection == False]) == 1:
             # keep the one that was above limit of quantification
-            keep = df[df.below_limit_of_detection == False]
+            keep = df[df.below_limit_of_detection == False].copy()
+
         # if multiple were above limit of detection
         else:
             # choose max Quantity_mean_undiluted
             # if there are multiple dilutions that have the same value for
             # Quantity_mean_undiluted, takes first; nearly impossible for real data
-            keep = df.loc[[df.Quantity_mean_undiluted.idxmax()]]
+            keep = df.loc[[df.Quantity_mean_undiluted.idxmax()]].copy()
 
+            # there was amplification at two dilutions, so we can assess inhibition
+            if keep.dilution.values[0] > 1: # if the diluted sample was chosen, there was inhibition
+                is_inhibited = True
+            else:
+                is_inhibited = False
+        keep['is_inhibited'] = is_inhibited
         keep_df.append(keep)
 
     qpcr_processed_dilutions = pd.concat(keep_df)
