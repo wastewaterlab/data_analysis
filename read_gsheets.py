@@ -39,14 +39,8 @@ def read_sample_data(gc, url, samples, sites, salted_tube_weight=23.485):
     # default values, not integrated into the code, but could be (i.e., if the value in the column is NaN, make it the default)
     defaults = {'elution_vol_ul': 200, 'effective_vol_extracted_ml': 40, 'weight_vol_extracted_ml':40, 'bCoV_spike_vol_ul': 50, 'GFP_spike_vol_ul': 20}
 
-    # TODO check if all rows are unique in samples_df and sites_df (see example of this being done below, commented out)
-    # TODO check if all required fields are present; note for samples_df, rows need to be filled in only if "date_extracted" is not NaN, otherwise, the sample was archived and not used
-
     samples_df = read_table(gc, url, samples)
     sites_df = read_table(gc, url, sites)
-
-    # TODO check if all rows are unique in samples_df and sites_df (see example of this being done below, commented out)
-    # TODO check if all required fields are present; note for samples_df, rows need to be filled in only if "date_extracted" is not NaN, otherwise, the sample was archived and not used
 
     rna_data = samples_df.merge(sites_df, how='left', on = 'sample_code')
 
@@ -54,23 +48,25 @@ def read_sample_data(gc, url, samples, sites, salted_tube_weight=23.485):
     rna_data.date_sampling = pd.to_datetime(rna_data.date_sampling, errors='coerce')
     rna_data.date_extract = pd.to_datetime(rna_data.date_extract, errors='coerce')
     rna_data.elution_vol_ul = pd.to_numeric(rna_data.elution_vol_ul, errors='coerce')
-    rna_data.effective_vol_extracted_ml = pd.to_numeric(rna_data.effective_vol_extracted_ml, errors='coerce')
     rna_data.weight = pd.to_numeric(rna_data.weight, errors='coerce')
-    rna_data.weight_vol_extracted_ml = pd.to_numeric(rna_data.weight_vol_extracted_ml, errors='coerce')
     rna_data.bCoV_spike_vol_ul = pd.to_numeric(rna_data.bCoV_spike_vol_ul, errors='coerce')
     rna_data.GFP_spike_vol_ul = pd.to_numeric(rna_data.GFP_spike_vol_ul, errors='coerce')
 
-    # instead of assuming all samples are 40 mL, use the weight of the sample minus weight of the tube, which we experimentally measured 10 times
-    rna_data.weight_vol_extracted_ml = rna_data.weight - salted_tube_weight
-    rna_data.loc[rna_data.weight_vol_extracted_ml.isna(), 'weight_vol_extracted_ml'] = 40 # if weight is missing, assign value of 40
+    # instead of assuming all samples are 40 mL, use the weight of the sample
+    # minus weight of the tube, which we experimentally measured 10 times
+    rna_data['weight_vol_extracted_ml'] = rna_data.weight - salted_tube_weight
+    # if weight is missing, assign value of 40
+    rna_data.loc[rna_data.weight_vol_extracted_ml.isna(), 'weight_vol_extracted_ml'] = 40
 
     # check for duplicates
-    # TODO this should happen before merging (see comment above)
-    a=rna_data[(rna_data.sample_id!="__")&(rna_data.sample_id!="")] #remove empty samples
-    a=a[a.duplicated(["sample_id"],keep=False)].copy()
-    if len(a) > 0:
-        samps=a.sample_id.unique()
-        l=len(samps)
+    #remove empty samples first
+    duplicates = rna_data[(rna_data.sample_id != '__') &
+                          (rna_data.sample_id != '') &
+                          (~rna_data.sample_id.isna())] 
+    duplicates = duplicates[duplicates.duplicated(['sample_id'], keep=False)].copy()
+    if len(duplicates) > 0:
+        samps = duplicates.sample_id.unique()
+        l = len(samps)
         warnings.warn(f'{l} samples are double listed in sample tracking spreadsheet. Check the following samples: {samps}')
 
     return rna_data
