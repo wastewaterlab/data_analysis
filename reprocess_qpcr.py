@@ -167,7 +167,7 @@ def process_standard(plate_df, target, duplicate_max_std=0.5):
     return std_curve
 
 
-def process_unknown(plate_df, intercept, slope, lod=4):
+def process_unknown(plate_df, target, intercept, slope, lod=4):
     '''
     Tests for outliers in technical triplicate qPCR reactions
     Converts Cqs to quantities using standard curve intercept and slope
@@ -217,7 +217,10 @@ def process_unknown(plate_df, intercept, slope, lod=4):
     unknown_df['Quantity_no_outliers'] = unknown_df.Cq_no_outliers.apply(lambda x: [Cq_to_quantity(Cq, slope, intercept) for Cq in x])
 
     #substitute half_lod quantity for NaN (nondetect technical replicates) in lists of quantitites
-    unknown_df['Quantity_lod_sub'] = unknown_df.Quantity_no_outliers.apply(lambda x: [half_lod if np.isnan(quant) else quant for quant in x])
+    if target == 'N1':
+        unknown_df['Quantity_lod_sub'] = unknown_df.Quantity_no_outliers.apply(lambda x: [half_lod if np.isnan(quant) else quant for quant in x])
+    else:
+        unknown_df['Quantity_lod_sub'] = unknown_df.Quantity_no_outliers
 
     # calculate geometric mean of quantities (after substitution)
     unknown_df['Quantity_mean'] = unknown_df.Quantity_lod_sub.apply(sci.gmean)
@@ -284,7 +287,7 @@ def process_qpcr_plate(plates, duplicate_max_std=0.5, lod=4):
         Target_full = df.Target_full.unique().tolist()
         std_curve = process_standard(df, target, duplicate_max_std)
         ntc_is_neg, ntc_Cq = process_ntc(df, plate_id)
-        unknown_df, intraassay_var = process_unknown(df,
+        unknown_df, intraassay_var = process_unknown(df, target,
                                                    std_curve.intercept.values[0],
                                                    std_curve.slope.values[0],
                                                    lod)
@@ -332,12 +335,13 @@ def choose_dilution(qpcr_processed):
     '''
 
     # multiply quantity times dilution to get undiluted_quantity
-    qpcr_processed['Quantity_mean_undiluted'] = qpcr_processed['Quantity_mean'] * qpcr_processed['dilution']
+    df_qpcr_in = qpcr_processed.copy() # copy first or it will modify the original dataframe
+    df_qpcr_in['Quantity_mean_undiluted'] = df_qpcr_in['Quantity_mean'] * df_qpcr_in['dilution']
 
     keep_df = []
     is_inhibited = None
-    for [Sample, Target], df in qpcr_processed.groupby(['Sample', 'Target']):
-
+    for [Sample, Target], df in df_qpcr_in.groupby(['Sample', 'Target']):
+        df = df.reset_index().drop(columns='index')
         # check for duplicates, warn and keep just the first one - data should be clean and this shouldn't happen.
         if len(df.dilution.unique()) != len(df.dilution):
             plate_ids = df.plate_id.unique()
@@ -364,7 +368,7 @@ def choose_dilution(qpcr_processed):
             # choose max Quantity_mean_undiluted
             # if there are multiple dilutions that have the same value for
             # Quantity_mean_undiluted, takes first; nearly impossible for real data
-            keep = df.loc[[df.Quantity_mean_undiluted.idxmax()]].copy()
+            keep = df.iloc[[df.Quantity_mean_undiluted.idxmax()]].copy()
 
             # there was amplification at two dilutions, so we can assess inhibition
             if keep.dilution.values[0] > 1: # if the diluted sample was chosen, there was inhibition
