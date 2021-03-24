@@ -23,7 +23,7 @@ def preprocess_site_data(df_sites):
     return df_sites
 
 
-def preprocess_sample_data(df_samples):
+def preprocess_sample_data(df_samples, df_sites):
     '''rename fields from LabCollector db and subset fields
     to mesh with existing code'''
     df_samples = df_samples.rename(columns={'bcov_spike_tube': 'bCoV_spike_tube',
@@ -52,6 +52,9 @@ def preprocess_sample_data(df_samples):
                              'bCoV_spike_vol_ul',
                              'GFP_spike_vol_ul',
                             ]].copy()
+    # drop rows without sample_code (means row is empty)
+    df_samples = df_samples[(df_samples.sample_code.isna())]
+
     df_samples.date_sampling = pd.to_datetime(df_samples.date_sampling, errors='coerce')
     df_samples.date_extract = pd.to_datetime(df_samples.date_extract, errors='coerce')
     df_samples.date_frozen = pd.to_datetime(df_samples.date_frozen, errors='coerce')
@@ -60,7 +63,16 @@ def preprocess_sample_data(df_samples):
     df_samples.bCoV_spike_vol_ul = pd.to_numeric(df_samples.bCoV_spike_vol_ul, errors='coerce')
     df_samples.GFP_spike_vol_ul = pd.to_numeric(df_samples.GFP_spike_vol_ul, errors='coerce')
 
-    return df_samples
+    if not len(df_samples.sample_id) == len(set(df_samples.sample_id)):
+        duplicates = df_samples[df_samples.sample_id.duplicated()].sample_id.to_list()
+        warnings.warn(f'duplicate sample_id: {duplicates}')
+
+    df_samples_sites = df_samples.merge(df_sites, how='left', on = 'sample_code')
+
+    if not len(df_samples) == len(df_samples_sites):
+        warnings.warn("merging samples and sites introduced new rows")
+
+    return df_samples_sites
 
 
 def preprocess_plate_data(df_plates):
@@ -87,31 +99,31 @@ def preprocess_plate_data(df_plates):
     return df_plates
 
 
-def extract_dilution(qpcr_data):
+def extract_dilution(df_qpcr):
     '''
     split the sample name if it starts with digitX_ (also handles lowercase x)
     captures the dilution in a new column, renames samples
     if samples were not diluted, dilution will be 1
     '''
-    dilution_sample_names_df = qpcr_data.Sample.str.extract(r'^(\d+)[X,x]_(.+)', expand=True)
+    dilution_sample_names_df = df_qpcr.Sample.str.extract(r'^(\d+)[X,x]_(.+)', expand=True)
     dilution_sample_names_df = dilution_sample_names_df.rename(columns = {0: 'dilution', 1: 'Sample_new'})
-    qpcr_data = pd.concat([qpcr_data, dilution_sample_names_df], axis=1)
-    qpcr_data.loc[qpcr_data.Sample_new.isna(), 'Sample_new'] = qpcr_data.Sample
-    qpcr_data.loc[qpcr_data.dilution.isna(), 'dilution'] = 1
-    qpcr_data = qpcr_data.rename(columns = {'Sample_new' : 'Sample', 'Sample' : 'sample_full'})
-    qpcr_data.dilution = pd.to_numeric(qpcr_data.dilution)
+    df_qpcr = pd.concat([df_qpcr, dilution_sample_names_df], axis=1)
+    df_qpcr.loc[df_qpcr.Sample_new.isna(), 'Sample_new'] = df_qpcr.Sample
+    df_qpcr.loc[df_qpcr.dilution.isna(), 'dilution'] = 1
+    df_qpcr = df_qpcr.rename(columns = {'Sample_new' : 'Sample', 'Sample' : 'sample_full'})
+    df_qpcr.dilution = pd.to_numeric(df_qpcr.dilution)
 
-    return qpcr_data
+    return df_qpcr
 
 
-def preprocess_qpcr_data(qpcr_data, show_all_values=False):
+def preprocess_df_qpcr(df_qpcr, show_all_values=False):
     '''rename fields from LabCollector db and subset fields
     to mesh with existing code
     create additional fields and convert dtypes as needed by downstream code
     '''
-    qpcr_data = qpcr_data[['omit', 'sample', 'target', 'dye', 'task', 'cq', 'quantity', 'well_id', 'plate_id', 'is_primary_value']].copy()
+    df_qpcr = df_qpcr[['omit', 'sample', 'target', 'dye', 'task', 'cq', 'quantity', 'well_id', 'plate_id', 'is_primary_value']].copy()
 
-    qpcr_data = qpcr_data.rename(columns = {'omit': 'Omit',
+    df_qpcr = df_qpcr.rename(columns = {'omit': 'Omit',
                                     'sample': 'Sample',
                                     'target': 'Target',
                                     'dye': 'Dye',
@@ -120,27 +132,27 @@ def preprocess_qpcr_data(qpcr_data, show_all_values=False):
                                     'quantity': 'Quantity'
                                    })
 
-    qpcr_data = extract_dilution(qpcr_data)
+    df_qpcr = extract_dilution(df_qpcr)
 
     # filter to remove secondary values for a sample run more than once
     if show_all_values is False:
-        qpcr_data = qpcr_data[qpcr_data.is_primary_value != 'N']
+        df_qpcr = df_qpcr[df_qpcr.is_primary_value != 'N']
 
     # create column to preserve info about true undetermined values
     # set column equal to boolean outcome of asking if Cq is Undetermined
-    qpcr_data['is_undetermined'] = False
-    qpcr_data['is_undetermined'] = (qpcr_data.Cq == 'Undetermined')
+    df_qpcr['is_undetermined'] = False
+    df_qpcr['is_undetermined'] = (df_qpcr.Cq == 'Undetermined')
 
     # convert fields to numerics and dates
-    qpcr_data.Quantity = pd.to_numeric(qpcr_data.Quantity, errors='coerce')
-    qpcr_data.Cq = pd.to_numeric(qpcr_data.Cq, errors='coerce')
-    qpcr_data.plate_id = pd.to_numeric(qpcr_data.plate_id, errors='coerce')
+    df_qpcr.Quantity = pd.to_numeric(df_qpcr.Quantity, errors='coerce')
+    df_qpcr.Cq = pd.to_numeric(df_qpcr.Cq, errors='coerce')
+    df_qpcr.plate_id = pd.to_numeric(df_qpcr.plate_id, errors='coerce')
 
     # get a column with only the target (separate info about the standard and master mix)
-    qpcr_data['Target_full'] = qpcr_data['Target']
-    qpcr_data['Target'] = qpcr_data['Target_full'].str.split(n=1, expand=True)[0]
+    df_qpcr['Target_full'] = df_qpcr['Target']
+    df_qpcr['Target'] = df_qpcr['Target_full'].str.split(n=1, expand=True)[0]
 
-    return qpcr_data
+    return df_qpcr
 
 
 def make_api_call(url, token):
@@ -167,8 +179,8 @@ def make_api_call(url, token):
     # note: df_plates doesn't need any renaming from LabCollector to mesh with existing code
 
     df_sites = preprocess_site_data(df_sites)
-    df_samples = preprocess_sample_data(df_samples)
+    df_samples_sites = preprocess_sample_data(df_samples, df_sites)
     df_plates = preprocess_plate_data(df_plates)
-    df_qpcr = preprocess_qpcr_data(df_qpcr)
+    df_qpcr = preprocess_df_qpcr(df_qpcr)
 
-    return df_sites, df_samples, df_plates, df_qpcr
+    return df_samples_sites, df_plates, df_qpcr
