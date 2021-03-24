@@ -31,11 +31,12 @@ def sample_collectionQC(Sample_type, total_hrs_sampling, sampling_notes) -> Scor
     si = ScoringInfo()
     name = 'composite_hrs'
 
-    if Sample_type is np.nan:
-        si.flag = f'missing {name}'
+    if pd.isnull(Sample_type):
+        si.flag = f'missing sample type'
+        si.score = 0 # missing info, can't score
         return si
 
-    if sampling_notes != '':
+    if not pd.isnull(sampling_notes):
         si.flag = f'check sampling notes'
 
     if Sample_type == 'Grab':
@@ -54,27 +55,27 @@ def sample_collectionQC(Sample_type, total_hrs_sampling, sampling_notes) -> Scor
     return si
 
 
-def sample_hold_timeQC(date_extract, date_sampling) -> ScoringInfo::
+def sample_hold_timeQC(date_extract, date_sampling) -> ScoringInfo:
     '''calculate and account for sample hold time'''
 
     si = ScoringInfo()
     name = 'sample_hold_time'
 
     # check if dates are missing from data
-    if (date_extract is np.nan) or (date_extract == 0) or (pd.isnull(date_extract)):
+    if pd.isnull(date_extract):
         # should actually clean the data so this doesn't need to be here
-        flag = 'check date_extract'
+        si.flag = 'missing date_extract'
         return si
 
-    if (date_sampling is np.nan) or (date_sampling == 0) or (pd.isnull(date_sampling)):
-        flag = 'check date_sampling'
+    if pd.isnull(date_sampling):
+        si.flag = 'missing check date_sampling'
         return si
 
     # check sample hold time
     hold_time = date_extract - date_sampling
 
     if hold_time < np.timedelta64(0, 'D'):
-        flag = 'date_extract before date_sampling'
+        si.flag = 'date_extract before date_sampling'
     elif hold_time <= np.timedelta64(3, 'D'):
         si.score = 1
     elif hold_time <= np.timedelta64(5, 'D'):
@@ -83,6 +84,7 @@ def sample_hold_timeQC(date_extract, date_sampling) -> ScoringInfo::
     else:
         si.score = 0
         si.point_deduction = 'hold time > 5 days'
+        si.estimation = 'under'
 
     return si
 
@@ -97,7 +99,9 @@ def extraction_neg_controlQC(extraction_control_is_neg, extraction_control_Cq, s
     name = 'extraction negative control'
 
     if extraction_control_is_neg is None:
-        flag = f'check {name}'
+        si.flag = f'missing {name}'
+        si.point_deduction = f'missing {name}'
+        si.score = 0 # missing info so can't score
         return si
 
     if extraction_control_is_neg == True: #good
@@ -106,7 +110,7 @@ def extraction_neg_controlQC(extraction_control_is_neg, extraction_control_Cq, s
 
     else:
         mean_Cq = np.nanmean(sample_Cqs)
-        if np.isnan(mean_Cq) or float(ntc_Cq) > (mean_Cq + 1):
+        if np.isnan(mean_Cq) or float(extraction_control_Cq) > (mean_Cq + 1):
             # the extraction control amplified but was least 1 Ct higher than
             # the mean sample Cq or sample didn't amplify
             si.score = 0.5
@@ -115,6 +119,7 @@ def extraction_neg_controlQC(extraction_control_is_neg, extraction_control_Cq, s
         else: #poor
             si.score = 0
             si.point_deduction = f'{name} amplified within 1 Cq of sample'
+            si.estimation = 'over'
 
     return si
 
@@ -131,7 +136,7 @@ def extraction_processing_errorQC(processing_error) -> ScoringInfo:
     si = ScoringInfo()
     name = 'extraction processing error'
 
-    if str(processing_error) != 'nan' and str(processing_error) != '':
+    if not pd.isnull(processing_error):
         si.score =  0
         si.flag = 'extraction processing error'
         si.point_deduction = f'extraction processing error: sample {processing_error}'
@@ -153,9 +158,10 @@ def extraction_recovery_controlQC(bCoV_perc_recovered) -> ScoringInfo:
     si = ScoringInfo()
     name = 'Spike-in control virus recovery'
 
-    # TODO do we want this flag or not?
-    if bCoV_perc_recovered is np.nan:
+    if np.isnan(bCoV_perc_recovered):
         si.flag = f'missing {name}'
+        si.score = 0 # no bCoV data, so can't score
+        si.point_deduction = f'missing {name}'
         return si
 
     if bCoV_perc_recovered >= 10:
@@ -182,9 +188,10 @@ def extraction_fecal_controlQC(pmmov_gc_per_mL) -> ScoringInfo:
     si = ScoringInfo()
     name = 'human fecal indicator virus'
 
-    # TODO do we want this flag or not?
-    if pmmov_gc_per_mL is np.nan:
+    if np.isnan(pmmov_gc_per_mL):
         si.flag = f'missing {name}'
+        si.score = 0 # missing data so can't score
+        si.point_deduction = f'missing {name}'
         return si
 
     if pmmov_gc_per_mL >= 1e3:
@@ -210,14 +217,14 @@ def qpcr_neg_controlQC(ntc_is_neg, ntc_Cq, sample_Cqs) -> ScoringInfo:
     si = ScoringInfo()
     name = 'no-template qPCR control'
 
-    if ntc_is_neg is np.nan:
-        flag = f'check {name}'
+    if pd.isnull(ntc_is_neg):
+        si.flag = f'missing {name}'
+        si.point_deduction = f'missing {name}'
         return si
 
-    if ntc_is_neg: #good
+    if ntc_is_neg == True: #good
         si.score = 1
         return si
-
     else:
         mean_Cq = np.nanmean(sample_Cqs)
         if np.isnan(mean_Cq) or float(ntc_Cq) > (mean_Cq + 1):
@@ -229,6 +236,7 @@ def qpcr_neg_controlQC(ntc_is_neg, ntc_Cq, sample_Cqs) -> ScoringInfo:
         else: #poor
             si.score = 0
             si.point_deduction = f'{name} amplified within 1 Cq of sample'
+            si.estimation = 'over'
 
     return si
 
@@ -241,20 +249,29 @@ def qpcr_efficiencyQC(param: float) -> ScoringInfo:
     si = ScoringInfo()
     name = 'efficiency'
 
-    if param is np.nan:
-        flag = f'check {name}'
+    if pd.isnull(param):
+        si.flag = f'missing {name}'
+        si.point_deduction = f'missing {name}'
         return si
 
     if 0.9 <= param <= 1.1:  # good
         si.score = 1
-    elif 0.8 <= param <= 1.2:  # ok
+    elif 0.8 <= param < 0.9:  # ok
         si.score = 0.5
-        si.point_deduction = f'{name} ok'
-        si.underestimated = True
-    elif 0.7 <= param <= 1.3:  # poor
+        si.point_deduction = f'{name} 80-90%'
+        si.estimation = 'under'
+    elif 1.1 < param <= 1.2:  # ok
+        si.score = 0.5
+        si.point_deduction = f'{name} 110-120%'
+        si.estimation = 'over'
+    elif param < 0.8: # poor
         si.score = 0
-        si.point_deduction = f'{name} poor'
-        si.underestimated = True
+        si.point_deduction = f'{name} < 80%'
+        si.estimation = 'under'
+    elif param > 1.2: # poor
+        si.score = 0
+        si.point_deduction = f'{name} > 120%'
+        si.estimation = 'over'
 
     return si
 
@@ -268,18 +285,19 @@ def qpcr_num_pointsQC(param: float) -> ScoringInfo:
     si = ScoringInfo()
     name = 'points in std curve'
 
-    if (param is np.nan) or (param == 0):
-        flag = f'check {name}'
+    if pd.isnull(param) or param == 0:
+        si.flag = f'missing {name}'
+        si.point_deduction = f'missing {name}'
         return si
 
     if (param >=5): #good
         si.score = 1
     elif (param >=3): #ok
         si.score = 0.5
-        si.point_deduction = f'{name} ok'
-    elif (param < 3): #poor
+        si.point_deduction = f'{name} was 3-5'
+    else: #poor
         si.score = 0
-        si.point_deduction = f'{name} poor'
+        si.point_deduction = f'{name} < 3'
 
     return si
 
@@ -292,12 +310,12 @@ def qpcr_stdev_techrepsQC(Quantity_std_nosub) -> ScoringInfo:
     std_between_techrepsQC(1, [1,3,2,1]) # good
     '''
 
-
     si = ScoringInfo()
     name = 'geometric std between technical reps'
 
-    if Quantity_std_nosub is np.nan:
+    if np.isnan(Quantity_std_nosub):
         # this will happen for all non-detects
+        si.point_deduction = f'missing {name} due to nondetects'
         return si
 
     if (Quantity_std_nosub < 2): #good
@@ -324,14 +342,14 @@ def qpcr_inhibitionQC(is_inhibited) -> ScoringInfo:
     si = ScoringInfo()
     name = 'qPCR inhibition'
 
-    if is_inhibited == None: # ok
+    if is_inhibited == None: # poor
         # this will happen if one or both dilutions are below limit of detection
-        si.score = 0.5
+        si.score = 0 # can't determine inhibition, may be inhibited!
         si.point_deduction = f'{name} was undetermined'
     elif is_inhibited == False: #good
-        si.score = 1
-    elif is_inhibited == True: #poor
-        si.score = 0
+        si.score = 1.0
+    elif is_inhibited == True: #ok
+        si.score = 0.5
         si.point_deduction = f'{name} was present'
 
     return si
@@ -342,11 +360,10 @@ def qpcr_r2Q(param: float) -> ScoringInfo:
     '''given r2 (qPCR standard curve r2) and list of weights and points
     return quality_score'''
 
-
     si = ScoringInfo()
     name = 'r2'
 
-    if param is np.nan:
+    if np.isnan(param):
         flag = f'check {name}'
         return si
 
@@ -355,7 +372,7 @@ def qpcr_r2Q(param: float) -> ScoringInfo:
     elif (param >=0.9): #ok
         si.score = 0.5
         si.point_deduction = f'{name} ok'
-    elif (param < 0.9): #poor
+    else: #poor
         si.score = 0
         si.point_deduction = f'{name} poor'
 
@@ -373,7 +390,7 @@ def qpcr_num_techrepsQ(param, nondetect_count) -> ScoringInfo:
     si = ScoringInfo()
     name = 'num tech reps'
 
-    if param is np.nan:
+    if np.isnan(param):
         flag = f'check {name}'
         return si
 
@@ -398,9 +415,10 @@ def qpcr_num_techrepsQ(param, nondetect_count) -> ScoringInfo:
 
     return si
 
+
 def get_weights(weights_dict):
     '''
-    get weights
+    get weights from dict to df, check dict is complete
     '''
     if weights_dict is None:
         weights_dict = {
@@ -434,6 +452,8 @@ def get_weights(weights_dict):
     # max_score = sum(score_dict.values()) * 3 # max points per param = 3
     # make into dataframe with columns 'parameter', 'weight'
     weights_df = pd.DataFrame.from_dict(weights_dict, orient='index', columns=['weight'])
+    if weights_df.weight.sum() != 100:
+        raise ValueError('Weights must sum to 100')
 
     return weights_df
 
@@ -472,24 +492,51 @@ def quality_score(df, weights_dict=None):
     normalizes all scores to max_score
     '''
 
+    # check that all necessary fields exist in the DataFrame
+    qc_fields = {'Sample',
+        'Target',
+        'plate_id',
+        'Sample_type',
+        'total_hrs_sampling',
+        'sampling_notes',
+        'date_extract',
+        'date_sampling',
+        'extraction_control_is_neg',
+        'extraction_control_Cq',
+        'Cq',
+        'processing_error',
+        'bCoV_perc_recovered',
+        'pmmov_gc_per_mL',
+        'ntc_is_neg',
+        'ntc_Cq',
+        'efficiency',
+        'num_points',
+        'Quantity_std_nosub',
+        'is_inhibited'}
+
+    if qc_fields - set(df.columns) != set():
+        missing = list(qc_fields - set(df.columns))
+        raise ValueError(f'dataframe is missing fields: {missing}')
+
     weights_df = get_weights(weights_dict)
+    weights_df = weights_df.reset_index()
 
     final_scores_df = []
-    for row in df.itertuples():
+    for r in df.itertuples():
         # make empty score dataframe for this row
 
         # call each scoring function and save results in score_df
-        sample_collection = sample_collectionQC(Sample_type, total_hrs_sampling, sampling_notes).to_tuple()
-        sample_hold_time = sample_hold_timeQC(date_extract, date_sampling).to_tuple()
-        extraction_neg_control = extraction_neg_controlQC(extraction_control_is_neg, extraction_control_Cq, sample_Cqs).to_tuple()
-        extraction_processing_error = extraction_processing_errorQC(processing_error).to_tuple()
-        extraction_recovery_control = extraction_recovery_controlQC(bCoV_perc_recovered).to_tuple()
-        extraction_fecal_control = extraction_fecal_controlQC(pmmov_gc_per_mL).to_tuple()
-        qpcr_neg_control = qpcr_neg_controlQC(ntc_is_neg, ntc_Cq, sample_Cqs).to_tuple()
-        qpcr_efficiency = qpcr_efficiencyQC(efficiency).to_tuple()
-        qpcr_num_points = qpcr_num_pointsQC(num_points).to_tuple()
-        qpcr_stdev_techreps = qpcr_stdev_techrepsQC(Quantity_std_nosub).to_tuple()
-        qpcr_inhibition = qpcr_inhibitionQC(is_inhibited).to_tuple()
+        sample_collection = sample_collectionQC(r.Sample_type, r.total_hrs_sampling, r.sampling_notes).to_tuple()
+        sample_hold_time = sample_hold_timeQC(r.date_extract, r.date_sampling).to_tuple()
+        extraction_neg_control = extraction_neg_controlQC(r.extraction_control_is_neg, r.extraction_control_Cq, r.Cq).to_tuple()
+        extraction_processing_error = extraction_processing_errorQC(r.processing_error).to_tuple()
+        extraction_recovery_control = extraction_recovery_controlQC(r.bCoV_perc_recovered).to_tuple()
+        extraction_fecal_control = extraction_fecal_controlQC(r.pmmov_gc_per_mL).to_tuple()
+        qpcr_neg_control = qpcr_neg_controlQC(r.ntc_is_neg, r.ntc_Cq, r.Cq).to_tuple()
+        qpcr_efficiency = qpcr_efficiencyQC(r.efficiency).to_tuple()
+        qpcr_num_points = qpcr_num_pointsQC(r.num_points).to_tuple()
+        qpcr_stdev_techreps = qpcr_stdev_techrepsQC(r.Quantity_std_nosub).to_tuple()
+        qpcr_inhibition = qpcr_inhibitionQC(r.is_inhibited).to_tuple()
 
         # combine all scores for this row into single dataframe
         score_df = [sample_collection,
@@ -507,8 +554,8 @@ def quality_score(df, weights_dict=None):
                                              columns=['score',
                                                       'flag',
                                                       'point_deduction',
-                                                      'underestimated'],
-                                             index = 'sample_collection',
+                                                      'estimation'],
+                                             index = ['sample_collection',
                                                          'sample_hold_time',
                                                          'extraction_neg_control',
                                                          'extraction_processing_error',
@@ -518,29 +565,44 @@ def quality_score(df, weights_dict=None):
                                                          'qpcr_efficiency',
                                                          'qpcr_num_points',
                                                          'qpcr_stdev_techreps',
-                                                         'qpcr_inhibition')
+                                                         'qpcr_inhibition'])
 
         # calculate final score, combine all flags and all point deductions
         score = 0
         flags = ''
         point_deductions = ''
+        estimation = ''
 
-        weights_df = weights_df.reset_index()
-        scores_df = scores_df.reset_index()
-        scores_df = scores_df.merge(weights_df, left_on='index', right_on='index')
-        scores_df['weighted_score'] = scores_df.weight * scores_df.score
-        total_score = scores_df.weighted_score.sum()
+        # multiply scores by weights and calculate total weighted scores
+        score_df = score_df.reset_index()
+        score_df = score_df.merge(weights_df, left_on='index', right_on='index')
+        score_df['weighted_score'] = score_df.weight * score_df.score
+        quality_score = score_df.weighted_score.sum()
 
         if len(score_df.flag.dropna()) > 0:
             flags = '; '.join(score_df.flag.dropna())
         if len(score_df.point_deduction.dropna()) > 0:
             point_deductions = '; '.join(score_df.point_deduction.dropna())
-        results = [row.Sample, row.Target, row.plate_id, score, flags, point_deductions]
+        if len(score_df.estimation.dropna()) > 0:
+            estimation = '; '.join(score_df.estimation.dropna())
+        results = [r.Sample,
+                   r.Target,
+                   r.plate_id,
+                   quality_score,
+                   flags,
+                   point_deductions,
+                   estimation]
 
         # save final score for the row
         final_scores_df.append(results)
 
-    final_scores_df = pd.DataFrame.from_records(final_scores_df, columns=['Sample', 'Target', 'plate_id', 'score', 'flag', 'point_deduction'])
-    final_scores_df['quality_score'] = (final_scores_df.score / max_score)*100
+    final_scores_df = pd.DataFrame.from_records(final_scores_df,
+                                                columns=['Sample',
+                                                         'Target',
+                                                         'plate_id',
+                                                         'quality_score',
+                                                         'flag',
+                                                         'point_deduction',
+                                                         'estimation'])
 
     return(final_scores_df)
