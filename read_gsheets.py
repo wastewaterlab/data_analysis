@@ -54,6 +54,19 @@ def read_sample_logs(gc, sample_log_url, sample_metadata_url, sample_log_tab, sa
     return sampling_df
 
 
+def read_plate_data(gc, url, plate, rxn_volume=20.0, template_volume=5.0):
+    # read in plate info
+    plate_info_df = read_table(gc, url, plate)
+    plate_info_df.plate_id = pd.to_numeric(plate_info_df.plate_id)
+    plate_info_df.plate_date = pd.to_datetime(plate_info_df.plate_date)
+    plate_info_df[~plate_info_df.plate_id.isna()] # drop empty rows (must have plate_id)
+    # fill in default values
+    plate_info_df.loc[plate_info_df.rxn_volume.isna(), 'rxn_volume'] = rxn_volume
+    plate_info_df.loc[plate_info_df.template_volume.isna(), 'template_volume'] = template_volume
+
+    return plate_info_df
+
+
 def read_sample_data(gc, url, samples, sites, salted_tube_weight=23.485):
     '''
     merge the sample df and sites df, convert fields to correct dtypes, calculate the volume extracted based on sample weight
@@ -126,6 +139,9 @@ def read_qpcr_data(gc, url, qpcr, show_all_values=False):
   '''
   qpcr_data = read_table(gc, url, qpcr)
   qpcr_data = extract_dilution(qpcr_data)
+
+  # drop empty wells (these shouldn't be imported but can happen by accident)
+  qpcr_data = qpcr_data[~qpcr_data.Sample.isna()]
 
   # filter to remove secondary values for a sample run more than once
   if show_all_values is False:
