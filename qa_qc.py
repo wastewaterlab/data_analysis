@@ -3,7 +3,7 @@ import numpy  as np
 from scipy import stats as sci
 import warnings
 
-def get_extraction_control(qpcr_averaged, control_sample_code='control_control_PBS'):
+def get_extraction_control(sample_data_qpcr, control_sample_code='control_control_PBS'):
     '''
     determine whether negative controls in each batch were negative (extraction_control_is_neg)
     if negative controls were positive, show the value (extraction_control_Cq)
@@ -18,9 +18,12 @@ def get_extraction_control(qpcr_averaged, control_sample_code='control_control_P
     '''
 
     # make empty dataframe to return
-    df_with_extraction_control = pd.DataFrame()
+    df_with_extraction_control = []
+    # save samples missing batch number
+    missing_batch = sample_data_qpcr[sample_data_qpcr.batch.isna()]
+    df_with_extraction_control.append(missing_batch)
 
-    for [batch, Target], df in qpcr_averaged.groupby(['batch', 'Target']):
+    for [batch, Target], df in sample_data_qpcr.groupby(['batch', 'Target']):
         # set default values
         extraction_control_is_neg = None
         extraction_control_Cq = np.nan
@@ -41,5 +44,7 @@ def get_extraction_control(qpcr_averaged, control_sample_code='control_control_P
         # create columns in df with extraction control info and save
         df['extraction_control_is_neg'] = extraction_control_is_neg
         df['extraction_control_Cq'] = extraction_control_Cq
-        df_with_extraction_control =  pd.concat([df_with_extraction_control, df])
+        df_with_extraction_control.append(df)
+    df_with_extraction_control = pd.concat(df_with_extraction_control)
+
     return(df_with_extraction_control)
