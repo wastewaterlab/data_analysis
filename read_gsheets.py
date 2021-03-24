@@ -34,7 +34,7 @@ def read_sample_data(gc, url, samples, sites, salted_tube_weight=23.485):
     salted_tube_weight: experimentally determined average weight of tube with the salt preservative prior to sample addition
 
     Returns
-    rna_data: pandas dataframe where each row is a unique sample with site info
+    samples_sites_df: pandas dataframe where each row is a unique sample with site info
     '''
     # default values, not integrated into the code, but could be (i.e., if the value in the column is NaN, make it the default)
     defaults = {'elution_vol_ul': 200, 'effective_vol_extracted_ml': 40, 'weight_vol_extracted_ml':40, 'bCoV_spike_vol_ul': 50, 'GFP_spike_vol_ul': 20}
@@ -42,34 +42,34 @@ def read_sample_data(gc, url, samples, sites, salted_tube_weight=23.485):
     samples_df = read_table(gc, url, samples)
     sites_df = read_table(gc, url, sites)
 
-    rna_data = samples_df.merge(sites_df, how='left', on = 'sample_code')
+    # remove empty rows
+    samples_df = samples_df[~samples_df.sample_code.isna()]
 
     # convert fields to datetime and numeric
-    rna_data.date_sampling = pd.to_datetime(rna_data.date_sampling, errors='coerce')
-    rna_data.date_extract = pd.to_datetime(rna_data.date_extract, errors='coerce')
-    rna_data.elution_vol_ul = pd.to_numeric(rna_data.elution_vol_ul, errors='coerce')
-    rna_data.weight = pd.to_numeric(rna_data.weight, errors='coerce')
-    rna_data.bCoV_spike_vol_ul = pd.to_numeric(rna_data.bCoV_spike_vol_ul, errors='coerce')
-    rna_data.GFP_spike_vol_ul = pd.to_numeric(rna_data.GFP_spike_vol_ul, errors='coerce')
+    samples_df.date_sampling = pd.to_datetime(samples_df.date_sampling, errors='coerce')
+    samples_df.date_extract = pd.to_datetime(samples_df.date_extract, errors='coerce')
+    samples_df.elution_vol_ul = pd.to_numeric(samples_df.elution_vol_ul, errors='coerce')
+    samples_df.weight = pd.to_numeric(samples_df.weight, errors='coerce')
+    samples_df.bCoV_spike_vol_ul = pd.to_numeric(samples_df.bCoV_spike_vol_ul, errors='coerce')
+    samples_df.GFP_spike_vol_ul = pd.to_numeric(samples_df.GFP_spike_vol_ul, errors='coerce')
 
     # instead of assuming all samples are 40 mL, use the weight of the sample
     # minus weight of the tube, which we experimentally measured 10 times
-    rna_data['weight_vol_extracted_ml'] = rna_data.weight - salted_tube_weight
+    samples_df['weight_vol_extracted_ml'] = samples_df.weight - salted_tube_weight
     # if weight is missing, assign value of 40
-    rna_data.loc[rna_data.weight_vol_extracted_ml.isna(), 'weight_vol_extracted_ml'] = 40
+    samples_df.loc[samples_df.weight_vol_extracted_ml.isna(), 'weight_vol_extracted_ml'] = 40
 
     # check for duplicates
-    #remove empty samples first
-    duplicates = rna_data[(rna_data.sample_id != '__') &
-                          (rna_data.sample_id != '') &
-                          (~rna_data.sample_id.isna())] 
-    duplicates = duplicates[duplicates.duplicated(['sample_id'], keep=False)].copy()
-    if len(duplicates) > 0:
-        samps = duplicates.sample_id.unique()
-        l = len(samps)
-        warnings.warn(f'{l} samples are double listed in sample tracking spreadsheet. Check the following samples: {samps}')
+    if not len(samples_df.sample_id) == len(set(samples_df.sample_id)):
+        duplicates = samples_df[samples_df.sample_id.duplicated()].sample_id.to_list()
+        warnings.warn(f'duplicate sample_id: {duplicates}')
 
-    return rna_data
+    samples_sites_df = samples_df.merge(sites_df, how='left', on = 'sample_code')
+
+    if not len(samples_df) == len(samples_sites_df):
+        warnings.warn("merging samples and sites introduced new rows")
+
+    return samples_sites_df
 
 
 def extract_dilution(qpcr_data):
