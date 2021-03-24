@@ -21,6 +21,38 @@ def read_table(gc, url, tab):
         df=df.replace('NA',np.nan)
     return df
 
+def read_sample_logs(gc, sample_log_url, sample_metadata_url, sample_log_tab, sample_metadata_tab):
+    '''read sample log and sample metadata, then merge'''
+
+    # load sample log
+    sl = read_table(gc, sample_log_url, sample_log_tab)
+    sl.date_sampling = pd.to_datetime(sl.date_sampling)
+    sl = sl.drop_duplicates(['sample_code', 'date_sampling'])
+    sl = sl.rename(columns={'Flow (MGD) for this location, if known': 'flow_MGD',
+                            'Number of hours represented by composite': 'total_hrs_sampling',
+                            'Additional notes about the sample': 'sampling_notes'
+                           })
+    sl.flow_MGD = pd.to_numeric(sl.flow_MGD)
+    sl = sl.drop(columns=['Timestamp', 'utility_name'])
+
+    #load sample metadata log
+    sm = read_table(gc, sample_metadata_url, sample_metadata_tab)
+    sm.date_sampling = pd.to_datetime(sm.date_sampling)
+    sm = sm.rename(columns={'TSS (mg/L) (if available)': 'TSS',
+                            'COD (mg/L) (if available)': 'COD',
+                            'BOD (mg/L) (if available)': 'BOD',
+                            'pH (if available)': 'pH',
+                            'conductivity (if available)': 'conductivity'
+                           })
+    sm.TSS = pd.to_numeric(sm.TSS)
+    sm.COD = pd.to_numeric(sm.COD)
+    sm.BOD = pd.to_numeric(sm.BOD)
+    sm = sm.drop(columns=['Timestamp', 'utility_name'])
+    sm = sm.drop_duplicates(['sample_code', 'date_sampling'])
+    sampling_df = sl.merge(sm, how='left', on=['sample_code', 'date_sampling'])
+
+    return sampling_df
+
 
 def read_sample_data(gc, url, samples, sites, salted_tube_weight=23.485):
     '''
@@ -87,6 +119,7 @@ def extract_dilution(qpcr_data):
     qpcr_data.dilution = pd.to_numeric(qpcr_data.dilution)
 
     return qpcr_data
+
 
 def read_qpcr_data(gc, url, qpcr, show_all_values=False):
   ''' Read in raw qPCR data page from the qPCR spreadsheet
