@@ -134,6 +134,9 @@ def preprocess_df_qpcr(df_qpcr, show_all_values=False):
 
     df_qpcr = extract_dilution(df_qpcr)
 
+    # drop empty wells (these shouldn't be imported but can happen by accident)
+    df_qpcr = df_qpcr[~df_qpcr.Sample.isna()]
+
     # filter to remove secondary values for a sample run more than once
     if show_all_values is False:
         df_qpcr = df_qpcr[df_qpcr.is_primary_value != 'N']
