@@ -96,6 +96,10 @@ def preprocess_plate_data(df_plates):
     df_plates.rxn_volume = pd.to_numeric(df_plates.rxn_volume, errors='coerce')
     df_plates.template_volume = pd.to_numeric(df_plates.template_volume, errors='coerce')
 
+    if not len(df_plates.plate_id) == len(set(df_plates.plate_id)):
+        # check for duplicate plate_id
+        raise ValueError('multiple plate info entries with same plate_id')
+
     return df_plates
 
 

@@ -33,6 +33,7 @@ def read_sample_logs(gc, sample_log_url, sample_metadata_url, sample_log_tab, sa
                             'Additional notes about the sample': 'sampling_notes'
                            })
     sl.flow_MGD = pd.to_numeric(sl.flow_MGD)
+    sl.total_hrs_sampling = pd.to_numeric(sl.total_hrs_sampling)
     sl = sl.drop(columns=['Timestamp', 'utility_name'])
 
     #load sample metadata log
@@ -63,6 +64,10 @@ def read_plate_data(gc, url, plate, rxn_volume=20.0, template_volume=5.0):
     # fill in default values
     plate_info_df.loc[plate_info_df.rxn_volume.isna(), 'rxn_volume'] = rxn_volume
     plate_info_df.loc[plate_info_df.template_volume.isna(), 'template_volume'] = template_volume
+
+    if not len(qpcr_plate_df.plate_id) == len(set(qpcr_plate_df.plate_id)):
+        # check for duplicate plate_id
+        raise ValueError('multiple plate info entries with same plate_id')
 
     return plate_info_df
 
@@ -105,6 +110,7 @@ def read_sample_data(gc, url, samples, sites, salted_tube_weight=23.485):
     samples_df.loc[samples_df.weight_vol_extracted_ml.isna(), 'weight_vol_extracted_ml'] = 40
 
     # check for duplicates
+    samples_df = samples_df[samples_df.sample_id != '__'] # drop empty sample_ids
     if not len(samples_df.sample_id) == len(set(samples_df.sample_id)):
         duplicates = samples_df[samples_df.sample_id.duplicated()].sample_id.to_list()
         warnings.warn(f'duplicate sample_id: {duplicates}')
