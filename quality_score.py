@@ -23,9 +23,9 @@ class ScoringInfo:
 def sample_collectionQC(Sample_type, total_hrs_sampling, sampling_notes) -> ScoringInfo:
     '''Number of hours represented by composite
     Grab sample may be taken if autosampler failed
-    # composite_hrsQC('Composite', 24, '', 1)
-    # composite_hrsQC('Grab', np.nan, '', 1)
-    # composite_hrsQC('Composite', 9, 'sampler failed after 9 hours', 1)
+    # composite_hrsQC('Composite', 24, '')
+    # composite_hrsQC('Grab', np.nan, '')
+    # composite_hrsQC('Composite', 9, 'sampler failed after 9 hours')
     '''
 
     si = ScoringInfo()
@@ -92,8 +92,7 @@ def sample_hold_timeQC(date_extract, date_sampling) -> ScoringInfo:
 # Extraction parameters
 
 def extraction_neg_controlQC(extraction_control_is_neg, extraction_control_Cq, sample_Cqs) -> ScoringInfo:
-    '''given extraction control info and loq_Cq and list of weights
-    return quality_score'''
+    '''Account for results of extraction control'''
 
     si = ScoringInfo()
     name = 'extraction negative control'
@@ -128,9 +127,6 @@ def extraction_processing_errorQC(processing_error) -> ScoringInfo:
     '''
     include information about sample processing errors:
     (clogged, cracked spilled, missing, see_notes)
-    extraction_processing_errorQC('clogged', 1)
-    extraction_processing_errorQC('', 1)
-    extraction_processing_errorQC(np.nan, 1)
     '''
 
     si = ScoringInfo()
@@ -150,9 +146,6 @@ def extraction_processing_errorQC(processing_error) -> ScoringInfo:
 def extraction_recovery_controlQC(bCoV_perc_recovered) -> ScoringInfo:
     '''
     Account for recovery efficiency of spike-in control virus
-    # extraction_recovery_controlQC(11.5, [1,3,2,1])
-    # extraction_recovery_controlQC(5.2, [1,3,2,1])
-    # extraction_recovery_controlQC(2.1, [1,3,2,1])
     '''
 
     si = ScoringInfo()
@@ -180,9 +173,6 @@ def extraction_recovery_controlQC(bCoV_perc_recovered) -> ScoringInfo:
 def extraction_fecal_controlQC(pmmov_gc_per_mL) -> ScoringInfo:
     '''
     Check quantity of human fecal indicator virus as a positive control
-    # extraction_fecal_controlQC(99, [1,3,2,1])
-    # extraction_fecal_controlQC(105, [1,3,2,1])
-    # extraction_fecal_controlQC(10000, [1,3,2,1])
     '''
 
     si = ScoringInfo()
@@ -305,9 +295,6 @@ def qpcr_num_pointsQC(param: float) -> ScoringInfo:
 def qpcr_stdev_techrepsQC(Quantity_std_nosub) -> ScoringInfo:
     '''Account for geometric standard deviation between quantities
     in technical replicates, as calculated based on standard curve
-    std_between_techrepsQC(4.5, [1,3,2,1]) # poor
-    std_between_techrepsQC(2, [1,3,2,1]) # ok
-    std_between_techrepsQC(1, [1,3,2,1]) # good
     '''
 
     si = ScoringInfo()
@@ -333,9 +320,6 @@ def qpcr_stdev_techrepsQC(Quantity_std_nosub) -> ScoringInfo:
 def qpcr_inhibitionQC(is_inhibited) -> ScoringInfo:
     '''Account for geometric standard deviation between quantities
     in technical replicates, as calculated based on standard curve
-    std_between_techrepsQC(4.5, [1,3,2,1]) # poor
-    std_between_techrepsQC(2, [1,3,2,1]) # ok
-    std_between_techrepsQC(1, [1,3,2,1]) # good
     '''
 
 
@@ -423,7 +407,7 @@ def get_weights(weights_dict):
     if weights_dict is None:
         weights_dict = {
         'sample_collection':[5],
-        'sample_hold_time':[5],
+        'sample_hold_time':[10],
         'extraction_neg_control':[10],
         'extraction_processing_error':[10],
         'extraction_recovery_control':[10],
@@ -432,7 +416,7 @@ def get_weights(weights_dict):
         'qpcr_efficiency':[10],
         'qpcr_num_points':[10],
         'qpcr_stdev_techreps':[10],
-        'qpcr_inhibition':[10],
+        'qpcr_inhibition':[5],
         }
     else:
         check_keys = {'sample_collection',
