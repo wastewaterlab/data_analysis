@@ -18,7 +18,7 @@ def read_table(gc, url, tab):
         df = pd.DataFrame(gc.open_by_url(url).worksheet(tab).get_all_values())
         df.columns = df.iloc[0] #make first row the header
         df = df.iloc[1:]
-        df=df.replace('NA',np.nan)
+        df = df.replace('NA',np.nan)
     return df
 
 def read_sample_logs(gc, sample_log_url, sample_metadata_url, sample_log_tab, sample_metadata_tab):
@@ -57,19 +57,19 @@ def read_sample_logs(gc, sample_log_url, sample_metadata_url, sample_log_tab, sa
 
 def read_plate_data(gc, url, plate, rxn_volume=20.0, template_volume=5.0):
     # read in plate info
-    plate_info_df = read_table(gc, url, plate)
-    plate_info_df.plate_id = pd.to_numeric(plate_info_df.plate_id)
-    plate_info_df.plate_date = pd.to_datetime(plate_info_df.plate_date)
-    plate_info_df[~plate_info_df.plate_id.isna()] # drop empty rows (must have plate_id)
+    plates_df = read_table(gc, url, plate)
+    plates_df.plate_id = pd.to_numeric(plates_df.plate_id)
+    plates_df.plate_date = pd.to_datetime(plates_df.plate_date)
+    plates_df[~plates_df.plate_id.isna()] # drop empty rows (must have plate_id)
     # fill in default values
-    plate_info_df.loc[plate_info_df.rxn_volume.isna(), 'rxn_volume'] = rxn_volume
-    plate_info_df.loc[plate_info_df.template_volume.isna(), 'template_volume'] = template_volume
+    plates_df.loc[plates_df.rxn_volume.isna(), 'rxn_volume'] = rxn_volume
+    plates_df.loc[plates_df.template_volume.isna(), 'template_volume'] = template_volume
 
-    if not len(qpcr_plate_df.plate_id) == len(set(qpcr_plate_df.plate_id)):
+    if not len(plates_df.plate_id) == len(set(plates_df.plate_id)):
         # check for duplicate plate_id
         raise ValueError('multiple plate info entries with same plate_id')
 
-    return plate_info_df
+    return plates_df
 
 
 def read_sample_data(gc, url, samples, sites, salted_tube_weight=23.485):
@@ -123,48 +123,48 @@ def read_sample_data(gc, url, samples, sites, salted_tube_weight=23.485):
     return samples_sites_df
 
 
-def extract_dilution(qpcr_data):
+def extract_dilution(qpcr_df):
     '''
     splits the sample name if it starts with digitX_ (also handles lowercase x)
     captures the dilution in a new column, renames samples
     if samples were not diluted, dilution will be 1
     '''
-    dilution_sample_names_df = qpcr_data.Sample.str.extract(r'^(\d+)[X,x]_(.+)', expand=True)
+    dilution_sample_names_df = qpcr_df.Sample.str.extract(r'^(\d+)[X,x]_(.+)', expand=True)
     dilution_sample_names_df = dilution_sample_names_df.rename(columns = {0: 'dilution', 1: 'Sample_new'})
-    qpcr_data = pd.concat([qpcr_data, dilution_sample_names_df], axis=1)
-    qpcr_data.loc[qpcr_data.Sample_new.isna(), 'Sample_new'] = qpcr_data.Sample
-    qpcr_data.loc[qpcr_data.dilution.isna(), 'dilution'] = 1
-    qpcr_data = qpcr_data.rename(columns = {'Sample_new' : 'Sample', 'Sample' : 'sample_full'})
-    qpcr_data.dilution = pd.to_numeric(qpcr_data.dilution)
+    qpcr_df = pd.concat([qpcr_df, dilution_sample_names_df], axis=1)
+    qpcr_df.loc[qpcr_df.Sample_new.isna(), 'Sample_new'] = qpcr_df.Sample
+    qpcr_df.loc[qpcr_df.dilution.isna(), 'dilution'] = 1
+    qpcr_df = qpcr_df.rename(columns = {'Sample_new' : 'Sample', 'Sample' : 'sample_full'})
+    qpcr_df.dilution = pd.to_numeric(qpcr_df.dilution)
 
-    return qpcr_data
+    return qpcr_df
 
 
-def read_qpcr_data(gc, url, qpcr, show_all_values=False):
+def read_qpcr_df(gc, url, qpcr, show_all_values=False):
   ''' Read in raw qPCR data page from the qPCR spreadsheet
   '''
-  qpcr_data = read_table(gc, url, qpcr)
-  qpcr_data = extract_dilution(qpcr_data)
+  qpcr_df = read_table(gc, url, qpcr)
+  qpcr_df = extract_dilution(qpcr_df)
 
   # drop empty wells (these shouldn't be imported but can happen by accident)
-  qpcr_data = qpcr_data[~qpcr_data.Sample.isna()]
+  qpcr_df = qpcr_df[~qpcr_df.Sample.isna()]
 
   # filter to remove secondary values for a sample run more than once
   if show_all_values is False:
-      qpcr_data = qpcr_data[qpcr_data.is_primary_value != 'N']
+      qpcr_df = qpcr_df[qpcr_df.is_primary_value != 'N']
 
   # create column to preserve info about true undetermined values
   # set column equal to boolean outcome of asking if Cq is Undetermined
-  qpcr_data['is_undetermined'] = False
-  qpcr_data['is_undetermined'] = (qpcr_data.Cq == 'Undetermined')
+  qpcr_df['is_undetermined'] = False
+  qpcr_df['is_undetermined'] = (qpcr_df.Cq == 'Undetermined')
 
   # convert fields to numerics and dates
-  qpcr_data.Quantity = pd.to_numeric(qpcr_data.Quantity, errors='coerce')
-  qpcr_data.Cq = pd.to_numeric(qpcr_data.Cq, errors='coerce')
-  qpcr_data.plate_id = pd.to_numeric(qpcr_data.plate_id, errors='coerce')
+  qpcr_df.Quantity = pd.to_numeric(qpcr_df.Quantity, errors='coerce')
+  qpcr_df.Cq = pd.to_numeric(qpcr_df.Cq, errors='coerce')
+  qpcr_df.plate_id = pd.to_numeric(qpcr_df.plate_id, errors='coerce')
 
   # get a column with only the target (separate info about the standard and master mix)
-  qpcr_data['Target_full'] = qpcr_data['Target']
-  qpcr_data['Target'] = qpcr_data['Target'].apply(lambda x: x.split()[0])
+  qpcr_df['Target_full'] = qpcr_df['Target']
+  qpcr_df['Target'] = qpcr_df['Target'].apply(lambda x: x.split()[0])
 
-  return qpcr_data
+  return qpcr_df
