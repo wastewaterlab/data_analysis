@@ -32,12 +32,14 @@ def get_extraction_control(sample_data_qpcr, control_sample_code='control_contro
         if control_sample_code in df.sample_code.to_list():
             extraction_controls = df[df.sample_code == control_sample_code]
 
-            # if at least one control was not undetermined in all 3 replicates
-            if extraction_controls.nondetect_count.min() < 3:
+            # if at least one control amplified in 2 of 3 replicates
+            # (if none amplified, nondetect_count = 3,
+            # if 1 amplified, nondetect_count = 2), report if less than 2
+            if extraction_controls.nondetect_count.min() < 2:
                 extraction_control_is_neg = False
                 # Cq is a list, hence apply to get mean of list
                 # then choose lowest extraction control mean Cq from the batch
-                extraction_control_Cq = extraction_controls.Cq.apply(np.mean).min()
+                extraction_control_Cq = extraction_controls.Cq.apply(np.nanmean).min()
             else:
                 extraction_control_is_neg = True
 
