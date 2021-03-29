@@ -42,9 +42,12 @@ def get_extraction_control(sample_data_qpcr, control_sample_code='control_contro
                 extraction_control_is_neg = True
 
         # create columns in df with extraction control info and save
-        df['extraction_control_is_neg'] = extraction_control_is_neg
-        df['extraction_control_Cq'] = extraction_control_Cq
-        df_with_extraction_control.append(df)
+        df_save = df.copy() # make copy to prevent editing the original
+        df_save['extraction_control_is_neg'] = extraction_control_is_neg
+        df_save['extraction_control_Cq'] = extraction_control_Cq
+        # remove extraction control rows
+        df_save = df_save[df_save.sample_code != control_sample_code].copy()
+        df_with_extraction_control.append(df_save)
     df_with_extraction_control = pd.concat(df_with_extraction_control)
 
     return(df_with_extraction_control)
