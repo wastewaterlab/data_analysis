@@ -103,6 +103,9 @@ def read_sample_data(gc, url, samples, sites, salted_tube_weight=23.485):
     samples_df.bCoV_spike_vol_ul = pd.to_numeric(samples_df.bCoV_spike_vol_ul, errors='coerce')
     samples_df.GFP_spike_vol_ul = pd.to_numeric(samples_df.GFP_spike_vol_ul, errors='coerce')
 
+    # substitute NaN for empty string so pd.isnull() will run on this field
+    samples_df.loc[samples_df.processing_error == '', 'processing_error'] = np.nan
+
     # instead of assuming all samples are 40 mL, use the weight of the sample
     # minus weight of the tube, which we experimentally measured 10 times
     samples_df['weight_vol_extracted_ml'] = samples_df.weight - salted_tube_weight
@@ -140,7 +143,7 @@ def extract_dilution(qpcr_df):
     return qpcr_df
 
 
-def read_qpcr_df(gc, url, qpcr, show_all_values=False):
+def read_qpcr_data(gc, url, qpcr, show_all_values=False):
   ''' Read in raw qPCR data page from the qPCR spreadsheet
   '''
   qpcr_df = read_table(gc, url, qpcr)
@@ -151,7 +154,7 @@ def read_qpcr_df(gc, url, qpcr, show_all_values=False):
 
   # filter to remove secondary values for a sample run more than once
   if show_all_values is False:
-      qpcr_df = qpcr_df[qpcr_df.is_primary_value != 'N']
+      qpcr_df = qpcr_df[qpcr_df.is_primary_value != 'N'].copy()
 
   # create column to preserve info about true undetermined values
   # set column equal to boolean outcome of asking if Cq is Undetermined
