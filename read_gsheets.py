@@ -98,6 +98,7 @@ def read_sample_data(gc, url, samples, sites, salted_tube_weight=23.485):
     # convert fields to datetime and numeric
     samples_df.date_sampling = pd.to_datetime(samples_df.date_sampling, errors='coerce')
     samples_df.date_extract = pd.to_datetime(samples_df.date_extract, errors='coerce')
+    samples_df.date_frozen = pd.to_datetime(samples_df.date_frozen, errors='coerce')
     samples_df.elution_vol_ul = pd.to_numeric(samples_df.elution_vol_ul, errors='coerce')
     samples_df.weight = pd.to_numeric(samples_df.weight, errors='coerce')
     samples_df.bCoV_spike_vol_ul = pd.to_numeric(samples_df.bCoV_spike_vol_ul, errors='coerce')

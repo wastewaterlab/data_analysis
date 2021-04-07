@@ -63,6 +63,9 @@ def preprocess_sample_data(df_samples, df_sites):
     df_samples.bCoV_spike_vol_ul = pd.to_numeric(df_samples.bCoV_spike_vol_ul, errors='coerce')
     df_samples.GFP_spike_vol_ul = pd.to_numeric(df_samples.GFP_spike_vol_ul, errors='coerce')
 
+    # substitute NaN for empty string so pd.isnull() will run on this field
+    df_samples.loc[df_samples.processing_error == '', 'processing_error'] = np.nan
+
     if not len(df_samples.sample_id) == len(set(df_samples.sample_id)):
         duplicates = df_samples[df_samples.sample_id.duplicated()].sample_id.to_list()
         warnings.warn(f'duplicate sample_id: {duplicates}')
@@ -75,7 +78,7 @@ def preprocess_sample_data(df_samples, df_sites):
     return df_samples_sites
 
 
-def preprocess_plate_data(df_plates):
+def preprocess_plate_data(df_plates, rxn_volume=20.0, template_volume=5.0):
     df_plates = df_plates[[
                          'plate_id',
                          'plate_file_name',
@@ -95,6 +98,11 @@ def preprocess_plate_data(df_plates):
     df_plates.plate_date = pd.to_datetime(df_plates.plate_date, errors='coerce')
     df_plates.rxn_volume = pd.to_numeric(df_plates.rxn_volume, errors='coerce')
     df_plates.template_volume = pd.to_numeric(df_plates.template_volume, errors='coerce')
+
+    df_plates[~df_plates.plate_id.isna()] # drop empty rows (must have plate_id)
+    # fill in default values
+    df_plates.loc[df_plates.rxn_volume.isna(), 'rxn_volume'] = rxn_volume
+    df_plates.loc[df_plates.template_volume.isna(), 'template_volume'] = template_volume
 
     if not len(df_plates.plate_id) == len(set(df_plates.plate_id)):
         # check for duplicate plate_id
