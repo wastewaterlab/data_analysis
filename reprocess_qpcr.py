@@ -217,13 +217,15 @@ def process_unknown(plate_df, target, intercept, slope, lod=4):
     unknown_df['Quantity_no_outliers'] = unknown_df.Cq_no_outliers.apply(lambda x: [Cq_to_quantity(Cq, slope, intercept) for Cq in x])
 
     #substitute half_lod quantity for NaN (nondetect technical replicates) in lists of quantitites
+    # HARDCODED to only substitute 1/2 LoD for N1 results
     if target == 'N1':
         unknown_df['Quantity_lod_sub'] = unknown_df.Quantity_no_outliers.apply(lambda x: [half_lod if np.isnan(quant) else quant for quant in x])
     else:
         unknown_df['Quantity_lod_sub'] = unknown_df.Quantity_no_outliers
 
-    # calculate geometric mean of quantities (after substitution)
+    # calculate geometric mean and std of quantities (after substitution)
     unknown_df['Quantity_mean'] = unknown_df.Quantity_lod_sub.apply(sci.gmean)
+    unknown_df['Quantity_std'] = unknown_df.Quantity_lod_sub.apply(sci.gstd)
 
     # calculate geometric std of quantities for getting intraassay_var below
     # (without substitution so we can get at true variation, not biased by substitution)
