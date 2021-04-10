@@ -218,8 +218,19 @@ def process_unknown(plate_df, target, intercept, slope, lod=4):
 
     #substitute half_lod quantity for NaN (nondetect technical replicates) in lists of quantitites
     # HARDCODED to only substitute 1/2 LoD for N1 results
+    def substitute_lod(quantities, half_lod):
+        quantities_sub = []
+        for i in quantities:
+            if np.isnan(i):
+                quantities_sub.append(half_lod)
+            elif i < half_lod:
+                quantities_sub.append(half_lod)
+            else:
+                quantities_sub.append(i)
+        return quantities_sub
+
     if target == 'N1':
-        unknown_df['Quantity_lod_sub'] = unknown_df.Quantity_no_outliers.apply(lambda x: [half_lod if np.isnan(quant) else quant for quant in x])
+        unknown_df['Quantity_lod_sub'] = unknown_df.Quantity_no_outliers.apply(lambda x: substitute_lod(x, half_lod))#(lambda x: [half_lod if np.isnan(quant) else quant for quant in x])
     else:
         unknown_df['Quantity_lod_sub'] = unknown_df.Quantity_no_outliers
 
