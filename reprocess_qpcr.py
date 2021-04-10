@@ -224,8 +224,8 @@ def process_unknown(plate_df, target, intercept, slope, lod=4):
         unknown_df['Quantity_lod_sub'] = unknown_df.Quantity_no_outliers
 
     # calculate geometric mean and std of quantities (after substitution)
-    unknown_df['Quantity_mean'] = unknown_df.Quantity_lod_sub.apply(sci.gmean)
-    unknown_df['Quantity_std'] = unknown_df.Quantity_lod_sub.apply(sci.gstd)
+    unknown_df['Quantity_mean'] = unknown_df.Quantity_lod_sub.apply(get_gmean)
+    unknown_df['Quantity_std'] = unknown_df.Quantity_lod_sub.apply(get_gstd)
 
     # calculate geometric std of quantities for getting intraassay_var below
     # (without substitution so we can get at true variation, not biased by substitution)
