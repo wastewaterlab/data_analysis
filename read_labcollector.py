@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import requests
 
@@ -23,15 +24,17 @@ def preprocess_site_data(df_sites):
     return df_sites
 
 
-def preprocess_sample_data(df_samples, df_sites):
+def preprocess_sample_data(df_samples, df_sites, salted_tube_weight=23.485):
     '''rename fields from LabCollector db and subset fields
     to mesh with existing code'''
-    df_samples = df_samples.rename(columns={'bcov_spike_tube': 'bCoV_spike_tube',
-                                        'gfp_spike_tube': 'GFP_spike_tube',
-                                        'qpcr_batch': 'qPCR_batch',
-                                        'bcov_spike_vol_ul': 'bCoV_spike_vol_ul',
-                                        'gfp_spike_vol_ul': 'GFP_spike_vol_ul'
-                                       })
+    df_samples = df_samples.drop(columns = 'sample_id') # this column is empty, should use column "label"
+    df_samples = df_samples.rename(columns={'label': 'sample_id',
+                                            'bcov_spike_tube': 'bCoV_spike_tube',
+                                            'gfp_spike_tube': 'GFP_spike_tube',
+                                            'qpcr_batch': 'qPCR_batch',
+                                            'bcov_spike_vol_ul': 'bCoV_spike_vol_ul',
+                                            'gfp_spike_vol_ul': 'GFP_spike_vol_ul'
+                                           })
     df_samples = df_samples[[
                              'sample_id',
                              'batch',
@@ -53,7 +56,7 @@ def preprocess_sample_data(df_samples, df_sites):
                              'GFP_spike_vol_ul',
                             ]].copy()
     # drop rows without sample_code (means row is empty)
-    df_samples = df_samples[(df_samples.sample_code.isna())]
+    df_samples = df_samples[~(df_samples.sample_code.isna())]
 
     df_samples.date_sampling = pd.to_datetime(df_samples.date_sampling, errors='coerce')
     df_samples.date_extract = pd.to_datetime(df_samples.date_extract, errors='coerce')
@@ -65,6 +68,12 @@ def preprocess_sample_data(df_samples, df_sites):
 
     # substitute NaN for empty string so pd.isnull() will run on this field
     df_samples.loc[df_samples.processing_error == '', 'processing_error'] = np.nan
+
+    # instead of assuming all samples are 40 mL, use the weight of the sample
+    # minus weight of the tube, which we experimentally measured 10 times
+    df_samples['weight_vol_extracted_ml'] = df_samples.weight - salted_tube_weight
+    # if weight is missing, assign value of 40
+    df_samples.loc[df_samples.weight_vol_extracted_ml.isna(), 'weight_vol_extracted_ml'] = 40
 
     if not len(df_samples.sample_id) == len(set(df_samples.sample_id)):
         duplicates = df_samples[df_samples.sample_id.duplicated()].sample_id.to_list()
