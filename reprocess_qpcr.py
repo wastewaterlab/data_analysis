@@ -352,8 +352,8 @@ def choose_dilution(qpcr_processed):
     df_qpcr_in['Quantity_mean_undiluted'] = df_qpcr_in['Quantity_mean'] * df_qpcr_in['dilution']
 
     keep_df = []
-    is_inhibited = None
     for [Sample, Target], df in df_qpcr_in.groupby(['Sample', 'Target']):
+        is_inhibited = None
         df = df.reset_index().drop(columns='index')
         # check for duplicates, warn and keep just the first one - data should be clean and this shouldn't happen.
         if len(df.dilution.unique()) != len(df.dilution):
@@ -361,8 +361,11 @@ def choose_dilution(qpcr_processed):
             warnings.warn(f'Sample {Sample} x {Target} has multiple entries with the same dilution factor in plates {plate_ids}')
             df = df.drop_duplicates('dilution', keep='first').copy()
 
+        # if there was only one dilution run
+        if len(df) == 1:
+             keep = df.copy()
         # if all dilutions were below the limit of detection or were unquantified
-        if df.below_limit_of_detection.all() or df.Quantity_mean_undiluted.isna().all():
+        elif df.below_limit_of_detection.all() or df.Quantity_mean_undiluted.isna().all():
             # if they both have the same number of nondetects
             if len(df.nondetect_count.unique()) == 1:
                 # keep the lowest dilution because this is most likely to be accurately quantified
