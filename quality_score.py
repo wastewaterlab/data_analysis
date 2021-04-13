@@ -326,8 +326,9 @@ def qpcr_inhibitionQC(is_inhibited) -> ScoringInfo:
     si = ScoringInfo()
     name = 'qPCR inhibition'
 
-    if is_inhibited == None: # poor
+    if pd.isnull(is_inhibited): # poor
         # this will happen if one or both dilutions are below limit of detection
+        # or if only one dilution was run
         si.score = 0 # can't determine inhibition, may be inhibited!
         si.point_deduction = f'{name} was undetermined'
     elif is_inhibited == False: #good
@@ -506,6 +507,7 @@ def quality_score(df, weights_dict=None):
     weights_df = weights_df.reset_index()
 
     final_scores_df = []
+    all_scores_df = []
     for r in df.itertuples():
         # make empty score dataframe for this row
 
@@ -557,6 +559,11 @@ def quality_score(df, weights_dict=None):
         point_deductions = ''
         estimation = ''
 
+        # save scoring info in DataFrame
+        score_info = score_df[['score']].copy().transpose()
+        score_info['Sample'] = r.Sample
+        all_scores_df.append(score_info)
+
         # multiply scores by weights and calculate total weighted scores
         score_df = score_df.reset_index()
         score_df = score_df.merge(weights_df, left_on='index', right_on='index')
@@ -589,4 +596,5 @@ def quality_score(df, weights_dict=None):
                                                          'point_deduction',
                                                          'estimation'])
 
-    return(final_scores_df)
+    all_scores_df = pd.concat(all_scores_df)
+    return(final_scores_df, all_scores_df)
