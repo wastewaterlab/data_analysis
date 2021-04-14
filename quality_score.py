@@ -32,8 +32,8 @@ def sample_collectionQC(Sample_type, total_hrs_sampling, sampling_notes) -> Scor
     name = 'composite_hrs'
 
     if pd.isnull(Sample_type):
-        si.flag = f'missing sample type'
-        si.score = 0 # missing info, can't score
+        si.flag = f'missing sample type, but given full points'
+        si.score = 1 # missing info, can't score, assume full points
         return si
 
     if not pd.isnull(sampling_notes):
@@ -303,6 +303,7 @@ def qpcr_stdev_techrepsQC(Quantity_std_nosub) -> ScoringInfo:
     if np.isnan(Quantity_std_nosub):
         # this will happen for all non-detects
         si.point_deduction = f'missing {name} due to nondetects'
+        si.score = 1 # give full points
         return si
 
     if (Quantity_std_nosub < 2): #good
