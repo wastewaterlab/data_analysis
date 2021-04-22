@@ -151,7 +151,7 @@ def extraction_recovery_controlQC(bCoV_perc_recovered) -> ScoringInfo:
     si = ScoringInfo()
     name = 'Spike-in control virus recovery'
 
-    if np.isnan(bCoV_perc_recovered):
+    if pd.isnull(bCoV_perc_recovered):
         si.flag = f'missing {name}'
         si.score = 0 # no bCoV data, so can't score
         si.point_deduction = f'missing {name}'
