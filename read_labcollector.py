@@ -6,7 +6,7 @@ import requests
 def preprocess_site_data(df_sites):
     '''rename fields from LabCollector db and subset fields
     to mesh with existing code'''
-    df_sites = df_sites.rename(columns={'utility_code': 'utility', 'sample_code_concat': 'sample_code'})
+    df_sites = df_sites.rename(columns={'utility_code': 'utility', 'name': 'sample_code'})
     df_sites = df_sites[['utility_name',
                        'county',
                        'utility',
