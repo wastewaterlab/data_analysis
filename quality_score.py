@@ -292,28 +292,53 @@ def qpcr_num_pointsQC(param: float) -> ScoringInfo:
     return si
 
 
-def qpcr_stdev_techrepsQC(Quantity_std_nosub) -> ScoringInfo:
-    '''Account for geometric standard deviation between quantities
-    in technical replicates, as calculated based on standard curve
+# def qpcr_stdev_techrepsQC(Quantity_std_nosub) -> ScoringInfo:
+#     '''Account for geometric standard deviation between quantities per well
+#     in technical replicates, as calculated based on standard curve
+#     '''
+#
+#     si = ScoringInfo()
+#     name = 'geometric std between technical reps'
+#
+#     if np.isnan(Quantity_std_nosub):
+#         # this will happen for all non-detects
+#         si.point_deduction = f'missing {name} due to nondetects'
+#         si.score = 1 # give full points
+#         return si
+#
+#     if (Quantity_std_nosub < 2): #good
+#         si.score = 1
+#     elif (Quantity_std_nosub <= 4): #ok
+#         si.score = 0.5
+#         si.point_deduction = f'{name} between 2 and 4'
+#     else: #poor
+#         si.score = 0
+#         si.point_deduction = f'{name} greater than 4'
+#
+#     return si
+def qpcr_stdev_techrepsQC(Cq_no_outliers) -> ScoringInfo:
+    '''Account for standard deviation between Cqs of
+    in technical replicates (after outlier removal)
     '''
 
     si = ScoringInfo()
-    name = 'geometric std between technical reps'
+    name = 'std of Cqs among technical reps'
+    std = np.std(Cq_no_outliers)
 
-    if np.isnan(Quantity_std_nosub):
+    if np.isnan(std):
         # this will happen for all non-detects
         si.point_deduction = f'missing {name} due to nondetects'
         si.score = 1 # give full points
         return si
 
-    if (Quantity_std_nosub < 2): #good
+    if (std < 0.5): #good
         si.score = 1
-    elif (Quantity_std_nosub <= 4): #ok
+    elif (std <= 1): #ok
         si.score = 0.5
-        si.point_deduction = f'{name} between 2 and 4'
+        si.point_deduction = f'{name} between 0.5 and 1 Cq'
     else: #poor
         si.score = 0
-        si.point_deduction = f'{name} greater than 4'
+        si.point_deduction = f'{name} greater than 1 Cq'
 
     return si
 
@@ -522,7 +547,8 @@ def quality_score(df, weights_dict=None):
         qpcr_neg_control = qpcr_neg_controlQC(r.ntc_is_neg, r.ntc_Cq, r.Cq).to_tuple()
         qpcr_efficiency = qpcr_efficiencyQC(r.efficiency).to_tuple()
         qpcr_num_points = qpcr_num_pointsQC(r.num_points).to_tuple()
-        qpcr_stdev_techreps = qpcr_stdev_techrepsQC(r.Quantity_std_nosub).to_tuple()
+        # qpcr_stdev_techreps = qpcr_stdev_techrepsQC(r.Quantity_std_nosub).to_tuple()
+        qpcr_stdev_techreps = qpcr_stdev_techrepsQC(r.Cq_no_outliers).to_tuple()
         qpcr_inhibition = qpcr_inhibitionQC(r.is_inhibited).to_tuple()
 
         # combine all scores for this row into single dataframe
