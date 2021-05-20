@@ -19,8 +19,9 @@ def get_extraction_control(sample_data_qpcr, control_sample_code='control_contro
 
     # make empty dataframe to return
     df_with_extraction_control = []
-    # save samples missing batch number
-    missing_batch = sample_data_qpcr[sample_data_qpcr.batch.isna()]
+    # save samples missing batch number (but not extraction controls)
+    missing_batch = sample_data_qpcr[(sample_data_qpcr.batch.isna()) &
+                                     (sample_data_qpcr.sample_code != control_sample_code)]
     df_with_extraction_control.append(missing_batch)
 
     for [batch, Target], df in sample_data_qpcr.groupby(['batch', 'Target']):
