@@ -144,7 +144,7 @@ def extract_dilution(qpcr_df):
     return qpcr_df
 
 
-def read_qpcr_data(gc, url, qpcr, show_all_values=False):
+def read_qpcr_data(gc, url, qpcr, show_all_values=False, nondetect_string='Undetermined'):
   ''' Read in raw qPCR data page from the qPCR spreadsheet
   '''
   qpcr_df = read_table(gc, url, qpcr)
@@ -158,9 +158,9 @@ def read_qpcr_data(gc, url, qpcr, show_all_values=False):
       qpcr_df = qpcr_df[qpcr_df.is_primary_value != 'N'].copy()
 
   # create column to preserve info about true undetermined values
-  # set column equal to boolean outcome of asking if Cq is Undetermined
+  # set column equal to boolean outcome of asking if Cq is nondetect
   qpcr_df['is_undetermined'] = False
-  qpcr_df['is_undetermined'] = (qpcr_df.Cq == 'Undetermined')
+  qpcr_df['is_undetermined'] = (qpcr_df.Cq == nondetect_string)
 
   # convert fields to numerics and dates
   qpcr_df.Quantity = pd.to_numeric(qpcr_df.Quantity, errors='coerce')
