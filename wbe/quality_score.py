@@ -493,7 +493,7 @@ def quality_score(df, weights_dict=None):
         ntc_Cq
         efficiency
         num_points
-        Quantity_std_nosub
+        Cq_no_outliers
         is_inhibited
 
     weights_dict
@@ -522,7 +522,7 @@ def quality_score(df, weights_dict=None):
         'ntc_Cq',
         'efficiency',
         'num_points',
-        'Quantity_std_nosub',
+        'Cq_no_outliers',
         'is_inhibited'}
 
     if qc_fields - set(df.columns) != set():
@@ -547,7 +547,6 @@ def quality_score(df, weights_dict=None):
         qpcr_neg_control = qpcr_neg_controlQC(r.ntc_is_neg, r.ntc_Cq, r.Cq).to_tuple()
         qpcr_efficiency = qpcr_efficiencyQC(r.efficiency).to_tuple()
         qpcr_num_points = qpcr_num_pointsQC(r.num_points).to_tuple()
-        # qpcr_stdev_techreps = qpcr_stdev_techrepsQC(r.Quantity_std_nosub).to_tuple()
         qpcr_stdev_techreps = qpcr_stdev_techrepsQC(r.Cq_no_outliers).to_tuple()
         qpcr_inhibition = qpcr_inhibitionQC(r.is_inhibited).to_tuple()
 
