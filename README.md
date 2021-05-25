@@ -8,9 +8,10 @@ Additional modules are utilities for parsing inputs and calculating various para
 
 
 # Details
-## process_qpcr:
+## process_qpcr
 This module contains functions and a wrapper function `process_qpcr_plate()` for processing a full qPCR plate from raw data to average gene copies per well for each sample.  It assumes the samples, standards, and controls were run in triplicate wells. If there were multiple targets per plate or multiplexed assays, each is expected to have its own standard curve (reported in separate rows of the table).
 
+### process_qpcr_plate
 The code should be called from within a script or notebook as `process_qpcr_plate(plates, duplicate_max_std, lod)` where `plates` is a pandas dataframe of qPCR results (e.g. loaded from a csv downloaded from the machine) with columns: `['plate_id', 'Sample', 'Target', 'Task', 'Cq', 'Quantity', 'is_undetermined']`. The `is_undetermined` column should be True/False, and if True, the value of `Cq` should be NaN. Additional optional columns include `dilution` (if multiple dilutions were run on each sample and target, and `Target_full` (which could contain additional information about the assay such as mastermix type, standard batch ID, etc.). See additional details and return values below.
 
 The code performs the following steps:
@@ -46,7 +47,12 @@ The code performs the following steps:
   * `qpcr_processed`: dataframe where each row is an Unknown (sample) and all calculations are repoarted (includes Quantity_mean, Quantity_std, list of Cqs, etc.)
   * `plate_target_info`: metadata about each assay on the plate (includes slope and intercept of standard curve, NTC results, intra-assay variation, etc.)
 
-### choose_dilution:
+#### Caveats and hardcodes
+* assumes triplicate qPCR reactions
+* hardcoded default standard curves for Targets: 'N1', 'PMMoV', 'bCoV'. Standard curves will not be replaced for other targets
+* will replace nondetects and low values with 1/2 LoD only for Target == 'N1'
+
+### choose_dilution
 The function `choose_dilution()` can be used if there are multiple dilutions run for a given sample and target (to reduce inhibition but maximize signal). The function will compare all dilutions and choose the best one to report based on the least inhibition, whether dilutions were below the detection limit, and fewest non-detects in technical triplicates.
 
 Input is the `qpcr_processed` dataframe produced by `process_qpcr_plate()`.
@@ -98,4 +104,4 @@ weights_dict = {
     }
 ```
 
-For more details, please see comments in code. If you want to use this code in your lab but need help, please contact the authors (rkantor - at - berkeley.edu).
+**For more details, please see comments in code. If you want to use this code in your lab but need help, please contact the authors (rkantor - at - berkeley.edu).**
