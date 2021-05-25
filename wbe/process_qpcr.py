@@ -252,7 +252,7 @@ def process_unknown(plate_df, target, intercept, slope, lod=4):
     unknown_df.loc[unknown_df.Quantity_mean > lod, 'below_limit_of_detection'] = False
     unknown_df.loc[unknown_df.Quantity_mean <= lod, 'below_limit_of_detection'] = True
 
-    # calculate the coefficient of variation using QuantStudio original quantities to capture variation on the plate
+    # calculate the coefficient of variation to capture variation on the plate
     if not unknown_df.Quantity_std_nosub.isna().all():
         percent_cv = (unknown_df['Quantity_std_nosub']-1)*100
         intraassay_var = np.nanmean(percent_cv)
@@ -289,7 +289,11 @@ def process_qpcr_plate(plates, duplicate_max_std=0.5, lod=4):
         plate_target_info:
     '''
     if 'dilution' not in plates.columns:
-        raise ValueError(''' qPCR data is missing column 'dilution' ''')
+        #raise ValueError(''' qPCR data is missing column 'dilution' ''')
+        plates['dilution'] = 1
+
+    if 'Target_full' not in plates.columns:
+        plates['Target_full'] = plates['Target']
 
     plate_target_info = []
     qpcr_processed = []
