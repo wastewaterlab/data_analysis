@@ -157,15 +157,15 @@ def extraction_recovery_controlQC(bCoV_perc_recovered) -> ScoringInfo:
         si.point_deduction = f'missing {name}'
         return si
 
-    if bCoV_perc_recovered >= 10:
+    if bCoV_perc_recovered >= 5:
         si.score = 1
-    elif bCoV_perc_recovered >= 5:
+    elif bCoV_perc_recovered >= 1:
         si.score = 0.5
-        si.point_deduction = f'{name} was 5-10%'
+        si.point_deduction = f'{name} was 1-5%'
         si.estimation = 'under'
     else:
         si.score = 0
-        si.point_deduction = f'{name} was less than 5%'
+        si.point_deduction = f'{name} was less than 1%'
         si.estimation = 'under'
     return si
 
@@ -184,9 +184,9 @@ def extraction_fecal_controlQC(pmmov_gc_per_mL) -> ScoringInfo:
         si.point_deduction = f'missing {name}'
         return si
 
-    if pmmov_gc_per_mL >= 1e3:
+    if pmmov_gc_per_mL >= 2e3:
         si.score = 1
-    elif pmmov_gc_per_mL >= 1e2:
+    elif pmmov_gc_per_mL >= 2e2:
         si.score = 0.5
         si.point_deduction = f'{name} was low'
         si.estimation = 'under'
