@@ -60,7 +60,7 @@ Input is the `qpcr_processed` dataframe produced by `process_qpcr_plate()`.
 The output will be a filtered version of the `qpcr_processed` dataframe containing only the chosen dilutions, and an updated `Quantity_mean` column that has been multiplied by the dilution factor. The output will also include an assessment of inhibition in the column `is_inhibited` that is based on whether the effective quantity increased with increasing dilution. Please note that this function has not been thoroughly tested with more than 2 dilutions (e.g. 1x and 5x dilutions for each sample and target).
 
 ## quality_score
-This module contains functions and a wrapper `quality_score()` for calculating a weighted "quality score." It consists of codified rules for each QA/QC metric used in the UC Berkeley wastewater monitoring lab. Other labs may wish to include additional parameters or remove parameters, but this module could serve as a useful guide.  The scoring matrix can be found [here](quality_score_table.csv).
+This module contains functions and a wrapper `quality_score()` for calculating a weighted "quality score." It consists of codified rules for each QA/QC metric used in the UC Berkeley wastewater monitoring lab. Other labs may wish to include additional parameters or remove parameters, but this module could serve as a useful guide.  The scoring matrix can be found [here](https://github.com/wastewaterlab/data_analysis/blob/master/wbe/quality_score_table.csv).
 
 The code should be called from a script or a notebook as `quality_score(df, weights_dict=None)` where df is a pandas dataframe with the following columms:
 
