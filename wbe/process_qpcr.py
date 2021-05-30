@@ -358,6 +358,7 @@ def choose_dilution(qpcr_processed):
     keep_df = []
     for [Sample, Target], df in df_qpcr_in.groupby(['Sample', 'Target']):
         is_inhibited = None
+        ratio5x_1x = np.nan
         df = df.reset_index().drop(columns='index')
         # check for duplicates, warn and keep just the first one - data should be clean and this shouldn't happen.
         if len(df.dilution.unique()) != len(df.dilution):
@@ -395,6 +396,15 @@ def choose_dilution(qpcr_processed):
                 is_inhibited = True
             else:
                 is_inhibited = False
+
+            # if Target was N1 and both 5x and undiluted RNA were run,
+            # then calculate and report a ratio for later analysis
+            if Target == 'N1':
+                if set(df.dilution) == {1,5}:
+                    keep = df.iloc[[df.Quantity_mean_undiluted.idxmax()]].copy()
+                    ratio5x_1x = df.loc[df.dilution == 5, 'Quantity_mean_undiluted'].values[0] / df.loc[df.dilution == 1, 'Quantity_mean_undiluted'].values[0]
+
+        keep['ratio5x_1x'] = ratio5x_1x
         keep['is_inhibited'] = is_inhibited
         keep_df.append(keep)
 

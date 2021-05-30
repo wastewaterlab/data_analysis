@@ -343,9 +343,33 @@ def qpcr_stdev_techrepsQC(Cq_no_outliers) -> ScoringInfo:
     return si
 
 
-def qpcr_inhibitionQC(is_inhibited) -> ScoringInfo:
-    '''Account for geometric standard deviation between quantities
-    in technical replicates, as calculated based on standard curve
+def qpcr_inhibitionQC(ratio5x_1x) -> ScoringInfo:
+    '''If 5x and 1x dilutions were run and choose_dilution() was used,
+    this function will evaluate the 'ratio5x_1x' parameter
+    '''
+
+    si = ScoringInfo()
+    name = 'qPCR inhibition'
+
+    if pd.isnull(ratio5x_1x): # poor
+        # this will happen if one or both dilutions are below limit of detection
+        # or if only one dilution was run
+        si.score = 0 # can't determine inhibition, may be inhibited!
+        si.point_deduction = f'{name} was undetermined'
+    elif ratio5x_1x < 2: #good
+        si.score = 1.0
+    elif ratio5x_1x >= 2: #ok
+        si.score = 0.5
+        si.point_deduction = f'{name} occurred'
+
+    return si
+
+
+# parameters not in use
+
+def qpcr_inhibitionQC_original(is_inhibited) -> ScoringInfo:
+    '''If multiple dilutions were run and choose_dilution() was used,
+    this function will evaluate the 'is_inhibited' parameter
     '''
 
 
@@ -366,7 +390,6 @@ def qpcr_inhibitionQC(is_inhibited) -> ScoringInfo:
     return si
 
 
-# parameters not in use
 def qpcr_r2Q(param: float) -> ScoringInfo:
     '''given r2 (qPCR standard curve r2) and list of weights and points
     return quality_score'''
@@ -548,7 +571,7 @@ def quality_score(df, weights_dict=None):
         qpcr_efficiency = qpcr_efficiencyQC(r.efficiency).to_tuple()
         qpcr_num_points = qpcr_num_pointsQC(r.num_points).to_tuple()
         qpcr_stdev_techreps = qpcr_stdev_techrepsQC(r.Cq_no_outliers).to_tuple()
-        qpcr_inhibition = qpcr_inhibitionQC(r.is_inhibited).to_tuple()
+        qpcr_inhibition = qpcr_inhibitionQC(r.ratio5x_1x).to_tuple()
 
         # combine all scores for this row into single dataframe
         score_df = [sample_collection,
