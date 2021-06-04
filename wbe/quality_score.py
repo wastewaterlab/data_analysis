@@ -199,9 +199,8 @@ def extraction_fecal_controlQC(pmmov_gc_per_mL) -> ScoringInfo:
 
 # qPCR parameters
 def qpcr_neg_controlQC(ntc_is_neg, ntc_Cq, sample_Cqs) -> ScoringInfo:
-    '''given ntc_is_neg, ntc_Cq (no-template control outcomes)
-    and list of weights and points
-    return quality_score'''
+    '''no-template control scoring
+    '''
 
 
     si = ScoringInfo()
@@ -232,8 +231,7 @@ def qpcr_neg_controlQC(ntc_is_neg, ntc_Cq, sample_Cqs) -> ScoringInfo:
 
 
 def qpcr_efficiencyQC(param: float) -> ScoringInfo:
-    '''given efficiency (standard curve efficiency) and list of weights and points
-    return quality_score'''
+    '''standard curve efficiency scoring'''
 
 
     si = ScoringInfo()
@@ -267,9 +265,7 @@ def qpcr_efficiencyQC(param: float) -> ScoringInfo:
 
 
 def qpcr_num_pointsQC(param: float) -> ScoringInfo:
-    '''given num_points (number of points in the standard curve)
-    and list of weights and points
-    return quality_score'''
+    '''number of points in the standard curve scoring'''
 
 
     si = ScoringInfo()
@@ -292,30 +288,6 @@ def qpcr_num_pointsQC(param: float) -> ScoringInfo:
     return si
 
 
-# def qpcr_stdev_techrepsQC(Quantity_std_nosub) -> ScoringInfo:
-#     '''Account for geometric standard deviation between quantities per well
-#     in technical replicates, as calculated based on standard curve
-#     '''
-#
-#     si = ScoringInfo()
-#     name = 'geometric std between technical reps'
-#
-#     if np.isnan(Quantity_std_nosub):
-#         # this will happen for all non-detects
-#         si.point_deduction = f'missing {name} due to nondetects'
-#         si.score = 1 # give full points
-#         return si
-#
-#     if (Quantity_std_nosub < 2): #good
-#         si.score = 1
-#     elif (Quantity_std_nosub <= 4): #ok
-#         si.score = 0.5
-#         si.point_deduction = f'{name} between 2 and 4'
-#     else: #poor
-#         si.score = 0
-#         si.point_deduction = f'{name} greater than 4'
-#
-#     return si
 def qpcr_stdev_techrepsQC(Cq_no_outliers) -> ScoringInfo:
     '''Account for standard deviation between Cqs of
     in technical replicates (after outlier removal)
