@@ -4,7 +4,7 @@ The wbe package contains modules for analyzing wastewater qPCR data:
 `process_qpcr.py`: the module contains functions and a wrapper for processing one qPCR plate (see details below)
 `quality_score.py`: module contains functions and a wrapper for calculating a weighted score based on QA/QC parameters
 
-Additional modules are utilities for parsing inputs and calculating various parameters of interest. These are tailored to the UC Berkeley wastewater monitoring lab. They may be of interest but have very specific data formatting requirements.
+Additional modules are utilities for parsing inputs and calculating various parameters of interest. These are tailored to the UC Berkeley wastewater monitoring lab. They may be of interest but have very specific data formatting requirements. For an example of our full pipeline that makes use of these modules, please see this [notebook](https://github.com/wastewaterlab/data_analysis/blob/master/notebooks/pipeline.ipynb).
 
 
 # Details
