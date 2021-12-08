@@ -109,7 +109,7 @@ def process_standard(plate_df, target, duplicate_max_std=0.5):
         warnings.simplefilter("ignore")
         # data required to filter points from curve:
         standard_df['Cq_init_std'] = standard_df.Cq.apply(np.nanstd)
-        standard_df['replicate_count'] = standard_df.Cq_no_outliers.apply(lambda x: sum(~np.isnan(x)))
+        standard_df['replicate_count'] = standard_df.Cq.apply(lambda x: sum(~np.isnan(x))) # previously Cq_no_outliers
         standard_df['nondetect_count'] = standard_df.is_undetermined.apply(sum)
 
         # data required for compute_linear_info
