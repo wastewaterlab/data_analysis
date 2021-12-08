@@ -518,7 +518,7 @@ def quality_score(df, weights_dict=None):
         'efficiency',
         'num_points',
         'Cq_no_outliers',
-        'is_inhibited'}
+        'ratio5x_1x'}
 
     if qc_fields - set(df.columns) != set():
         missing = list(qc_fields - set(df.columns))
