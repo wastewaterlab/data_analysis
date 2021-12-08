@@ -1,7 +1,8 @@
+import json
 import numpy as np
 import pandas as pd
 import requests
-
+import urllib3
 
 def preprocess_site_data(df_sites):
     '''rename fields from LabCollector db and subset fields
@@ -179,7 +180,7 @@ def preprocess_df_qpcr(df_qpcr, show_all_values=False):
     return df_qpcr
 
 
-def make_api_call(url, token):
+def make_api_call_once(url, token):
     headers = {
         'X-LC-APP-Auth': token,
         'Accept': 'application/json'
@@ -196,8 +197,8 @@ def make_api_call(url, token):
     df_samples = pd.read_json(r.text)
     r = requests.get(url+plates, headers=headers)
     df_plates = pd.read_json(r.text)
-    r = requests.get(url+qpcr, headers=headers)
-    df_qpcr = pd.read_json(r.text)
+    #r = requests.get(url+qpcr, headers=headers)
+    #df_qpcr = pd.read_json(r.text)
 
     # see other functions for preprocessing
     # note: df_plates doesn't need any renaming from LabCollector to mesh with existing code
@@ -205,6 +206,57 @@ def make_api_call(url, token):
     df_sites = preprocess_site_data(df_sites)
     df_samples_sites = preprocess_sample_data(df_samples, df_sites)
     df_plates = preprocess_plate_data(df_plates)
-    df_qpcr = preprocess_df_qpcr(df_qpcr)
+    #df_qpcr = preprocess_df_qpcr(df_qpcr)
 
-    return df_samples_sites, df_plates, df_qpcr
+    return df_samples_sites, df_plates#, df_qpcr
+
+
+# added this code to pull from LabCollector in chunks because qPCR table is too big
+
+http = urllib3.PoolManager()
+lab_collector_url = "https://us.labcollector.online/berkeley_env/webservice/v2/{0}/{1}"
+
+def _request(token, item_name, params=None, handle_404=None):
+    str_params = ""
+    if params:
+        for key, val in params.items():
+            str_params += "?" if not str_params else "&"
+            str_params += "{0}={1}".format(key, val)
+    r = http.request(
+        'GET',
+        lab_collector_url.format(item_name, str_params),
+        headers={
+            'X-LC-APP-Auth': token,
+            'Accept': 'application/json'
+        }
+    )
+    if r.status == 200:
+        return r.data.decode('utf-8')
+    if r.status == 404 and handle_404:
+        return handle_404(r)
+    raise Exception("HTTP request (STATUS={0}): {1}".format(r.status, r.data.decode('utf-8')))
+
+def api_qpcr_raw_data(token):
+    chunk_size = 10000
+    chunk_at = 0
+    params = {"limit_to": ""}
+    data = []
+    def stop_at_404(request):
+        return None
+    print("  Pulling qpcr_raw_data chunks..")
+    while True:
+        next_at = chunk_at + chunk_size
+        print("    {0:,}-{1:,}".format(chunk_at, next_at))
+        params["limit_to"] = "{0},{1}".format(chunk_at, chunk_size)
+        results = _request(token, "qpcr_raw_data", params=params, handle_404=stop_at_404)
+        if not results:
+            break
+        data.append(results[1:-1])  # strip array wrapping chars in JSON as string (as we'll concat later)
+        chunk_at = next_at
+    # join into super array then convert json to pandas dataframe and process
+    data = "[{0}]".format(",".join(data))
+    data_json = json.loads(data)
+    df = pd.DataFrame.from_dict(data_json)
+    df_qpcr = preprocess_df_qpcr(df)
+
+    return df_qpcr
